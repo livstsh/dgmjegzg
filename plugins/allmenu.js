@@ -15,7 +15,7 @@ cmd({
         // Count total commands
         const totalCommands = Object.keys(commands).length;
         
-        const menuCaption = `╭━━━〔 *🧚‍♂️𝐒ᴇɴᴜ x 𝐁ᴏᴛ🧚‍♂️* 〕━━━┈⊷
+        const menuCaption = `╭━━━〔 *🧚‍♂️KAMRAN-MD🧚‍♂️* 〕━━━┈⊷
 │ ✓ 𝐎ᴡɴᴇʀ : *KAMRAN*
 │ ✓ 𝐁ᴀɪʟᴇʏꜱ : *Multi Device*
 │ ✓ 𝐓ʏᴘᴇ : *NodeJs*
