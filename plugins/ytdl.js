@@ -94,11 +94,11 @@ cmd({
     alias: ["ytv"],
     desc: "Download YouTube videos",
     category: "download",
-    react: "📹",
+    react: "♻️",
     filename: __filename
 }, async (conn, mek, m, { from, q, reply }) => {
     try {
-        if (!q) return await reply("📺 Please provide video name or URL!\n\nExample: .video funny cat");
+        if (!q) return await reply("♻️ Please provide video name or URL!\n\nExample: .video funny cat");
 
         // Search on YouTube if query is not a link
         let url = q;
@@ -128,7 +128,7 @@ cmd({
         // Send video
         await conn.sendMessage(from, {
             video: { url: videoUrl },
-            caption: `> *${media.title} Downloaded Successfully KAMRAN-MD ✅*`
+            caption: `> *${media.title} Successfully KAMRAN-MD ✅*`
         }, { quoted: mek });
 
         // Success reaction
