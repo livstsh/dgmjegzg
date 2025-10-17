@@ -112,11 +112,15 @@ cmd({
 ┃★╰──────────────
 ┃★╭──────────────
 ┃★│ 🎵 *Music/Video*
+┃★│ • music [name]
+┃★│ • aisong [name]
+┃★│ • sora [name]
 ┃★│ • spotify [query]
 ┃★│ • play [song]
+┃★│ • song0 [query]
 ┃★│ • play2-10 [song]
 ┃★│ • audio [url]
-┃★│ • video [url]
+┃★│ • video [name]
 ┃★│ • video2-10 [url]
 ┃★│ • ytmp3 [url]
 ┃★│ • ytmp4 [url]
