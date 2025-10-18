@@ -10,7 +10,7 @@ cmd({ on: "body" }, async (conn, m, msg, { from, body }) => {
 
     for (const keyword in voiceMap) {
       if (body.toLowerCase() === keyword.toLowerCase()) {
-        if (config.AUTO_VOICE === "false") {
+        if (config.AUTO_VOICE === "true") {
           const audioUrl = voiceMap[keyword];
 
           // Ensure it's a .mp3 or .m4a file
@@ -22,7 +22,7 @@ cmd({ on: "body" }, async (conn, m, msg, { from, body }) => {
           await conn.sendMessage(from, {
             audio: { url: audioUrl },
             mimetype: "audio/mpeg", // This works fine for .mp3 and .m4a
-            ptt: true
+            ptt: false
           }, { quoted: m });
         }
       }
