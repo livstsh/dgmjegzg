@@ -4,7 +4,7 @@ const { cmd } = require("../command");
 
 cmd({ on: "body" }, async (conn, m, msg, { from, body }) => {
   try {
-    const jsonUrl = "https://github.com/novaxmd/BMB-DATA/raw/refs/heads/main/audio.js";
+    const jsonUrl = "https://github.com/novaxmd/BMB-DATA/raw/refs/heads/main/voico.json";
     const res = await axios.get(jsonUrl);
     const voiceMap = res.data;
 
