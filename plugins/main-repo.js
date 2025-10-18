@@ -52,11 +52,11 @@ async (conn, mek, m, { from, reply }) => {
         await conn.sendMessage(from, {
             audio: fs.readFileSync(audioPath),
             mimetype: 'audio/mp4',
-            ptt: true,
+            ptt: false,
             contextInfo: { 
                 mentionedJid: [m.sender],
                 forwardingScore: 999,
-                isForwarded: false,
+                isForwarded: true,
                 forwardedNewsletterMessageInfo: {
                     newsletterJid: '120363418144382782@newsletter',
                     newsletterName: 'Dr Kamran',
