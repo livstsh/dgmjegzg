@@ -56,7 +56,7 @@ async (conn, mek, m, { from, reply }) => {
             contextInfo: { 
                 mentionedJid: [m.sender],
                 forwardingScore: 999,
-                isForwarded: true,
+                isForwarded: false,
                 forwardedNewsletterMessageInfo: {
                     newsletterJid: '120363418144382782@newsletter',
                     newsletterName: 'Dr Kamran',
