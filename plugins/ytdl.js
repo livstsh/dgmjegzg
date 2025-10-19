@@ -80,7 +80,7 @@ cmd({
             video: { url: videoData.download },
             mimetype: 'video/mp4',
             fileName: `${videoData.title || videoTitle || 'video'}.mp4`,
-            caption: `*${videoData.title || videoTitle || 'Video'}*\n\n> *_POWERED BY FATIMA-MD_*`
+            caption: `*${videoData.title || videoTitle || 'Video'}*\n\n> *_POWERED BY KAMRAN-MD_*`
         }, { quoted: mek });
 
     } catch (error) {
@@ -108,7 +108,7 @@ cmd({
             url = videos[0].url;
         }
 
-        const api = `https://gtech-api-xtp1.onrender.com/api/video/yt?apikey=APIKEY&url=${encodeURIComponent(url)}`;
+        const api = `https://jawad-tech.vercel.app/download/yt?url=${encodeURIComponent(url)}`;
         const res = await axios.get(api);
         const json = res.data;
 
