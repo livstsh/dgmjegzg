@@ -27,7 +27,7 @@ cmd({
         // Prepare the description message
         let desc = `
 ┏「🐉ᴋᴀᴍʀᴀɴ-ᴍᴅ ꜱᴜᴘᴘᴏʀᴛ🐉」
-┃ 👨‍💻Owner: ᴋᴀᴠɪᴅᴜ ʀᴀꜱᴀɴɢᴀ
+┃ 👨‍💻Owner: ᴋᴀᴍʀᴀɴ-ᴍᴅ
 ┃ 🤖 Bot Name: ᴋᴀᴍʀᴀɴ-ᴍD
 ┗━━━━━━━━━━━━━━━𖣔𖣔
 ┏━❮ 🩵𝐃𝐄𝐓𝐀𝐋𝐄𝐒🩵 ❯━
