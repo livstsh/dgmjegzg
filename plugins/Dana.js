@@ -39,7 +39,7 @@ async (conn, mek, m, { from, quoted }) => {
         }, { quoted: mek });
     } catch (e) {
         console.error(e);
-        reply('⚠️ දෝෂයක් සිදු විය. API එකෙන් දත්ත ලබා ගැනීමට නොහැකි විය!');
+        reply('⚠️ Pakistan. API ᴋᴀᴍʀᴀɴ-ᴍᴅ ꜱᴜᴘᴘᴏʀᴛ!');
     }
 });
   
