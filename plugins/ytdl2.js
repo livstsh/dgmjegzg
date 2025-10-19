@@ -1,138 +1,117 @@
 const { cmd } = require('../command');
 const axios = require('axios');
-const yts = require('yt-search');
+const https = require('https');
+const Config = require('../config');
 
-cmd({
-    pattern: "song4",
-    alias: ["music4", "play4"],
-    react: "🎵",
-    desc: "Download high quality YouTube audio",
-    category: "download",
-    use: "<song name or YouTube link>",
-    filename: __filename
-}, async (conn, m, mek, { from, q, reply }) => {
-    try {
-        if (!q) return reply("❌ Please provide a song name or YouTube link");
-
-        // Get YouTube URL from query if needed
-        let videoUrl = q;
-        if (!q.match(/(youtube\.com|youtu\.be)/)) {
-            const search = await yts(q);
-            if (!search.videos.length) return reply("❌ No videos found");
-            videoUrl = search.videos[0].url;
-        }
-
-        await reply("⬇️ Downloading audio...");
-
-        // API request
-        const apiUrl = `https://api.giftedtech.web.id/api/download/yta?apikey=gifted&url=${encodeURIComponent(videoUrl)}`;
-        const { data } = await axios.get(apiUrl);
-
-        if (!data?.result?.download_url) {
-            return reply("❌ Failed to get download URL");
-        }
-
-        // Send as document for better quality
-        await conn.sendMessage(from, {
-            document: { url: data.result.download_url },
-            fileName: `${data.result.title.replace(/[^\w\s.-]/g, '')}.mp3`,
-            mimetype: 'audio/mpeg',
-            contextInfo: {
-                externalAdReply: {
-                    title: data.result.title,
-                    body: `Quality: ${data.result.quality} | Duration: ${data.result.duration}`,
-                    thumbnail: await axios.get(data.result.thumbnail, { 
-                        responseType: 'arraybuffer' 
-                    }).then(res => res.data).catch(() => null),
-                    mediaType: 2,
-                    mediaUrl: videoUrl
-                }
-            }
-        }, { quoted: mek });
-
-    } catch (error) {
-        console.error("Song download error:", error);
-        reply(`❌ Error: ${error.response?.data?.message || error.message}`);
-    }
+// Configure axios with better timeout and retry settings
+const apiClient = axios.create({
+  timeout: 30000,
+  httpsAgent: new https.Agent({ 
+    rejectUnauthorized: false,
+    maxFreeSockets: 1,
+    keepAlive: false
+  }),
+  maxRedirects: 2
 });
 
-
-
-
-cmd({
-    pattern: "song5",
-    alias: ["music5", "play5", "ytmp3-5"],
-    react: "🎵",
-    desc: "Download YouTube audio (multiple quality options)",
-    category: "download",
-    use: "<song name/URL> [quality: high/medium/low]",
-    filename: __filename
-}, async (conn, m, mek, { from, q, reply }) => {
-    try {
-        if (!q) return reply("❌ Please provide a song name or YouTube URL\nExample: !song lily by alan walker high");
-
-        // Extract quality preference if provided
-        const [query, qualityPref] = q.split(/\s+(high|medium|low)$/i);
-        const searchQuery = query || q;
-        const quality = qualityPref ? qualityPref.toLowerCase() : 'high';
-
-        // Get YouTube URL
-        let videoUrl = searchQuery;
-        if (!searchQuery.match(/(youtube\.com|youtu\.be)/)) {
-            const search = await yts(searchQuery);
-            if (!search.videos.length) return reply("❌ No videos found");
-            videoUrl = search.videos[0].url;
-        }
-
-        await reply(`⬇️ Downloading ${quality} quality audio...`);
-
-        // Try both API endpoints with fallback
-        let apiResponse;
+cmd(
+    {
+        pattern: 'series',
+        alias: ['tvdl', 'episode'],
+        desc: 'TV series episode downloader',
+        category: 'media',
+        react: '📺',
+        use: '<series> <season> <episode>',
+        filename: __filename,
+    },
+    async (conn, mek, m, { text, reply }) => {
         try {
-            // First try the YTA endpoint (higher quality)
-            const apiUrl = `https://api.giftedtech.web.id/api/download/${
-                quality === 'high' ? 'yta' : 'ytmp3'
-            }?apikey=gifted&url=${encodeURIComponent(videoUrl)}`;
+            // Input validation
+            if (!text) return reply(`📺 *Usage:* ${Config.PREFIX}seriesdl <series> <season> <episode>\nExample: ${Config.PREFIX}seriesdl "Money Heist" 1 1`);
+
+            await conn.sendMessage(mek.chat, { react: { text: "⏳", key: mek.key } });
+
+            // Parse input (supports both formats)
+            let seriesName, seasonNum, episodeNum;
             
-            const { data } = await axios.get(apiUrl, { timeout: 15000 });
-            apiResponse = data;
-        } catch (e) {
-            // Fallback to YTMP3 if YTA fails
-            const fallbackUrl = `https://api.giftedtech.web.id/api/download/ytmp3?apikey=gifted&url=${encodeURIComponent(videoUrl)}`;
-            const { data } = await axios.get(fallbackUrl, { timeout: 15000 });
-            apiResponse = data;
-        }
-
-        if (!apiResponse?.result?.download_url) {
-            return reply("❌ Failed to get download link from API");
-        }
-
-        // Get file extension from URL or default to mp3
-        const fileExt = apiResponse.result.download_url.split('.').pop().split(/[?#]/)[0] || 'mp3';
-        
-        // Send audio file
-        await conn.sendMessage(from, {
-            document: { 
-                url: apiResponse.result.download_url 
-            },
-            fileName: `${apiResponse.result.title.replace(/[^\w\s.-]/g, '')}.${fileExt}`,
-            mimetype: fileExt === 'm4a' ? 'audio/mp4' : 'audio/mpeg',
-            contextInfo: {
-                externalAdReply: {
-                    title: apiResponse.result.title,
-                    body: `Quality: ${apiResponse.result.quality} | Via Subzero API`,
-                    thumbnail: await axios.get(apiResponse.result.thumbnail, { 
-                        responseType: 'arraybuffer' 
-                    }).then(res => res.data).catch(() => null),
-                    mediaType: 2,
-                    mediaUrl: videoUrl
+            // Format 1: "series S01E01"
+            const seasonEpisodeMatch = text.match(/(.+?)\s*s(\d+)e(\d+)/i);
+            if (seasonEpisodeMatch) {
+                seriesName = seasonEpisodeMatch[1];
+                seasonNum = seasonEpisodeMatch[2].padStart(2, '0');
+                episodeNum = seasonEpisodeMatch[3].padStart(2, '0');
+            } 
+            // Format 2: "series 1 1"
+            else {
+                const parts = text.trim().split(/\s+/);
+                if (parts.length >= 3) {
+                    seriesName = parts.slice(0, -2).join(' ');
+                    seasonNum = parts[parts.length-2].padStart(2, '0');
+                    episodeNum = parts[parts.length-1].padStart(2, '0');
                 }
             }
-        }, { quoted: mek });
 
-    } catch (error) {
-        console.error("Download error:", error);
-        reply(`❌ Error: ${error.message}\nPlease try again later`);
+            if (!seriesName || !seasonNum || !episodeNum) {
+                return reply('📺 *Invalid format!* Use:\n.seriesdl <series> <season> <episode>\nOR\n.seriesdl <series> S01E01');
+            }
+
+            // API request
+            const apiUrl = `https://draculazyx-xyzdrac.hf.space/api/Movie/episode?query=${encodeURIComponent(`${seriesName} S${seasonNum}EP${episodeNum}`)}`;
+            const { data } = await apiClient.get(apiUrl);
+
+            if (!data?.download_link) {
+                return reply('📺 *Episode not found!* Check your inputs or try another series');
+            }
+
+            // Prepare and send episode info
+            const cleanTitle = data.title.replace(/\s*\|\s*TV Series.*$/i, '').trim();
+            const fileName = data.download_link.split('/').pop() || `${seriesName}_S${seasonNum}E${episodeNum}.mkv`;
+            
+            const episodeInfo = {
+                text: `📺 *${cleanTitle}*\n\n` +
+                      `🔄 S${seasonNum}E${episodeNum}\n` +
+                      `🔗 ${data.download_link}\n\n` +
+                      `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴍʀ ғʀᴀɴᴋ`,
+                contextInfo: {
+                    externalAdReply: {
+                        title: cleanTitle,
+                        body: `Season ${seasonNum} • Episode ${episodeNum}`,
+                        thumbnailUrl: 'https://files.catbox.moe/dmwm11.jpg',
+                        mediaType: 1,
+                        sourceUrl: data.download_link
+                    }
+                }
+            };
+            await conn.sendMessage(mek.chat, episodeInfo, { quoted: mek });
+
+            // Now send the video file
+            try {
+                const videoResponse = await axios.get(data.download_link, {
+                    responseType: 'arraybuffer',
+                    timeout: 60000,
+                    httpsAgent: new https.Agent({ rejectUnauthorized: false })
+                });
+
+                await conn.sendMessage(mek.chat, {
+                    video: videoResponse.data,
+                    caption: `📺 ${cleanTitle} - S${seasonNum}E${episodeNum}`,
+                    fileName: fileName,
+                    mimetype: 'video/mp4'
+                });
+
+                await conn.sendMessage(mek.chat, { react: { text: "✅", key: mek.key } });
+            } catch (downloadError) {
+                console.error('Download failed:', downloadError);
+                await conn.sendMessage(mek.chat, { react: { text: "⚠️", key: mek.key } });
+                reply('📺 *Video send failed!* Use the provided download link instead');
+            }
+
+        } catch (error) {
+            console.error('SeriesDL Error:', error);
+            await conn.sendMessage(mek.chat, { react: { text: "❌", key: mek.key } });
+            reply('📺 *Error:* ' + (error.message || 'Check console for details'));
+        }
     }
-});
-                
+);
+
+        
