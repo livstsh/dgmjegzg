@@ -1,298 +1,116 @@
-/*
+//  SUBZERO MD PROPERTY
+// MADE BY MR FRANK
+// REMOVE THIS IF YOU ARE GAY
 
-$$$$$$\            $$\                                               
-$$  __$$\           $$ |                                              
-$$ /  \__|$$\   $$\ $$$$$$$\  $$$$$$$$\  $$$$$$\   $$$$$$\   $$$$$$\  
-\$$$$$$\  $$ |  $$ |$$  __$$\ \____$$  |$$  __$$\ $$  __$$\ $$  __$$\ 
- \____$$\ $$ |  $$ |$$ |  $$ |  $$$$ _/ $$$$$$$$ |$$ |  \__|$$ /  $$ |
-$$\   $$ |$$ |  $$ |$$ |  $$ | $$  _/   $$   ____|$$ |      $$ |  $$ |
-\$$$$$$  |\$$$$$$  |$$$$$$$  |$$$$$$$$\ \$$$$$$$\ $$ |      \$$$$$$  |
- \______/  \______/ \_______/ \________| \_______|\__|       \______/
-
-Project Name : SubZero MD
-Creator      : Darrell Mucheri ( Mr Frank OFC )
-Repo         : https://github.com/diegoallies/NewAi
-Support      : wa.me/18062212660
-*/
-
-
-
-const { cmd } = require('../command');
 const axios = require('axios');
-const fs = require('fs');
-const { promisify } = require('util');
-const writeFileAsync = promisify(fs.writeFile);
-const Config = require('../config');
+const { Sticker, createSticker, StickerTypes } = require('wa-sticker-formatter');
+const config = require('../config');
+const { cmd, commands } = require('../command');
 
-cmd(
-    {
-        pattern: 'playx',
-        alias: ['ytmp3', 'ytaudio','yta'],
-        desc: 'Download YouTube songs',
-        category: 'media',
-        use: '<song name or YouTube URL>',
-        filename: __filename,
-    },
-    async (conn, mek, m, { quoted, args, q, reply, from }) => {
-        try {
-            if (!q) return reply('*Please provide a song name or YouTube URL*\nExample: .ytsong Alan Walker Lily\nOr: .ytsong https://youtu.be/ox4tmEV6-QU');
 
-            // Send processing reaction
-            await conn.sendMessage(mek.chat, { react: { text: "⏳", key: mek.key } });
+cmd({
+  pattern: 'tgs',
+  alias: ['tgsticker', 'telegramsticker'],
+  react: '🎴',
+  desc: 'Download and convert Telegram sticker packs to WhatsApp stickers',
+  category: 'Mods',
+  filename: __filename
+}, async (conn, mek, m, { from, reply, args, sender, isAdmin }) => {
+  try {
+  /*  // Check if the user is a mod or admin
+    if (!isAdmin) {
+      reply('Only Mods can use this command.');
+      return;
+    }
+    */
 
-            let videoUrl = q;
-            
-            // If it's not a URL, search YouTube
-            if (!q.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+/)) {
-                const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
-                const searchResponse = await axios.get(searchUrl);
-                
-                // Extract first video ID from search results (simplified approach)
-                const videoIdMatch = searchResponse.data.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
-                if (!videoIdMatch) return reply('*No results found for your search*');
-                
-                videoUrl = `https://youtube.com/watch?v=${videoIdMatch[1]}`;
-            }
+    // Check if a Telegram sticker link is provided
+    if (!args[0]) {
+      reply('Please provide a Telegram sticker pack link.\n\n Example `.tgs` https://t.me/addstickers/JodelStoriesHub ');
+      return;
+    }
 
-            // Call Dracula API
-            const apiUrl = `https://draculazyx-xyzdrac.hf.space/api/Ytmp3?url=${encodeURIComponent(videoUrl)}`;
-            const response = await axios.get(apiUrl);
-            
-            if (response.data.STATUS !== 200 || !response.data.song?.download_link) {
-                return reply('*Failed to download the song*');
-            }
+    const lien = args.join(' ');
+    const name = lien.split('/addstickers/')[1];
 
-            const songData = response.data.song;
-            const downloadUrl = songData.download_link;
+    if (!name) {
+      reply('Invalid Telegram sticker link.');
+      return;
+    }
 
-            // Download the audio file
-            const audioResponse = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
-            const audioBuffer = Buffer.from(audioResponse.data, 'binary');
+    const api = `https://api.telegram.org/bot7025486524:AAGNJ3lMa8610p7OAIycwLtNmF9vG8GfboM/getStickerSet?name=${encodeURIComponent(name)}`;
 
-            // Send the audio file
-            await conn.sendMessage(mek.chat, { 
-                audio: audioBuffer,
-                mimetype: 'audio/mpeg',
-                fileName: `${songData.title}.mp3`,
+    // Fetch sticker pack details
+    const stickers = await axios.get(api);
+
+    let type = stickers.data.result.is_animated ? 'animated sticker' : 'not animated sticker';
+
+    let message = `*🧩ᴋᴀᴍʀᴀɴ-ᴍᴅ ᴛᴇʟᴇɢʀᴀᴍ sᴛɪᴄᴋᴇʀs🧩*\n\n` +
+                  `*Producer:* ${stickers.data.result.name}\n` +
+                  `*Type:* ${type}\n` +
+                  `*Length:* ${stickers.data.result.stickers.length}\n\n` +
+                  `> ᴋᴀᴍʀᴀɴ-ᴍᴅ sᴇɴᴅɪɴɢ sᴛɪᴄᴋᴇʀs...`;
+
+   // await reply(message);
+await conn.sendMessage(
+            from,
+            {
+                image: { url: `https://files.catbox.moe/so68jp.jpg` },
+                caption: message,
                 contextInfo: {
-                    externalAdReply: {
-                        title: songData.title,
-                        body: '🍁 𝙶𝙴𝙽𝙴𝚁𝙰𝚃𝙴𝙳 𝙱𝚈 𝚂𝚄𝙱𝚉𝙴𝚁𝙾 🍁',
-                        thumbnail: await getThumbnailBuffer(videoUrl),
-                        mediaType: 2,
-                        mediaUrl: videoUrl,
-                        sourceUrl: videoUrl
+                    mentionedJid: [m.sender],
+                    forwardingScore: 999,
+                    isForwarded: true,
+                    forwardedNewsletterMessageInfo: {
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: '❄️『 ᴋᴀᴍʀᴀɴ-ᴍᴅ 』❄️ ',
+                        serverMessageId: 143
                     }
                 }
-            }, { quoted: mek });
+            },
+            { quoted: mek }
+        );
+    
 
-            // Send success reaction
-            await conn.sendMessage(mek.chat, { react: { text: "✅", key: mek.key } });
+    // Loop through each sticker in the pack
+    for (let i = 0; i < stickers.data.result.stickers.length; i++) {
+      const file = await axios.get(`https://api.telegram.org/bot7025486524:AAGNJ3lMa8610p7OAIycwLtNmF9vG8GfboM/getFile?file_id=${stickers.data.result.stickers[i].file_id}`);
 
-        } catch (error) {
-            console.error('Error in ytsong command:', error);
-            await conn.sendMessage(mek.chat, { react: { text: "❌", key: mek.key } });
-            reply('*Error downloading song. Please try again later.*');
-        }
+      const buffer = await axios({
+        method: 'get',
+        url: `https://api.telegram.org/file/bot7025486524:AAGNJ3lMa8610p7OAIycwLtNmF9vG8GfboM/${file.data.result.file_path}`,
+        responseType: 'arraybuffer',
+      });
+
+      // Create a WhatsApp sticker
+      const sticker = new Sticker(buffer.data, {
+        pack: '❄️ KAMRAN-MD ❄️',
+        author: 'ᴋᴀᴍʀᴀɴ ᴍᴅ σƒc',
+        type: StickerTypes.FULL,
+        categories: ['🤩', '🎉'],
+        id: '12345',
+        quality: 50,
+        background: '#000000'
+      });
+
+      const stickerBuffer = await sticker.toBuffer();
+
+      // Send the sticker
+      await conn.sendMessage(
+        from,
+        { sticker: stickerBuffer },
+        { quoted: mek }
+      );
+
+      // Add a small delay to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
-);
 
-// Helper function to get YouTube thumbnail
-async function getThumbnailBuffer(videoUrl) {
-    try {
-        const videoId = videoUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)[1];
-        const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-        const response = await axios.get(thumbnailUrl, { responseType: 'arraybuffer' });
-        return Buffer.from(response.data, 'binary');
-    } catch {
-        return null; // Return null if thumbnail can't be fetched
-    }
-}
+    reply('Sticker pack download complete!');
 
-// VIDEO
-
-
-
-cmd(
-    {
-        pattern: 'videox',
-        alias: ['ytmp4', 'ytvid'],
-        desc: 'Download YouTube videos',
-        category: 'media',
-        use: '<video name or YouTube URL>',
-        filename: __filename,
-    },
-    async (conn, mek, m, { quoted, args, q, reply, from }) => {
-        try {
-            if (!q) return reply('*Please provide a video name or YouTube URL*\nExample: .ytvideo Alan Walker Lily\nOr: .ytvideo https://youtu.be/ox4tmEV6-QU');
-
-            // Send processing reaction
-            await conn.sendMessage(mek.chat, { react: { text: "⏳", key: mek.key } });
-
-            let videoUrl = q;
-            
-            // If it's not a URL, search YouTube
-            if (!q.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+/)) {
-                const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
-                const searchResponse = await axios.get(searchUrl);
-                
-                // Extract first video ID from search results
-                const videoIdMatch = searchResponse.data.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
-                if (!videoIdMatch) return reply('*No results found for your search*');
-                
-                videoUrl = `https://youtube.com/watch?v=${videoIdMatch[1]}`;
-            }
-
-            // Call Dracula API for video
-            const apiUrl = `https://draculazyx-xyzdrac.hf.space/api/Ytmp4?url=${encodeURIComponent(videoUrl)}`;
-            const response = await axios.get(apiUrl);
-            
-            if (response.data.STATUS !== 200 || !response.data.video?.download_link) {
-                return reply('*Failed to download the video*');
-            }
-
-            const videoData = response.data.video;
-            const downloadUrl = videoData.download_link;
-
-            // Download the video file
-            const videoResponse = await axios.get(downloadUrl, { 
-                responseType: 'arraybuffer',
-                headers: {
-                    'Referer': 'https://draculazyx-xyzdrac.hf.space',
-                    'Origin': 'https://draculazyx-xyzdrac.hf.space'
-                }
-            });
-            const videoBuffer = Buffer.from(videoResponse.data, 'binary');
-
-            // Get thumbnail
-            const thumbnailBuffer = await getThumbnailBuffer(videoUrl);
-
-            // Send the video file
-            await conn.sendMessage(mek.chat, { 
-                video: videoBuffer,
-                caption: `🎬 *${videoData.title}*\n\n> Gᴇɴᴇʀᴀᴛᴇᴅ ʙʏ Sᴜʙᴢᴇʀᴏ`,
-                thumbnail: thumbnailBuffer,
-                fileName: `${videoData.title}.mp4`,
-                mimetype: 'video/mp4',
-                contextInfo: {
-                    externalAdReply: {
-                        title: videoData.title,
-                        body: 'Subzero YT Video Download',
-                        thumbnail: thumbnailBuffer,
-                        mediaType: 2,
-                        mediaUrl: videoUrl,
-                        sourceUrl: videoUrl
-                    }
-                }
-            }, { quoted: mek });
-
-            // Send success reaction
-            await conn.sendMessage(mek.chat, { react: { text: "✅", key: mek.key } });
-
-        } catch (error) {
-            console.error('Error in ytvideo command:', error);
-            await conn.sendMessage(mek.chat, { react: { text: "❌", key: mek.key } });
-            reply('*Error downloading video. Please try again later.*');
-        }
-    }
-);
-
-// Helper function to get YouTube thumbnail
-async function getThumbnailBuffer(videoUrl) {
-    try {
-        const videoId = videoUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)[1];
-        const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-        const response = await axios.get(thumbnailUrl, { responseType: 'arraybuffer' });
-        return Buffer.from(response.data, 'binary');
-    } catch {
-        // Fallback to default thumbnail if maxres isn't available
-        try {
-            const videoId = videoUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)[1];
-            const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-            const response = await axios.get(thumbnailUrl, { responseType: 'arraybuffer' });
-            return Buffer.from(response.data, 'binary');
-        } catch {
-            return null;
-        }
-    }
-}
-
-cmd(
-    {
-        pattern: 'ytdoc',
-        alias: ['ytmp3x', 'mp3'],
-        desc: 'Download YouTube songs as document',
-        category: 'media',
-        react: '📂',
-        use: '<song name or YouTube URL>',
-        filename: __filename,
-    },
-    async (conn, mek, m, { quoted, args, q, reply, from }) => {
-        try {
-            if (!q) return reply('*Please provide a song name or YouTube URL*\nExample: .docplay Alan Walker Lily\nOr: .docplay https://youtu.be/ox4tmEV6-QU');
-
-            // Send processing reaction
-            await conn.sendMessage(mek.chat, { react: { text: "⏳", key: mek.key } });
-
-            let videoUrl = q;
-            
-            // If it's not a URL, search YouTube
-            if (!q.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+/)) {
-                const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
-                const searchResponse = await axios.get(searchUrl);
-                
-                // Extract first video ID from search results
-                const videoIdMatch = searchResponse.data.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
-                if (!videoIdMatch) return reply('*No results found for your search*');
-                
-                videoUrl = `https://youtube.com/watch?v=${videoIdMatch[1]}`;
-            }
-
-            // Call API for audio
-            const apiUrl = `https://draculazyx-xyzdrac.hf.space/api/Ytmp3?url=${encodeURIComponent(videoUrl)}`;
-            const response = await axios.get(apiUrl);
-            
-            if (response.data.STATUS !== 200 || !response.data.song?.download_link) {
-                return reply('*Failed to download the song*');
-            }
-
-            const songData = response.data.song;
-            const downloadUrl = songData.download_link;
-
-            // Download the audio file
-            const audioResponse = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
-            const audioBuffer = Buffer.from(audioResponse.data, 'binary');
-
-            // Get thumbnail
-            const thumbnailBuffer = await ytUtils.getThumbnailBuffer(videoUrl);
-
-            // Send as document
-            await conn.sendMessage(mek.chat, { 
-                document: audioBuffer,
-                mimetype: 'audio/mpeg',
-                fileName: `${songData.title}.mp3`,
-                caption: `🎵 *${songData.title}*\n\n⬇️ Downloaded as document\n\n> Gᴇɴᴇʀᴀᴛᴇᴅ ʙʏ Sᴜʙᴢᴇʀᴏ`,
-                thumbnail: thumbnailBuffer,
-                contextInfo: {
-                    externalAdReply: {
-                        title: songData.title,
-                        body: 'Subzero YT MP3 Download',
-                        thumbnail: thumbnailBuffer,
-                        mediaType: 2,
-                        mediaUrl: videoUrl,
-                        sourceUrl: videoUrl
-                    }
-                }
-            }, { quoted: mek });
-
-            // Send success reaction
-            await conn.sendMessage(mek.chat, { react: { text: "✅", key: mek.key } });
-
-        } catch (error) {
-            console.error('Error in docplay command:', error);
-            await conn.sendMessage(mek.chat, { react: { text: "❌", key: mek.key } });
-            reply('*Error downloading song. Please try again later.*');
-        }
-    }
-);
-
+  } catch (error) {
+    console.error('Error processing Telegram sticker pack:', error);
+    reply('An error occurred while processing the sticker pack. Please try again.');
+  }
+});
+     
