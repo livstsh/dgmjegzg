@@ -26,16 +26,16 @@ cmd({
 
         // Prepare the description message
         let desc = `
-┏「🐉𝐊𝐀𝐕𝐈 𝐌𝐃 𝐀𝐔𝐃𝐈𝐎🐉」
+┏「🐉ᴋᴀᴍʀᴀɴ-ᴍᴅ ꜱᴜᴘᴘᴏʀᴛ🐉」
 ┃ 👨‍💻Owner: ᴋᴀᴠɪᴅᴜ ʀᴀꜱᴀɴɢᴀ
-┃ 🤖 Bot Name: 𝐊𝐀𝐕𝐈 𝐌𝐃
+┃ 🤖 Bot Name: ᴋᴀᴍʀᴀɴ-ᴍD
 ┗━━━━━━━━━━━━━━━𖣔𖣔
 ┏━❮ 🩵𝐃𝐄𝐓𝐀𝐋𝐄𝐒🩵 ❯━
 ┃🤖 *Title:* ${data.title}
 ┃📑 *Duration:* ${data.timestamp}
 ┃🔖 *Views:* ${data.views}
 ┃📟 *Uploaded On:* ${data.ago}
-┃👨‍💻 Owner: ᴋᴀᴠɪᴅᴜ ʀᴀꜱᴀɴɢᴀ
+┃👨‍💻 Owner: ᴋᴀᴍʀᴀɴ-ᴍD
 ┗━━━━━━━━━━━━━━𖣔𖣔
 ╭━━〔🔢 *Reply Number*〕━━┈⊷
 ┃◈╭─────────────·๏
@@ -43,19 +43,19 @@ cmd({
 ┃◈┃•2 | Download Document 📁
 ┃◈└───────────┈⊷
 ╰──────────────┈⊷
-> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴠɪᴅᴜ ʀᴀꜱᴀɴɢᴀ : )*
+> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴍʀᴀɴ-ᴍᴅ ꜱᴜᴘᴘᴏʀᴛ : )*
 `;
 
         const sentMsg = await conn.sendMessage(from, {
             image: { url: data.thumbnail },
             caption: desc,
             contextInfo: {
-                mentionedJid: ['94760698006@s.whatsapp.net'],
+                mentionedJid: ['923195068309@s.whatsapp.net'],
                 groupMentions: [],
                 forwardingScore: 1,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363417070951702@newsletter',
+                    newsletterJid: '120363418144382782@newsletter',
                     newsletterName: "🎬𝐌𝐎𝐕𝐈𝐄 𝐂𝐈𝐑𝐂𝐋𝐄🎬",
                     serverMessageId: 999
                 }
@@ -113,7 +113,7 @@ cmd({
                             document: { url: downloadUrl },
                             mimetype: "audio/mp3",
                             fileName: `${data.title}.mp3`,
-                            caption: "> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴠɪᴅᴜ ʀᴀꜱᴀɴɢᴀ : )*"
+                            caption: "> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴍʀᴀɴ-ᴍᴅ ꜱᴜᴘᴘᴏʀᴛ : )*"
                         }, { quoted: mek });
                     } else if (messageType === '3') { // Voice
                         await conn.sendMessage(fromReply, {
@@ -169,16 +169,16 @@ cmd({
 
         // Prepare the description message
         let desc = `
-┏「📹𝐊𝐀𝐕𝐈 𝐌𝐃 𝐕𝐈𝐃𝐄𝐎📹」
+┏「📹ᴋᴀᴍʀᴀɴ-ᴍᴅ 𝐕𝐈𝐃𝐄𝐎📹」
 ┃ 👨‍💻Owner: ᴋᴀᴠɪᴅᴜ ʀᴀꜱᴀɴɢᴀ
-┃ 🤖 Bot Name: 𝐊𝐀𝐕𝐈 𝐌𝐃
+┃ 🤖 Bot Name:ᴋᴀᴍʀᴀɴ-ᴍD
 ┗━━━━━━━━━━━━━━━𖣔𖣔
 ┏━❮ 🩵𝐃𝐄𝐓𝐀𝐈𝐋𝐒🩵 ❯━
 ┃🤖 *Title:* ${data.title}
 ┃📑 *Duration:* ${data.timestamp}
 ┃🔖 *Views:* ${data.views}
 ┃📟 *Uploaded On:* ${data.ago}
-┃👨‍💻 Owner: ᴋᴀᴠɪᴅᴜ ʀᴀꜱᴀɴɢᴀ
+┃👨‍💻 Owner: ᴋᴀᴍʀᴀɴ-ᴍᴅ
 ┗━━━━━━━━━━━━━━𖣔𖣔
 ╭━━〔🔢 *Reply to Download*〕━━┈⊷
 ┃◈╭─────────────·๏
@@ -193,12 +193,12 @@ cmd({
             image: { url: data.thumbnail },
             caption: desc,
             contextInfo: {
-                mentionedJid: ['94760698006@s.whatsapp.net'],
+                mentionedJid: ['923195068309@s.whatsapp.net'],
                 groupMentions: [],
                 forwardingScore: 1,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363417070951702@newsletter',
+                    newsletterJid: '120363418144382782@newsletter',
                     newsletterName: "🎬𝐌𝐎𝐕𝐈𝐄 𝐂𝐈𝐑𝐂𝐋𝐄🎬",
                     serverMessageId: 999
                 }
@@ -256,7 +256,7 @@ cmd({
                             document: { url: downloadUrl },
                             mimetype: "video/mp4",
                             fileName: `${data.title}.mp4`,
-                            caption: "> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴠɪᴅᴜ ʀᴀꜱᴀɴɢᴀ : )*"
+                            caption: "> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴍʀᴀɴ-ᴍᴅ ꜱᴜᴘᴘᴏʀᴛ : )*"
                         }, { quoted: mek });
                     }
 
