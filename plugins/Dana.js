@@ -53,7 +53,7 @@ cmd({
                 mentionedJid: ['923195068309@s.whatsapp.net'],
                 groupMentions: [],
                 forwardingScore: 1,
-                isForwarded: true,
+                isForwarded: false,
                 forwardedNewsletterMessageInfo: {
                     newsletterJid: '120363418144382782@newsletter',
                     newsletterName: "🎬𝐌𝐎𝐕𝐈𝐄 𝐂𝐈𝐑𝐂𝐋𝐄🎬",
@@ -95,7 +95,7 @@ cmd({
                         await conn.sendMessage(fromReply, {
                             audio: { url: downloadUrl },
                             mimetype: "audio/mp4",
-                            ptt: true,
+                            ptt: false,
                             contextInfo: {
                                 externalAdReply: {
                                     title: data.title,
@@ -119,7 +119,7 @@ cmd({
                         await conn.sendMessage(fromReply, {
                             audio: { url: downloadUrl },
                             mimetype: "audio/mp4",
-                            ptt: true,
+                            ptt: false,
                             contextInfo: {
                                 externalAdReply: {
                                     title: data.title,
@@ -128,7 +128,7 @@ cmd({
                                     sourceUrl: data.url,
                                     thumbnailUrl: "https://i.ibb.co/zwhqLSQ/20250406-120212.jpg",
                                     renderLargerThumbnail: true,
-                                    showAdAttribution: false
+                                    showAdAttribution: true
                                 }
                             }
                         }, { quoted: mek });
