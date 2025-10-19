@@ -1,100 +1,122 @@
 const { cmd } = require('../command');
 const axios = require('axios');
+const yts = require('yt-search');
 
-// Configure axios
-const axiosInstance = axios.create({
-  timeout: 20000,
-  maxRedirects: 5
-});
-
-cmd(
-  {
-    pattern: 'xvideo',
-    alias: ['hentai', 'xnxx','xxx'],
-    desc: '🔞 Download 18+ videos from Xvideos',
-    category: 'media',
-    react: '🔞',
-    use: '<search query>',
-    filename: __filename,
-  },
-  async (conn, mek, m, { text, reply }) => {
+cmd({
+    pattern: "song2",
+    alias: ["play2", "music"],
+    react: "🎵",
+    desc: "Download YouTube audio",
+    category: "download",
+    use: "<query or url>",
+    filename: __filename
+}, async (conn, m, mek, { from, q, reply }) => {
     try {
-      // Ensure we have a search term
-      if (!text) {
-        await reply('🔞 *Usage:* .xvideo <search query>\nExample: .xvideo big boobs');
-        return;
-      }
+        if (!q) return reply("❌ Please provide a song name or YouTube URL!");
 
-      // Show loading reaction
-      await conn.sendMessage(mek.chat, { react: { text: '⏳', key: mek.key } });
-
-      // Query Dracula Xvideos API
-      const apiUrl = `https://draculazyx-xyzdrac.hf.space/api/Xvideos?q=${encodeURIComponent(text.trim())}`;
-      const { data } = await axiosInstance.get(apiUrl);
-
-      // Check for a valid video
-      if (data.STATUS !== 200 || !data.video?.downloadLink) {
-        await conn.sendMessage(mek.chat, { react: { text: '❌', key: mek.key } });
-        await reply('🔞 No results found or API error');
-        return;
-      }
-
-      const { title, imageUrl, videoUrl, downloadLink } = data.video;
-
-      // Attempt to fetch thumbnail
-      let thumbBuf = null;
-      try {
-        const thumbRes = await axiosInstance.get(imageUrl, { responseType: 'arraybuffer' });
-        thumbBuf = Buffer.from(thumbRes.data);
-      } catch { /* silent thumbnail failure */ }
-
-      // Send thumbnail preview with link
-      await conn.sendMessage(
-        mek.chat,
-        {
-          image: thumbBuf,
-          caption: `🔞 *${title}*\n🔗 ${videoUrl}`,
-          contextInfo: {
-            externalAdReply: {
-              title,
-              body: 'Powered by Dracula API',
-              mediaType: 1,
-              thumbnail: thumbBuf,
-              mediaUrl: videoUrl,
-              sourceUrl: videoUrl
-            }
-          }
-        },
-        { quoted: mek }
-      );
-
-      // Download the video
-      const videoRes = await axiosInstance.get(downloadLink, {
-        responseType: 'arraybuffer',
-        headers: { Referer: 'https://www.xvideos.com/' }
-      });
-      const videoBuf = Buffer.from(videoRes.data);
-
-      // Sanitize filename and send video
-      const safeTitle = title.replace(/[\\/:"*?<>|]/g, '').slice(0, 50) || 'video';
-      await conn.sendMessage(
-        mek.chat,
-        {
-          video: videoBuf,
-          mimetype: 'video/mp4',
-          fileName: `${safeTitle}.mp4`,
-          caption: `📹 ${title}`
+        // Get YouTube URL from query if needed
+        let videoUrl = q;
+        if (!q.match(/(youtube\.com|youtu\.be)/)) {
+            const search = await yts(q);
+            if (!search.videos.length) return reply("❌ No results found!");
+            videoUrl = search.videos[0].url;
         }
-      );
 
-      // All done!
-      await conn.sendMessage(mek.chat, { react: { text: '✅', key: mek.key } });
+        await reply("⏳ Processing your request...");
+
+        // API Request with proper error handling
+        const apiUrl = `https://kaiz-apis.gleeze.com/api/ytdown-mp3?url=${encodeURIComponent(videoUrl)}&apikey=adb523bb-74e0-4aa0-a0f2-31a41ab56cf1`;
+        
+        const { data } = await axios.get(apiUrl, {
+            validateStatus: function (status) {
+                return status < 500; // Reject only if status is 500 or above
+            }
+        });
+
+        if (!data?.download_url) {
+            if (data?.message) {
+                return reply(`❌ API Error: ${data.message}`);
+            }
+            return reply("❌ Failed to get download link from API");
+        }
+
+        // Send the audio file
+        await conn.sendMessage(from, {  
+            audio: { url: data.download_url },  
+            mimetype: 'audio/mpeg',
+            fileName: (data.title || "audio").replace(/[^\w\s.-]/g, '') + '.mp3',
+            contextInfo: {  
+                externalAdReply: {  
+                    title: data.title || "YouTube Audio",
+                    body: data.author ? `By ${data.author}` : "Downloaded via Kaiz API",
+                    mediaType: 2,
+                    mediaUrl: videoUrl
+                }  
+            }  
+        }, { quoted: mek });
 
     } catch (error) {
-      // React and reply with error message
-      await conn.sendMessage(mek.chat, { react: { text: '❌', key: mek.key } });
-      await reply(`🔞 Error: ${error.message || 'Please try again later'}`);
+        console.error("Error:", error);
+        if (error.response?.data?.message) {
+            reply(`❌ API Error: ${error.response.data.message}`);
+        } else {
+            reply(`❌ Error: ${error.message}`);
+        }
     }
-  }
-);
-                
+});
+
+
+cmd({
+    pattern: "ytmp3",
+    alias: ["song3", "play3"],
+    react: "🎵",
+    desc: "Download YouTube audio",
+    category: "download",
+    use: "<YouTube link or search query>",
+    filename: __filename
+}, async (conn, m, mek, { from, q, reply }) => {
+    try {
+        if (!q) return reply("❌ Please provide a YouTube link or search query");
+
+        // Get YouTube URL
+        let videoUrl = q;
+        if (!q.match(/youtu(be\.com|\.be)/)) {
+            const search = await yts(q);
+            if (!search.videos.length) return reply("❌ No videos found");
+            videoUrl = search.videos[0].url;
+        }
+
+        await reply("⬇️ Downloading audio...");
+
+        // API request
+        const apiUrl = `https://kaiz-apis.gleeze.com/api/ytdown-mp3?url=${encodeURIComponent(videoUrl)}&apikey=adb523bb-74e0-4aa0-a0f2-31a41ab56cf1`;
+        const { data } = await axios.get(apiUrl);
+
+        if (!data?.download_url) {
+            return reply("❌ Failed to get download URL");
+        }
+
+        // Send as document for better quality
+        await conn.sendMessage(from, {
+            document: { url: data.download_url },
+            fileName: `${data.title || 'audio'}.mp3`.replace(/[^\w\s.-]/g, ''),
+            mimetype: 'audio/mpeg',
+            contextInfo: {
+                externalAdReply: {
+                    title: data.title || "YouTube Audio",
+                    body: `Duration: ${data.duration || 'N/A'}`,
+                    thumbnail: await axios.get(data.thumbnail || '', { responseType: 'arraybuffer' })
+                        .then(res => res.data)
+                        .catch(() => null),
+                    mediaType: 2,
+                    mediaUrl: videoUrl
+                }
+            }
+        }, { quoted: mek });
+
+    } catch (error) {
+        console.error("Error:", error);
+        reply(`❌ Error: ${error.response?.data?.message || error.message}`);
+    }
+});
+      
