@@ -21,11 +21,11 @@ let status = `
 
 *👀  𝒦𝒜𝑀𝑅𝒜𝒩-𝑀𝒟 𝛅ʊ̊℘ᯭ℘ᯭ๏፝֟ɼ̚†ː͢⤹ ~_➙ https://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O_~*
 
-*👻  𝒦𝒜𝑀𝑅𝒜𝒩-𝑀𝒟 𝛅ʊ̊℘ᯭ℘ᯭ๏፝֟ɼ̚†ː͢⤹ ~_➙ https://chat.whatsapp.com/CqahmGbL0I18HB7nT9IqSO?mode=wwt_~*
+*👻  ⎯꯭ͯ🌿꯭〬𝐒꯭𝆭Ꮗ⃯ə͜͡əʈ𝆭 ⃪𝆭𓆪᪵𝐇꯭๏𝆭᪱ϻ͜͡ə〬𝆺꯭𝅥🏡🌸 ~_➙ https://chat.whatsapp.com/CqahmGbL0I18HB7nT9IqSO?mode=wwt_~*
 
 *👽  𝗝ᴀᴡᴀᴅ𝐓ᴇᴄʜ 𝐒ᴜᴘᴘᴏʀᴛ 🇵🇸 ➙ ~_https://chat.whatsapp.com/J0ILxrBp8Pj48XBkYtSDQj?mode=wwt*
 
-*🎠 𝒦𝒜𝑀𝑅𝒜𝒩-𝑀𝒟 𝛅ʊ̊℘ᯭ℘ᯭ๏፝֟ɼ̚†ː͢⤹ ➙ _~https://chat.whatsapp.com/CftWz95txXu0kvrr3zuknL?mode=wwt~_*
+*🎠🌸𝐋꯭๏᪱𝆭ɣ𝆭ə͎ 〆͎ 𝐕𝆭͢ɪ𝆭ʙ͜͡ə𝐬̲̄🌷💗 ⤹ ➙ _~https://chat.whatsapp.com/CftWz95txXu0kvrr3zuknL?mode=wwt~_*
 
 > *ᴘᴏᴡᴇʀᴅ ʙʏ   𝒦𝒜𝑀𝑅𝒜𝒩-𝑀𝒟 𝛅ʊ̊℘ᯭ℘ᯭ๏፝֟ɼ̚†ː͢⤹ : )*
 
