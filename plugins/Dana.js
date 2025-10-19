@@ -95,7 +95,7 @@ cmd({
                         await conn.sendMessage(fromReply, {
                             audio: { url: downloadUrl },
                             mimetype: "audio/mp4",
-                            ptt: false,
+                            ptt: true,
                             contextInfo: {
                                 externalAdReply: {
                                     title: data.title,
@@ -119,7 +119,7 @@ cmd({
                         await conn.sendMessage(fromReply, {
                             audio: { url: downloadUrl },
                             mimetype: "audio/mp4",
-                            ptt: false,
+                            ptt: true,
                             contextInfo: {
                                 externalAdReply: {
                                     title: data.title,
@@ -128,7 +128,7 @@ cmd({
                                     sourceUrl: data.url,
                                     thumbnailUrl: "https://i.ibb.co/zwhqLSQ/20250406-120212.jpg",
                                     renderLargerThumbnail: true,
-                                    showAdAttribution: true
+                                    showAdAttribution: false
                                 }
                             }
                         }, { quoted: mek });
