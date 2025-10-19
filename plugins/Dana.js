@@ -170,7 +170,7 @@ cmd({
         // Prepare the description message
         let desc = `
 ┏「📹ᴋᴀᴍʀᴀɴ-ᴍᴅ 𝐕𝐈𝐃𝐄𝐎📹」
-┃ 👨‍💻Owner: ᴋᴀᴠɪᴅᴜ ʀᴀꜱᴀɴɢᴀ
+┃ 👨‍💻Owner: ᴋᴀᴍʀᴀɴ ᴍᴅ
 ┃ 🤖 Bot Name:ᴋᴀᴍʀᴀɴ-ᴍD
 ┗━━━━━━━━━━━━━━━𖣔𖣔
 ┏━❮ 🩵𝐃𝐄𝐓𝐀𝐈𝐋𝐒🩵 ❯━
@@ -186,7 +186,7 @@ cmd({
 ┃◈┃•2 | Download Document 📁
 ┃◈└───────────┈⊷
 ╰──────────────┈⊷
-> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴠɪᴅᴜ ʀᴀꜱᴀɴɢᴀ : )*
+> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴍʀᴀɴ-ᴍᴅ : )*
 `;
 
         const sentMsg = await conn.sendMessage(from, {
