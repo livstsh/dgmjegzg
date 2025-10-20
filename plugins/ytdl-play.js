@@ -5,7 +5,7 @@ const { cmd } = require("../command");
 
 cmd({
   pattern: "play",
-  alias: ["song", "music"],   
+  alias: ["song", "play2"],   
   desc: "Download YouTube audio by title",
   category: "download",
   react: "🎵",
