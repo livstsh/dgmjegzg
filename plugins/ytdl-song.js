@@ -90,15 +90,15 @@ cmd({
 });
 
 cmd({
-    pattern: "dama",
+    pattern: "epi",
     alias: ["ytv"],
     desc: "Download YouTube videos",
     category: "download",
-    react: "📹",
+    react: "♻️",
     filename: __filename
 }, async (conn, mek, m, { from, q, reply }) => {
     try {
-        if (!q) return await reply("📺 Please provide video name or URL!\n\nExample: .video funny cat");
+        if (!q) return await reply("🎥 Please provide video name or URL!\n\nExample: .video funny cat");
 
         // Search on YouTube if query is not a link
         let url = q;
