@@ -6,7 +6,7 @@ const axios = require('axios');
 
 cmd({
     pattern: "drama",
-    alias: ["video", "song", "ytv"],
+    alias: ["video", "video3", "ytv"],
     desc: "Download YouTube videos",
     category: "download",
     react: "📹",
