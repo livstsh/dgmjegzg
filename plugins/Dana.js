@@ -55,7 +55,7 @@ cmd({
         }
 
         // 🎬 Fetch video from API - CORRECTED API STRUCTURE
-        const api = `https://universe-api-mocha.vercel.app/api/youtube/download?url=${encodeURIComponent(url)}&quality=360`;
+        const api = `https://jawad-tech.vercel.app/download/ytmp4?url=${encodeURIComponent(url)}&quality=360`;
         const res = await axios.get(api);
         const data = res.data;
 
