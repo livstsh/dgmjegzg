@@ -5,8 +5,8 @@ const { ytsearch, ytmp3, ytmp4 } = require('@dark-yasiya/yt-dl.js');
 // video
 
 cmd({
-    pattern: "epi",
-    alias: ["video", "ytv"],
+    pattern: "dsong3",
+    alias: ["video3", "ytv3"],
     react: "🎬",
     desc: "Download YouTube video",
     category: "downloader",
@@ -29,7 +29,7 @@ cmd({
         const vid = yt.results[0];
         
         // 3. Fetch video
-        const api = `https://api-aswin-sparky.koyeb.app/api/downloader/ytv?url=${encodeURIComponent(vid.url)}`;
+        const api = `https://gtech-api-xtp1.onrender.com/api/video/yt?apikey=APIKEY&url=${encodeURIComponent(vid.url)}`;
         const res = await fetch(api);
         const json = await res.json();
         
@@ -40,12 +40,12 @@ cmd({
         
         // 4. Create stylish caption
         const caption = `
-╭─〔 *🎥 KAMRAN-MD DOWNLOADER* 〕
-├─▸ *📌 Title:* ${vid.title}
-├─▸ *⏳ Duration:* ${vid.timestamp}
-├─▸ *👀 Views:* ${vid.views}
-├─▸ *👤 Author:* ${vid.author.name}
-╰─➤ *Powered by KAMRAN-MD*`;
+╭─〔*ᴋᴀᴍʀᴀɴ-ᴍᴅ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*〕
+├─▸ *📌 ᴛɪᴛʟᴇ:* ${vid.title}
+├─▸ *⏳ ᴅᴜʀᴀᴛɪᴏɴ:* ${vid.timestamp}
+├─▸ *👀 ᴠɪᴇᴡs:* ${vid.views}
+├─▸ *👤 ᴀᴜᴛʜᴏʀ:* ${vid.author.name}
+╰──➤ *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴀᴍʀᴀɴ-ᴍᴅ*`;
         
         // 5. Send video with formatted caption
         await conn.sendMessage(from, {
@@ -66,7 +66,7 @@ cmd({
 
 
 cmd({ 
-    pattern: "video2", 
+    pattern: "dvideo2", 
     alias: ["song2", "ytv2"], 
     react: "🎥", 
     desc: "Download Youtube song", 
@@ -81,7 +81,7 @@ cmd({
         if (yt.results.length < 1) return reply("No results found!");
         
         let yts = yt.results[0];  
-        let apiUrl = `https://apis.davidcyriltech.my.id/download/ytmp4?url=${encodeURIComponent(yts.url)}`;
+        let apiUrl = `${izumi.baseURL}/downloader/youtube?url=${encodeURIComponent(yts.url)}`;
         
         let response = await fetch(apiUrl);
         let data = await response.json();
@@ -91,13 +91,16 @@ cmd({
         }
         
         let ytmsg = 
-`*YT VIDEO DOWNLOADER*        
-╭━━❐━⪼
-┇๏ *Title* -  ${yts.title}
-┇๏ *Duration* - ${yts.timestamp}
-┇๏ *Views* -  ${yts.views}
-┇๏ *Author* -  ${yts.author.name}
-╰━━❑━⪼`;
+`**_ʏᴛ ᴠɪᴅᴇᴏ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ_*
+‎*╭━━━━━━━━━━━━━━━━━━๏*
+‎*┇*๏ *ᴛɪᴛʟᴇ:* ${yts.title}
+‎*┇*๏ *ᴅᴜʀᴀᴛɪᴏɴ:* ${yts.timestamp}
+‎*┇*๏ *ᴠɪᴇᴡs:* ${yts.views}
+‎*┇*๏ *ᴀᴜᴛʜᴏʀ:* ${yts.author.name}
+‎*╰━━━━━━━━━━━━━━━━━━๏*
+‎*╭────────────────━┈⍟*
+‎┋ *_ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴀᴍʀᴀɴ-ᴍᴅ_* 
+‎*╰────────────────━┈⍟*`;
 
         // Send video details
         await conn.sendMessage(from, { image: { url: data.result.thumbnail || '' }, caption: ytmsg }, { quoted: mek });
@@ -110,4 +113,4 @@ cmd({
         reply("An error occurred. Please try again later.");
     }
 });  
-                         
+        
