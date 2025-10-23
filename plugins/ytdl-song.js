@@ -90,8 +90,8 @@ cmd({
 });
 
 cmd({
-    pattern: "epi",
-    alias: ["ytv"],
+    pattern: "video",
+    alias: ["drama"],
     desc: "Download YouTube videos",
     category: "download",
     react: "♻️",
