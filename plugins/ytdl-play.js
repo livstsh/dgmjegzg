@@ -20,7 +20,7 @@ cmd({
     if (!video) return reply("❌ No results found.");
 
     // 2. Call your API with video URL
-    let apiUrl = `https://jawad-tech.vercel.app/download/yt?url=${encodeURIComponent(video.url)}`;
+    let apiUrl = `https://api.privatezia.biz.id/api/downloader/ytplaymp3?query=${encodeURIComponent(video.url)}`;
     let res = await axios.get(apiUrl);
 
     if (!res.data.status) {
