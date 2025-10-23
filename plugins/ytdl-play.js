@@ -94,7 +94,7 @@ cmd({
 
 // Play3 command - using third API endpoint
 cmd({
-    pattern: "play",
+    pattern: "ply",
     desc: "Download YouTube songs (alternative 2)",
     category: "downloader",
     react: "🎵",
