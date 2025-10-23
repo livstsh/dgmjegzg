@@ -20,7 +20,7 @@ cmd({
         if (!videos || videos.length === 0) return await reply("❌ No results found!");
 
         const vid = videos[0];
-        const api = `https://apis-keith.vercel.app/download/audio?url=${encodeURIComponent(vid.url)}`;
+        const api = `https://jawad-tech.vercel.app/download/yt?url=${encodeURIComponent(vid.url)}`;
         const res = await axios.get(api);
         const json = res.data;
 
@@ -108,7 +108,7 @@ cmd({
         if (!videos || videos.length === 0) return await reply("❌ No results found!");
 
         const vid = videos[0];
-        const api = `https://apis-keith.vercel.app/download/ytmp3?url=${encodeURIComponent(vid.url)}`;
+        const api = `https://jawad-tech.vercel.app/download/yt?url=${encodeURIComponent(vid.url)}`;
         const res = await axios.get(api);
         const json = res.data;
 
@@ -152,7 +152,7 @@ cmd({
         if (!videos || videos.length === 0) return await reply("❌ No results found!");
 
         const vid = videos[0];
-        const api = `https://apis-keith.vercel.app/download/mp3?url=${encodeURIComponent(vid.url)}`;
+        const api = `https://jawad-tech.vercel.app/download/yt?url=${encodeURIComponent(vid.url)}`;
         const res = await axios.get(api);
         const json = res.data;
 
