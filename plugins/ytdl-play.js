@@ -1,81 +1,182 @@
-const axios = require("axios");
-const yts = require("yt-search");
-const config = require("../config");
-const { cmd } = require("../command");
+const config = require('../config');
+const { cmd } = require('../command');
+const yts = require('yt-search');
+const axios = require('axios');
 
+// Play command - using first API endpoint
 cmd({
-  pattern: "play",
-    alias: ["ytplay", "ytmp3"],
-    react: "📲",
-    desc: "Download YouTube song or video",
-    category: "download",
-    use: '.play <song name or YouTube URL>',
+    pattern: "kamran",
+    alias: ["mp3", "yta"],
+    desc: "Download YouTube songs",
+    category: "downloader",
+    react: "🎵",
     filename: __filename
-}, async (conn, mek, m, { from, reply, q }) => {
+}, async (conn, mek, m, { from, q, reply }) => {
     try {
-        if (!q && !m.quoted) return reply("❓ What song or URL do you want to download? You can also reply to a message with a URL.");
-        
-        let input = q || (m.quoted && m.quoted.text);
-        if (!input) return reply("❌ No valid input provided!");
+        if (!q) return await reply("🎶 Please provide song name!\n\nExample: .play Moye Moye");
 
-        let isAudio = !input.toLowerCase().includes("video");
+        // Search on YouTube
+        const { videos } = await yts(q);
+        if (!videos || videos.length === 0) return await reply("❌ No results found!");
 
-        await reply("🔍 Searching, please wait...");
+        const vid = videos[0];
+        const api = `https://apis-keith.vercel.app/download/audio?url=${encodeURIComponent(vid.url)}`;
+        const res = await axios.get(api);
+        const json = res.data;
 
-        const search = await ytsearch(input);
-        if (!search.results.length) return reply("❌ No results found!");
-
-        const vid = search.results[0];
-        const title = vid.title.replace(/[^a-zA-Z0-9 ]/g, "");
-        const duration = vid.timestamp;
-        const videoUrl = vid.url;
-        const thumbnail = vid.thumbnail;
-        const outputPath = path.join(__dirname, `${title}.mp3`);
-
-        const apis = [
-            `https://xploader-api.vercel.app/ytmp3?url=${videoUrl}`,
-            `https://apis.davidcyriltech.my.id/youtube/mp3?url=${videoUrl}`,
-            `https://api.ryzendesu.vip/api/downloader/ytmp3?url=${videoUrl}`,
-            `https://api.dreaded.site/api/ytdl/audio?url=${videoUrl}`
-        ];
-
-        if (isAudio) {
-            for (const api of apis) {
-                try {
-                    const res = await axios.get(api);
-                    const data = res.data;
-                    if (!(data.status === 200 || data.success)) continue;
-
-                    const audioUrl = data.result?.downloadUrl || data.url;
-                    if (!audioUrl) continue;
-
-                    const stream = await axios({ url: audioUrl, method: "GET", responseType: "stream" });
-                    if (stream.status !== 200) continue;
-
-                    return ffmpeg(stream.data)
-                        .toFormat('mp3')
-                        .save(outputPath)
-                        .on('end', async () => {
-                            await conn.sendMessage(from, {
-                                document: { url: outputPath },
-                                mimetype: 'audio/mp3',
-                                fileName: `${title}.mp3`,
-                                caption: `🎶 *Title:* ${vid.title}\n⏱️ *Duration:* ${duration}\n\n> Powered by Malvin`,
-                                thumbnail: { url: thumbnail }
-                            }, { quoted: mek });
-                            fs.unlinkSync(outputPath);
-                        })
-                        .on('error', err => reply("❌ Conversion failed\n" + err.message));
-                } catch (err) {
-                    continue;
-                }
-            }
-            return reply("❌ All APIs failed or are down.");
+        if (!json?.status || !json?.result) {
+            return await reply("❌ Download failed! Try again later.");
         }
 
+        const audioUrl = json.result;
+        const title = vid.title || "song";
+
+        // Send audio
+        await conn.sendMessage(from, {
+            audio: { url: audioUrl },
+            mimetype: "audio/mpeg",
+            fileName: `${title}.mp3`
+        }, { quoted: mek });
+
+        // Success reaction ✅
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+
     } catch (e) {
-        console.error(e);
-        reply("❌ Something went wrong\n" + e.message);
+        console.error("Error in .play:", e);
+        await reply("❌ Error occurred, try again later!");
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
     }
 });
-                                          
+
+// Play2 command - using second API endpoint
+cmd({
+    pattern: "ytpm3",
+    desc: "Download YouTube songs (alternative)",
+    category: "downloader",
+    react: "🎵",
+    filename: __filename
+}, async (conn, mek, m, { from, q, reply }) => {
+    try {
+        if (!q) return await reply("🎶 Please provide song name!\n\nExample: .play2 Moye Moye");
+
+        // Search on YouTube
+        const { videos } = await yts(q);
+        if (!videos || videos.length === 0) return await reply("❌ No results found!");
+
+        const vid = videos[0];
+        const api = `https://apis-keith.vercel.app/download/yta?url=${encodeURIComponent(vid.url)}`;
+        const res = await axios.get(api);
+        const json = res.data;
+
+        if (!json?.success || !json?.result) {
+            return await reply("❌ Download failed! Try again later.");
+        }
+
+        const audioUrl = json.result;
+        const title = vid.title || "song";
+
+        // Send audio
+        await conn.sendMessage(from, {
+            audio: { url: audioUrl },
+            mimetype: "audio/mpeg",
+            fileName: `${title}.mp3`
+        }, { quoted: mek });
+
+        // Success reaction ✅
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+
+    } catch (e) {
+        console.error("Error in .play2:", e);
+        await reply("❌ Error occurred, try again later!");
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+    }
+});
+
+// Play3 command - using third API endpoint
+cmd({
+    pattern: "play",
+    desc: "Download YouTube songs (alternative 2)",
+    category: "downloader",
+    react: "🎵",
+    filename: __filename
+}, async (conn, mek, m, { from, q, reply }) => {
+    try {
+        if (!q) return await reply("🎶 Please provide song name!\n\nExample: .play3 Moye Moye");
+
+        // Search on YouTube
+        const { videos } = await yts(q);
+        if (!videos || videos.length === 0) return await reply("❌ No results found!");
+
+        const vid = videos[0];
+        const api = `https://apis-keith.vercel.app/download/ytmp3?url=${encodeURIComponent(vid.url)}`;
+        const res = await axios.get(api);
+        const json = res.data;
+
+        if (!json?.status || !json?.result?.url) {
+            return await reply("❌ Download failed! Try again later.");
+        }
+
+        const audioUrl = json.result.url;
+        const title = json.result.filename || vid.title || "song";
+
+        // Send audio
+        await conn.sendMessage(from, {
+            audio: { url: audioUrl },
+            mimetype: "audio/mpeg",
+            fileName: `${title}.mp3`
+        }, { quoted: mek });
+
+        // Success reaction ✅
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+
+    } catch (e) {
+        console.error("Error in .play3:", e);
+        await reply("❌ Error occurred, try again later!");
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+    }
+});
+
+// Play4 command - using fourth API endpoint
+cmd({
+    pattern: "song",
+    desc: "Download YouTube songs (alternative 3)",
+    category: "downloader",
+    react: "🎵",
+    filename: __filename
+}, async (conn, mek, m, { from, q, reply }) => {
+    try {
+        if (!q) return await reply("🎶 Please provide song name!\n\nExample: .play4 Moye Moye");
+
+        // Search on YouTube
+        const { videos } = await yts(q);
+        if (!videos || videos.length === 0) return await reply("❌ No results found!");
+
+        const vid = videos[0];
+        const api = `https://apis-keith.vercel.app/download/mp3?url=${encodeURIComponent(vid.url)}`;
+        const res = await axios.get(api);
+        const json = res.data;
+
+        if (!json?.status || !json?.result) {
+            return await reply("❌ Download failed! Try again later.");
+        }
+
+        const audioUrl = json.result;
+        const title = vid.title || "song";
+
+        // Send audio
+        await conn.sendMessage(from, {
+            audio: { url: audioUrl },
+            mimetype: "audio/mpeg",
+            fileName: `${title}.mp3`
+        }, { quoted: mek });
+
+        // Success reaction ✅
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+
+    } catch (e) {
+        console.error("Error in .play4:", e);
+        await reply("❌ Error occurred, try again later!");
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+    }
+});
+  
