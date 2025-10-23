@@ -20,7 +20,7 @@ cmd({
     if (!video) return reply("❌ No results found.");
 
     // 2. Call your API with video URL
-    let apiUrl = `https://api.ryzendesu.vip/api/downloader/ytmp3?url${encodeURIComponent(video.url)}`;
+    let apiUrl = `https://api.ryzendesu.vip/api/downloader/ytmp3?url$(video.url)}`;
     let res = await axios.get(apiUrl);
 
     if (!res.data.status) {
