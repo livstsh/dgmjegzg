@@ -5,7 +5,7 @@ const yts = require('yt-search');
 const axios = require('axios');
 
 cmd({
-    pattern: "drama2",
+    pattern: "dr",
     alias: ["video4", "video3", "ytv"],
     desc: "Download YouTube videos",
     category: "download",
@@ -55,7 +55,7 @@ cmd({
         }
 
         // 🎬 Fetch video from API - CORRECTED API STRUCTURE
-        const api = `https://jawad-tech.vercel.app/download/ytmp4?url=${encodeURIComponent(url)}&quality=360`;
+        const api = `https://gtech-api-xtp1.onrender.com/api/video/yt?apikey=APIKEY&url=${encodeURIComponent(url)}&quality=360`;
         const res = await axios.get(api);
         const data = res.data;
 
