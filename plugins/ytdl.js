@@ -55,7 +55,7 @@ cmd({
     }
 
     // Enhance image using Remini API
-    const apiUrl = `https://apis.davidcyriltech.my.id/remini?url=${encodeURIComponent(imageUrl)}`;
+    const apiUrl = `https://jawad-tech.vercel.app/ai/imageedit?url=${encodeURIComponent(imageUrl)}`;
     const response = await axios.get(apiUrl, { 
       responseType: 'arraybuffer',
       timeout: 60000 // 1 minute timeout
