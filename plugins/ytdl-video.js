@@ -4,7 +4,7 @@ const yts = require('yt-search');
 
 cmd({
     pattern: "song2",
-    alias: ["play2", "music"],
+    alias: ["play2", "music2"],
     react: "🎵",
     desc: "Download YouTube audio",
     category: "download",
@@ -25,7 +25,7 @@ cmd({
         await reply("⏳ Processing your request...");
 
         // API Request with proper error handling
-        const apiUrl = `https://kaiz-apis.gleeze.com/api/ytdown-mp3?url=${encodeURIComponent(videoUrl)}&apikey=adb523bb-74e0-4aa0-a0f2-31a41ab56cf1`;
+        const apiUrl = `https://jawad-tech.vercel.app/download/audio?url=${encodeURIComponent(videoUrl)}&apikey=adb523bb-74e0-4aa0-a0f2-31a41ab56cf1`;
         
         const { data } = await axios.get(apiUrl, {
             validateStatus: function (status) {
@@ -89,7 +89,7 @@ cmd({
         await reply("⬇️ Downloading audio...");
 
         // API request
-        const apiUrl = `https://kaiz-apis.gleeze.com/api/ytdown-mp3?url=${encodeURIComponent(videoUrl)}&apikey=adb523bb-74e0-4aa0-a0f2-31a41ab56cf1`;
+        const apiUrl = `https://jawad-tech.vercel.app/download/audio?url=${encodeURIComponent(videoUrl)}&apikey=adb523bb-74e0-4aa0-a0f2-31a41ab56cf1`;
         const { data } = await axios.get(apiUrl);
 
         if (!data?.download_url) {
