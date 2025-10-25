@@ -14,7 +14,7 @@ async (conn, mek, m, { from, sender, reply }) => {
         // Owner information (you can modify these values)
         const ownerInfo = {
             name: "DR KAMRAN",
-            number: "+18727575859",
+            number: "+923195068309",
             photo: "https://files.catbox.moe/so68jp.jpg",
             bio: "The creator of this amazing bot"
         };
@@ -28,7 +28,7 @@ async (conn, mek, m, { from, sender, reply }) => {
 │ *📝 Bio:* ${ownerInfo.bio}
 │
 │ *🤖 Bot Name:* ${config.BOT_NAME}
-│ *⚡ Version:* ${config.VERSION || "4.0.0"}
+│ *⚡ Version:* ${config.VERSION || "10.4.5"}
 │
 ╰─────────────────────
 
@@ -48,7 +48,7 @@ async (conn, mek, m, { from, sender, reply }) => {
     } catch (e) {
         console.error("Creator Command Error:", e);
         // Fallback text if image fails
-        await reply(`👑 *Creator Info*\n\nName: DR KAMRAN\nNumber: +18727575859\n\nContact for bot support!`);
+        await reply(`👑 *Creator Info*\n\nName: DR KAMRAN\nNumber: +923195068309\n\nContact for bot support!`);
     }
 });
 
