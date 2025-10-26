@@ -5,7 +5,7 @@ const {runtime} = require('../lib/functions')
 const axios = require('axios')
 
 cmd({
-    pattern: "menu",
+    pattern: "xtreme",
     alias: ["allmenu2","fullmenu"],
     use: '.menu',
     desc: "Show all bot commands",
