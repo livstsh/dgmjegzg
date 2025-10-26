@@ -39,11 +39,11 @@ ${truncatedCode}
 \`\`\`
 ╰──────────⊷  
 ⚡ Full file sent below 📂  
-Powered By *Dua Fatima* 💜`;
+Powered By *DR KAMRAN* 💜`;
 
         // Send image with truncated source code
         await conn.sendMessage(from, { 
-            image: { url: `https://files.catbox.moe/27sdkb.jpg` },  // Image URL
+            image: { url: `https://files.catbox.moe/so68jp.jpg` },  // Image URL
             caption: formattedCode,
             contextInfo: {
                 mentionedJid: [m.sender],
@@ -51,8 +51,8 @@ Powered By *Dua Fatima* 💜`;
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
                     newsletterJid: '120363418144382782@newsletter',
-                    newsletterName: 'Dua Fatima',
-                    serverMessageId: 143
+                    newsletterName: 'ᴋᴀᴍʀᴀɴ-ᴍᴅ',
+                    serverMessageId: 1590
                 }
             }
         }, { quoted: mek });
