@@ -3,7 +3,7 @@ const { runtime } = require('../lib/functions');
 const {cmd , commands} = require('../command')
 cmd({
     pattern: "about",
-    alias: "xtreme",
+    alias: "xtre",
     react: "🤖",
     desc: "get owner dec",
     category: "misc",
