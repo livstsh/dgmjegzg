@@ -39,8 +39,8 @@ cmd({
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
           newsletterJid: "120363418144382782@newsletter",
-          newsletterName: "Dua Fatima",
-          serverMessageId: 143
+          newsletterName: "ᴋᴀᴍʀᴀɴ-ᴍᴅ",
+          serverMessageId: 1590
         }
       }
     });
