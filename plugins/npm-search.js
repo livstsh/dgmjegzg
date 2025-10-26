@@ -33,7 +33,7 @@ cmd({
 
     // Create the response message
     const message = `
-*KHAN-MD NPM SEARCH*
+*KAMRAN-MD NPM SEARCH*
 
 *🔰 NPM PACKAGE:* ${packageName}
 *📄 DESCRIPTION:* ${description}
