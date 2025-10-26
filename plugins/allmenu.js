@@ -5,7 +5,7 @@ const { runtime } = require('../lib/functions');
 const axios = require('axios');
 
 cmd({
-    pattern: "menu6",
+    pattern: "menu",
     desc: "Show interactive menu system",
     category: "menu5",
     react: "🧾",
@@ -15,14 +15,14 @@ cmd({
         // Count total commands
         const totalCommands = Object.keys(commands).length;
         
-        const menuCaption = `╭━━━〔 *🧚‍♂️KAMRAN-MD🧚‍♂️* 〕━━━┈⊷
-│ ✓ 𝐎ᴡɴᴇʀ : *KAMRAN*
+        const menuCaption = `╭━━━〔 *🧚‍♂️ᴋᴀᴍʀᴀɴ-ᴍᴅ🧚‍♂️* 〕━━━┈⊷
+│ ✓ 𝐎ᴡɴᴇʀ : *ᴋᴀᴍʀᴀɴ*
 │ ✓ 𝐁ᴀɪʟᴇʏꜱ : *Multi Device*
 │ ✓ 𝐓ʏᴘᴇ : *NodeJs*
 │ ✓ 𝐏ʟᴀᴛꜰᴏʀᴍ : *Heroku*
 │ ✓ 𝐌ᴏᴅᴇ : *[${config.MODE}]*
 │ ✓ 𝐏ʀᴇꜰɪx : *[${config.PREFIX}]*
-│ ✓ 𝐕ᴇʀꜱɪᴏɴ : *5.0.0 Bᴇᴛᴀ*
+│ ✓ 𝐕ᴇʀꜱɪᴏɴ : *10.4.5 Bᴇᴛᴀ*
 │ ✓ 𝐂ᴏᴍᴍᴀɴᴅꜱ : *352*
 ╰━━━━━━━━━━━━━━━┈⊷
 ╭━━〔 *🧚‍♂️ᴋᴀᴍʀᴀɴ-ᴍᴅ🧚‍♂️*  ━┈⊷
@@ -46,7 +46,7 @@ cmd({
             forwardedNewsletterMessageInfo: {
                 newsletterJid: '120363418144382782@newsletter',
                 newsletterName: config.OWNER_NAME,
-                serverMessageId: 143
+                serverMessageId: 1590
             }
         };
 
