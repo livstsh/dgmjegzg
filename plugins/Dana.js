@@ -1,89 +1,59 @@
-// ✅ Coded by DR KAMRAN for KAMRAN MD
-
+const config = require('../config');
 const { cmd } = require('../command');
-const yts = require('yt-search');
-const axios = require('axios');
 
 cmd({
-    pattern: "dr",
-    alias: ["video4", "video3", "ytv"],
-    desc: "Download YouTube videos",
-    category: "download",
-    react: "📹",
-    filename: __filename
-}, async (conn, mek, m, { from, q, reply }) => {
-    try {
-        if (!q) return await reply("🎥 Please provide a YouTube video name or URL!\n\nExample: `.video alone marshmello`");
+  pattern: 'mee',
+  alias: ['hello'],
+  desc: 'Mention user and send voice note',
+  category: 'fun',
+  react: '🎙️'
+}, async (conn, m, { reply }) => {
+  const voiceClips = [
+    "https://cdn.ironman.my.id/i/7p5plg.mp4",
+    "https://cdn.ironman.my.id/i/rnptgd.mp4",
+    "https://cdn.ironman.my.id/i/smsl2s.mp4",
+    "https://cdn.ironman.my.id/i/vkvh1d.mp4",
+    "https://cdn.ironman.my.id/i/9xp5lb.mp4",
+    "https://cdn.ironman.my.id/i/jfr6cu.mp4",
+    "https://cdn.ironman.my.id/i/l4dyvg.mp4",
+    "https://cdn.ironman.my.id/i/4z93dg.mp4",
+    "https://cdn.ironman.my.id/i/m9gwk0.mp4",
+    "https://cdn.ironman.my.id/i/gr1jjc.mp4",
+    "https://cdn.ironman.my.id/i/lbr8of.mp4",
+    "https://cdn.ironman.my.id/i/0z95mz.mp4",
+    "https://cdn.ironman.my.id/i/rldpwy.mp4",
+    "https://cdn.ironman.my.id/i/lz2z87.mp4",
+    "https://cdn.ironman.my.id/i/gg5jct.mp4"
+  ];
 
-        let url = q;
-        let videoInfo = null;
-        
-        // 🔍 Check if query is a URL or title
-        if (q.startsWith('http://') || q.startsWith('https://')) {
-            // It's a URL - use directly and fetch info
-            if (!q.includes("youtube.com") && !q.includes("youtu.be")) {
-                return await reply("❌ Please provide a valid YouTube URL!");
-            }
-            // Fetch video info for URL
-            const videoId = getVideoId(q);
-            if (!videoId) return await reply("❌ Invalid YouTube URL!");
-            
-            const searchFromUrl = await yts({ videoId: videoId });
-            videoInfo = searchFromUrl;
-        } else {
-            // It's a title - search for video
-            const search = await yts(q);
-            if (!search.videos || search.videos.length === 0) {
-                return await reply("❌ No video results found!");
-            }
-            videoInfo = search.videos[0];
-            url = videoInfo.url;
-        }
+  const randomClip = voiceClips[Math.floor(Math.random() * voiceClips.length)];
+  const mentionedUser = m.sender;
 
-        // Helper function to extract video ID from URL
-        function getVideoId(url) {
-            const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-            return match ? match[1] : null;
-        }
+  // 🧷 Mention user with text first
+  await conn.sendMessage(m.chat, {
+    text: `@${mentionedUser.split('@')[0]}`,
+    mentions: [mentionedUser]
+  });
 
-        // 📸 Send thumbnail with title and downloading status
-        if (videoInfo) {
-            await conn.sendMessage(from, {
-                image: { url: videoInfo.thumbnail },
-                caption: `🎬 *${videoInfo.title}*\n⏰ *Duration:* ${videoInfo.timestamp}\n👀 *Views:* ${videoInfo.views}\n📥 Status: Downloading Please Wait...\n\n⏳ This may take a few seconds...`
-            }, { quoted: mek });
-        }
-
-        // 🎬 Fetch video from API - CORRECTED API STRUCTURE
-        const api = `https://gtech-api-xtp1.onrender.com/api/video/yt?apikey=APIKEY&url=${encodeURIComponent(url)}&quality=360`;
-        const res = await axios.get(api);
-        const data = res.data;
-
-        // Check the actual API response structure
-        if (!data?.status) {
-            return await reply("❌ Failed to fetch download link from API!");
-        }
-
-        // Use the correct response structure based on your example
-        const downloadUrl = data.download;
-        const metadata = data.metadata;
-
-        if (!downloadUrl) {
-            return await reply("❌ No download URL found in API response!");
-        }
-
-        // 🧾 Send video with proper error handling
-        await conn.sendMessage(from, {
-            video: { url: downloadUrl },
-            caption: `🎬 *${metadata?.title || videoInfo?.title || 'YouTube Video'}*\n📥 *Quality:* ${data.quality || '360'}p\n🕒 *Duration:* ${metadata?.duration || videoInfo?.duration?.seconds || 'N/A'}s\n\n✅ KAMRAN - MD Download Completed!\n\n> Powered by *DrKamran ⚡*`
-        }, { quoted: mek });
-
-        // ✅ React success
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (e) {
-        console.error("❌ Error in .ytmp4:", e);
-        await reply("⚠️ Something went wrong! Try again later.");
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-    }
+  // 🎙️ Send Voice Note with Audio Type and Waveform + ExternalAdReply
+  await conn.sendMessage(m.chat, {
+    audio: { url: randomClip },
+    mimetype: 'audio/mp4',
+    ptt: true,
+    waveform: [99, 0, 99, 0, 99],
+    contextInfo: {
+      forwardingScore: 55555,
+      isForwarded: true,
+      externalAdReply: {
+        title: "ᴋᴀᴍʀᴀɴ-ᴍᴅ",
+        body: "𝐓𝝰̚𝐠͜͡𝗲 𝝪𝐨̚𝝻͜͡𝐫 𝐋𝝾̚𝝼͜͡𝗲 :🦚🍬⛱️🎗️💖",
+        mediaType: 4,
+        thumbnailUrl: "https://files.catbox.moe/so68jp.jpg",
+        sourceUrl: "https://Wa.me/+923195068309",
+        showAdAttribution: true
+      }
+    },
+    mentions: [mentionedUser]
+  });
 });
+//CODES BY DR KAMRAN
