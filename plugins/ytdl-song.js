@@ -90,7 +90,7 @@ cmd({
 });
 
 cmd({
-    pattern: "video",
+    pattern: "song",
     alias: ["drama"],
     desc: "Download YouTube videos",
     category: "download",
