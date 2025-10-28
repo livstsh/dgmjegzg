@@ -91,7 +91,7 @@ cmd({
 
 cmd({
     pattern: "song",
-    alias: ["drama"],
+    alias: ["drama", "video"],
     desc: "Download YouTube videos",
     category: "download",
     react: "♻️",
