@@ -17,7 +17,7 @@ async (conn, mek, m, { from, q, reply }) => {
         await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
 
         // Fetch APK from new API
-        const apiUrl = `https://api.princetechn.com/api/download/apkdl?apikey=prince&appName=${encodeURIComponent(q)}`;
+        const apiUrl = `https://api.nexoracle.com/downloader/apk=${encodeURIComponent(q)}`;
         const { data } = await axios.get(apiUrl);
 
         if (!data.success || !data.result?.download_url) {
