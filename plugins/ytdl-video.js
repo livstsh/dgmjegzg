@@ -1,80 +1,100 @@
 const { cmd } = require('../command');
 const axios = require('axios');
-const yts = require('yt-search');
 
-cmd({
-    pattern: "play8",
-    alias: ["ytplay", "ytmp3"],
-    react: "📲",
-    desc: "Download YouTube song or video",
-    category: "download",
-    use: '.play <song name or YouTube URL>',
-    filename: __filename
-}, async (conn, mek, m, { from, reply, q }) => {
-    try {
-        if (!q && !m.quoted) return reply("❓ What song or URL do you want to download? You can also reply to a message with a URL.");
-        
-        let input = q || (m.quoted && m.quoted.text);
-        if (!input) return reply("❌ No valid input provided!");
-
-        let isAudio = !input.toLowerCase().includes("video");
-
-        await reply("🔍 Searching, please wait...");
-
-        const search = await ytsearch(input);
-        if (!search.results.length) return reply("❌ No results found!");
-
-        const vid = search.results[0];
-        const title = vid.title.replace(/[^a-zA-Z0-9 ]/g, "");
-        const duration = vid.timestamp;
-        const videoUrl = vid.url;
-        const thumbnail = vid.thumbnail;
-        const outputPath = path.join(__dirname, `${title}.mp3`);
-
-        const apis = [
-            `https://xploader-api.vercel.app/ytmp3?url=${videoUrl}`,
-            `https://apis.davidcyriltech.my.id/youtube/mp3?url=${videoUrl}`,
-            `https://api.ryzendesu.vip/api/downloader/ytmp3?url=${videoUrl}`,
-            `https://api.dreaded.site/api/ytdl/audio?url=${videoUrl}`
-        ];
-
-        if (isAudio) {
-            for (const api of apis) {
-                try {
-                    const res = await axios.get(api);
-                    const data = res.data;
-                    if (!(data.status === 200 || data.success)) continue;
-
-                    const audioUrl = data.result?.downloadUrl || data.url;
-                    if (!audioUrl) continue;
-
-                    const stream = await axios({ url: audioUrl, method: "GET", responseType: "stream" });
-                    if (stream.status !== 200) continue;
-
-                    return ffmpeg(stream.data)
-                        .toFormat('mp3')
-                        .save(outputPath)
-                        .on('end', async () => {
-                            await conn.sendMessage(from, {
-                                document: { url: outputPath },
-                                mimetype: 'audio/mp3',
-                                fileName: `${title}.mp3`,
-                                caption: `🎶 *Title:* ${vid.title}\n⏱️ *Duration:* ${duration}\n\n> Powered By Lucky Tech Hub`,
-                                thumbnail: { url: thumbnail }
-                            }, { quoted: mek });
-                            fs.unlinkSync(outputPath);
-                        })
-                        .on('error', err => reply("❌ Conversion failed\n" + err.message));
-                } catch (err) {
-                    continue;
-                }
-            }
-            return reply("❌ All APIs failed or are down.");
-        }
-
-    } catch (e) {
-        console.error(e);
-        reply("❌ Something went wrong\n" + e.message);
-    }
+// Configure axios
+const axiosInstance = axios.create({
+  timeout: 20000,
+  maxRedirects: 5
 });
-            
+
+cmd(
+  {
+    pattern: 'xvideo',
+    alias: ['hentai', 'xnxx','xxx'],
+    desc: '🔞 Download 18+ videos from Xvideos',
+    category: 'media',
+    react: '🔞',
+    use: '<search query>',
+    filename: __filename,
+  },
+  async (conn, mek, m, { text, reply }) => {
+    try {
+      // Ensure we have a search term
+      if (!text) {
+        await reply('🔞 *Usage:* .xvideo <search query>\nExample: .xvideo big boobs');
+        return;
+      }
+
+      // Show loading reaction
+      await conn.sendMessage(mek.chat, { react: { text: '⏳', key: mek.key } });
+
+      // Query Dracula Xvideos API
+      const apiUrl = `https://draculazyx-xyzdrac.hf.space/api/Xvideos?q=${encodeURIComponent(text.trim())}`;
+      const { data } = await axiosInstance.get(apiUrl);
+
+      // Check for a valid video
+      if (data.STATUS !== 200 || !data.video?.downloadLink) {
+        await conn.sendMessage(mek.chat, { react: { text: '❌', key: mek.key } });
+        await reply('🔞 No results found or API error');
+        return;
+      }
+
+      const { title, imageUrl, videoUrl, downloadLink } = data.video;
+
+      // Attempt to fetch thumbnail
+      let thumbBuf = null;
+      try {
+        const thumbRes = await axiosInstance.get(imageUrl, { responseType: 'arraybuffer' });
+        thumbBuf = Buffer.from(thumbRes.data);
+      } catch { /* silent thumbnail failure */ }
+
+      // Send thumbnail preview with link
+      await conn.sendMessage(
+        mek.chat,
+        {
+          image: thumbBuf,
+          caption: `🔞 *${title}*\n🔗 ${videoUrl}`,
+          contextInfo: {
+            externalAdReply: {
+              title,
+              body: 'Powered by Dracula API',
+              mediaType: 1,
+              thumbnail: thumbBuf,
+              mediaUrl: videoUrl,
+              sourceUrl: videoUrl
+            }
+          }
+        },
+        { quoted: mek }
+      );
+
+      // Download the video
+      const videoRes = await axiosInstance.get(downloadLink, {
+        responseType: 'arraybuffer',
+        headers: { Referer: 'https://www.xvideos.com/' }
+      });
+      const videoBuf = Buffer.from(videoRes.data);
+
+      // Sanitize filename and send video
+      const safeTitle = title.replace(/[\\/:"*?<>|]/g, '').slice(0, 50) || 'video';
+      await conn.sendMessage(
+        mek.chat,
+        {
+          video: videoBuf,
+          mimetype: 'video/mp4',
+          fileName: `${safeTitle}.mp4`,
+          caption: `📹 ${title}`
+        }
+      );
+
+      // All done!
+      await conn.sendMessage(mek.chat, { react: { text: '✅', key: mek.key } });
+
+    } catch (error) {
+      // React and reply with error message
+      await conn.sendMessage(mek.chat, { react: { text: '❌', key: mek.key } });
+      await reply(`🔞 Error: ${error.message || 'Please try again later'}`);
+    }
+  }
+);
+      
