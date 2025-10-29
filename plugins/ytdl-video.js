@@ -3,102 +3,78 @@ const axios = require('axios');
 const yts = require('yt-search');
 
 cmd({
-    pattern: 'ytsong',
-        alias: ['youtube', 'song02'],
-        desc: 'Download YouTube videos/audio',
-        category: 'download',
-        react: '⬇️',
-        use: '<url or search term>',
-        filename: __filename
-    },
-    async (conn, msg, { text, reply }) => {
-        try {
-            if (!text) return reply('🎬 *Usage:* .yt <url/query>\nExample: .yt https://youtu.be/...\n.yt never gonna give you up');
+    pattern: "play8",
+    alias: ["ytplay", "ytmp3"],
+    react: "📲",
+    desc: "Download YouTube song or video",
+    category: "download",
+    use: '.play <song name or YouTube URL>',
+    filename: __filename
+}, async (conn, mek, m, { from, reply, q }) => {
+    try {
+        if (!q && !m.quoted) return reply("❓ What song or URL do you want to download? You can also reply to a message with a URL.");
+        
+        let input = q || (m.quoted && m.quoted.text);
+        if (!input) return reply("❌ No valid input provided!");
 
-            // Show processing message
-            await reply('🔍 Processing your request...');
+        let isAudio = !input.toLowerCase().includes("video");
 
-            // Get video info from API
-            const apiUrl = `https://romektricks-subzero-yt.hf.space/yt?query=${encodeURIComponent(text)}`;
-            const { data } = await axios.get(apiUrl);
-            
-            if (!data.success || !data.result) {
-                return reply('❌ Failed to fetch video info');
-            }
+        await reply("🔍 Searching, please wait...");
 
-            const video = data.result;
-            const thumbnailUrl = video.thumbnail || video.image;
+        const search = await ytsearch(input);
+        if (!search.results.length) return reply("❌ No results found!");
 
-            // Prepare info message with options
-            const infoMsg = `🎬 *${video.title}*\n\n` +
-                           `⏱ Duration: ${video.timestamp || video.duration?.timestamp || 'N/A'}\n` +
-                           `👤 Author: ${video.author?.name || 'Unknown'}\n` +
-                           `👀 Views: ${video.views ? video.views.toLocaleString() : 'N/A'}\n\n` +
-                           `*Reply with:*\n` +
-                           `1 - For Video Download (${video.timestamp || ''}) 🎥\n` +
-                           `2 - For Audio Download (MP3) 🎵`;
+        const vid = search.results[0];
+        const title = vid.title.replace(/[^a-zA-Z0-9 ]/g, "");
+        const duration = vid.timestamp;
+        const videoUrl = vid.url;
+        const thumbnail = vid.thumbnail;
+        const outputPath = path.join(__dirname, `${title}.mp3`);
 
-            // Send video info with thumbnail
-            const sentMsg = await conn.sendMessage(
-                msg.chat,
-                {
-                    image: { url: thumbnailUrl },
-                    caption: infoMsg
-                },
-                { quoted: msg }
-            );
+        const apis = [
+            `https://xploader-api.vercel.app/ytmp3?url=${videoUrl}`,
+            `https://apis.davidcyriltech.my.id/youtube/mp3?url=${videoUrl}`,
+            `https://api.ryzendesu.vip/api/downloader/ytmp3?url=${videoUrl}`,
+            `https://api.dreaded.site/api/ytdl/audio?url=${videoUrl}`
+        ];
 
-            // Set up response handler
-            const handleResponse = async (mek) => {
+        if (isAudio) {
+            for (const api of apis) {
                 try {
-                    if (!mek.message || !mek.key.remoteJid === msg.chat) return;
+                    const res = await axios.get(api);
+                    const data = res.data;
+                    if (!(data.status === 200 || data.success)) continue;
 
-                    const isReply = mek.message.extendedTextMessage?.contextInfo?.stanzaId === sentMsg.key.id;
-                    const choice = mek.message.conversation || mek.message.extendedTextMessage?.text;
+                    const audioUrl = data.result?.downloadUrl || data.url;
+                    if (!audioUrl) continue;
 
-                    if (!isReply || !['1', '2'].includes(choice)) return;
+                    const stream = await axios({ url: audioUrl, method: "GET", responseType: "stream" });
+                    if (stream.status !== 200) continue;
 
-                    // Remove listener
-                    conn.ev.off('messages.upsert', handleResponse);
-
-                    // Delete the options message
-                    try {
-                        await conn.sendMessage(msg.chat, { delete: sentMsg.key });
-                    } catch (e) {
-                        console.log('Could not delete message:', e);
-                    }
-
-                    // Get download URL
-                    const downloadUrl = choice === '1' ? video.download.video : video.download.audio;
-                    const fileType = choice === '1' ? 'video' : 'audio';
-                    const fileName = `${video.title.replace(/[^\w\s]/gi, '')}.${fileType === 'video' ? 'mp4' : 'mp3'}`;
-
-                    // Send downloading message
-                    await reply(`⬇️ Downloading ${fileType === 'video' ? 'video' : 'audio'}...`);
-
-                    // Send the media file
-                    await conn.sendMessage(
-                        msg.chat,
-                        {
-                            [fileType]: { url: downloadUrl },
-                            mimetype: fileType === 'video' ? 'video/mp4' : 'audio/mpeg',
-                            fileName: fileName
-                        },
-                        { quoted: mek }  // Quote the user's reply
-                    );
-
-                } catch (error) {
-                    console.error('Response handling error:', error);
-                    reply('❌ Error processing your request');
+                    return ffmpeg(stream.data)
+                        .toFormat('mp3')
+                        .save(outputPath)
+                        .on('end', async () => {
+                            await conn.sendMessage(from, {
+                                document: { url: outputPath },
+                                mimetype: 'audio/mp3',
+                                fileName: `${title}.mp3`,
+                                caption: `🎶 *Title:* ${vid.title}\n⏱️ *Duration:* ${duration}\n\n> Powered By Lucky Tech Hub`,
+                                thumbnail: { url: thumbnail }
+                            }, { quoted: mek });
+                            fs.unlinkSync(outputPath);
+                        })
+                        .on('error', err => reply("❌ Conversion failed\n" + err.message));
+                } catch (err) {
+                    continue;
                 }
-            };
-
-            conn.ev.on('messages.upsert', handleResponse);
-
-        } catch (error) {
-            console.error('YouTube Download Error:', error);
-            reply('❌ Error: ' + (error.message || 'Failed to process request'));
+            }
+            return reply("❌ All APIs failed or are down.");
         }
+
+    } catch (e) {
+        console.error(e);
+        reply("❌ Something went wrong\n" + e.message);
     }
-);
-                
+});
+            
