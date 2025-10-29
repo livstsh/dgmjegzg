@@ -219,7 +219,7 @@ cmd({
 // apk-dl
 
 cmd({
-  pattern: "apk",
+  pattern: "apkk",
   desc: "Download APK from Aptoide.",
   category: "download",
   filename: __filename
