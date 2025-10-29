@@ -1,6 +1,9 @@
 const { cmd } = require('../command');
-const axios = require('axios');
+const config = require('../config');
+let BLOCK = false;
+let pmblockEnabled = config.PM_BLOCK === "true"; // Initial value from config
 
+// Activation / désactivation via commande
 cmd({
     pattern: "pmblock",
     alias: ["pmblocker"],
@@ -30,4 +33,3 @@ cmd({
         : "✅ *PM Blocker Disabled!*\n\n💬 All users can now message the bot privately."
     );
 });
-  
