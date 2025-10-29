@@ -75,7 +75,7 @@ cmd({
 
     await conn.sendMessage(m.chat, {
       image: imageBuffer,
-      caption: `> *Dua Fatima*`
+      caption: `> *DR KAMRAN*`
     });
 
   } catch (error) {
