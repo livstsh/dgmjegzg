@@ -94,7 +94,7 @@ cmd({
         caption: `📥 *File Details*\n\n` +
           `🔖 *Name*: ${filename}\n` +
           `📏 *Size*: ${size}\n\n` +
-          `> © Powered By Mr Lucky 218`,
+          `> © Powered By DR KAMRAN`,
         contextInfo: {
           mentionedJid: [m.sender],
           forwardingScore: 999,
