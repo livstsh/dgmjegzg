@@ -2,77 +2,85 @@ const axios = require('axios');
 const { cmd } = require('../command');
 
 cmd({
-    pattern: "movie",
-    desc: "Fetch detailed information about a movie.",
-    category: "utility",
-    react: "🎬",
-    filename: __filename
-},
-async (conn, mek, m, { from, reply, sender, args }) => {
-    try {
-        // Properly extract the movie name from arguments
-        const movieName = args.length > 0 ? args.join(' ') : m.text.replace(/^[\.\#\$\!]?movie\s?/i, '').trim();
-        
-        if (!movieName) {
-            return reply("📽️ Please provide the name of the movie.\nExample: .movie Iron Man");
-        }
+   pattern: 'moviedl',
+        alias: ['movie', 'film'],
+        desc: 'Smart movie downloader with auto file/link',
+        category: 'media',
+        react: '🔍',
+        use: '<movie title>',
+        filename: __filename,
+    },
+    async (conn, mek, m, { text, reply }) => {
+        try {
+            if (!text) return reply(`🎬 *Usage:* ${Config.PREFIX}moviedl <movie title>\nExample: ${Config.PREFIX}moviedl spiderman 2`);
 
-        const apiUrl = `https://apis.davidcyriltech.my.id/imdb?query=${encodeURIComponent(movieName)}`;
-        const response = await axios.get(apiUrl);
+            await conn.sendMessage(mek.chat, { react: { text: "⏳", key: mek.key } });
 
-        if (!response.data.status || !response.data.movie) {
-            return reply("🚫 Movie not found. Please check the name and try again.");
-        }
+            // 1. Get movie metadata (using insecure agent only for this API)
+            const apiUrl = `https://draculazyx-xyzdrac.hf.space/api/Movie?query=${encodeURIComponent(text)}`;
+            const { data } = await movieAxios.get(apiUrl);
+            
+            if (!data?.download_link) {
+                return reply('🎬 *Movie not found!* Try another title');
+            }
 
-        const movie = response.data.movie;
-        
-        // Format the caption
-        const dec = `
-🎬 *${movie.title}* (${movie.year}) ${movie.rated || ''}
+            // 2. Prepare info message
+            const yearMatch = data.title.match(/\((\d{4})\)/);
+            const cleanTitle = data.title.replace(/\s*\|\s*Download.*$/, '').trim();
+            const shortDesc = data.description ? 
+                data.description.substring(0, 150) + (data.description.length > 150 ? '...' : '') : 
+                'No description available';
 
-⭐ *IMDb:* ${movie.imdbRating || 'N/A'} | 🍅 *Rotten Tomatoes:* ${movie.ratings.find(r => r.source === 'Rotten Tomatoes')?.value || 'N/A'} | 💰 *Box Office:* ${movie.boxoffice || 'N/A'}
+            const infoMsg = `🎬 *${cleanTitle}* ${yearMatch ? `(${yearMatch[1]})` : ''}\n\n` +
+                           `📝 ${shortDesc}\n\n` +
+                           `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴀᴍʀᴀɴ-ᴍᴅ`;
 
-📅 *Released:* ${new Date(movie.released).toLocaleDateString()}
-⏳ *Runtime:* ${movie.runtime}
-🎭 *Genre:* ${movie.genres}
+            // 3. Check file size (using secure axios for the download link)
+            let fileSizeMB;
+            try {
+                const headRes = await secureAxios.head(data.download_link);
+                fileSizeMB = headRes.headers['content-length'] ? 
+                    Math.round(headRes.headers['content-length'] / (1024 * 1024)) : null;
+            } catch (e) {
+                console.log('Size check failed, defaulting to link');
+                fileSizeMB = null;
+            }
 
-📝 *Plot:* ${movie.plot}
+            // 4. Send file or link based on size
+            if (fileSizeMB && fileSizeMB <= 200) {
+                try {
+                    const response = await secureAxios.get(data.download_link, {
+                        responseType: 'arraybuffer',
+                        maxContentLength: 200 * 1024 * 1024
+                    });
 
-🎥 *Director:* ${movie.director}
-✍️ *Writer:* ${movie.writer}
-🌟 *Actors:* ${movie.actors}
-
-🌍 *Country:* ${movie.country}
-🗣️ *Language:* ${movie.languages}
-🏆 *Awards:* ${movie.awards || 'None'}
-
-[View on IMDb](${movie.imdbUrl})
-`;
-
-        // Send message with the requested format
-        await conn.sendMessage(
-            from,
-            {
-                image: { 
-                    url: movie.poster && movie.poster !== 'N/A' ? movie.poster : 'https://files.catbox.moe/7zfdcq.jpg'
-                },
-                caption: dec,
-                contextInfo: {
-                    mentionedJid: [sender],
-                    forwardingScore: 999,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363418144382782@newsletter',
-                        newsletterName: 'Dua Fatima',
-                        serverMessageId: 143
-                    }
+                    await conn.sendMessage(mek.chat, {
+                        document: response.data,
+                        fileName: `${cleanTitle.replace(/[^\w\s]/gi, '')}.mp4`,
+                        mimetype: 'video/mp4',
+                        caption: infoMsg
+                    });
+                } catch (downloadError) {
+                    console.error('Download failed, falling back to link', downloadError);
+                    await conn.sendMessage(mek.chat, {
+                        text: infoMsg + `\n\n📥 *Download Link:* ${data.download_link}\n` +
+                              `⚠️ *Couldn't send file directly*`
+                    });
                 }
-            },
-            { quoted: mek }
-        );
+            } else {
+                await conn.sendMessage(mek.chat, {
+                    text: infoMsg + `\n\n📥 *Download Link:* ${data.download_link}\n` +
+                          `💡 *File too large for direct send*`
+                });
+            }
 
-    } catch (e) {
-        console.error('Movie command error:', e);
-        reply(`❌ Error: ${e.message}`);
+            await conn.sendMessage(mek.chat, { react: { text: "✅", key: mek.key } });
+
+        } catch (error) {
+            console.error('MovieDL Error:', error);
+            await conn.sendMessage(mek.chat, { react: { text: "❌", key: mek.key } });
+            reply('🎬 *Error:* ' + (error.message || 'Failed to process request'));
+        }
     }
-});
+);
+                
