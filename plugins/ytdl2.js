@@ -1,117 +1,211 @@
-const { cmd } = require('../command');
-const axios = require('axios');
-const https = require('https');
-const Config = require('../config');
+const fetch = require("node-fetch");
+const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
+const { cmd } = require("../command");
 
-// Configure axios with better timeout and retry settings
-const apiClient = axios.create({
-  timeout: 30000,
-  httpsAgent: new https.Agent({ 
-    rejectUnauthorized: false,
-    maxFreeSockets: 1,
-    keepAlive: false
-  }),
-  maxRedirects: 2
+// Base API URLs
+const fantoxApiUrl = "https://fantox-apis.vercel.app";
+const giftedApiUrl = "https://api.gifted.my.id/api";
+
+// Helper function to clear a reaction after 5 seconds
+async function clearReaction(m) {
+  try {
+    // Calling m.react("") is an example; adjust it according to your bot’s API for removing reactions
+    await m.react("");
+  } catch (e) {
+    console.error("Error clearing reaction:", e);
+  }
+}
+
+/* ------------------------------------------------------------------
+   1. NSFW Image Commands (dynamic endpoints)
+   ------------------------------------------------------------------ */
+const endpoints = [
+  "genshin", "swimsuit", "schoolswimsuit", "white", "barefoot", "touhou",
+  "gamecg", "hololive", "uncensored", "sunglasses", "glasses", "weapon",
+  "shirtlift", "chain", "fingering", "flatchest", "torncloth", "bondage",
+  "demon", "wet", "pantypull", "headdress", "headphone", "tie", "anusview",
+  "shorts", "stokings", "topless", "beach", "bunnygirl", "bunnyear", "idol",
+  "vampire", "gun", "maid", "bra", "nobra", "bikini", "whitehair", "blonde",
+  "pinkhair", "bed", "ponytail", "nude", "dress", "underwear", "foxgirl",
+  "uniform", "skirt", "sex", "sex2", "sex3", "breast", "twintail",
+  "spreadpussy", "tears", "seethrough", "breasthold", "drunk", "fateseries",
+  "spreadlegs", "openshirt", "headband", "food", "close", "tree", "nipples",
+  "erectnipples", "horns", "greenhair", "wolfgirl", "catgirl"
+];
+
+endpoints.forEach((endpoint) => {
+  cmd(
+    {
+      pattern: endpoint,
+      desc: `Send pictures of random ${endpoint}s!`,
+      category: "hentai",
+      react: "🍑",
+      filename: __filename,
+    },
+    async (
+      conn,
+      mek,
+      m,
+      { from, quoted, body, isCmd, command, args, q, isGroup, sender, botNumber, pushname, isMe, isOwner, reply }
+    ) => {
+      try {
+        const res = await fetch(`${fantoxApiUrl}/${endpoint}`);
+        const json = await res.json();
+
+        if (!json.url)
+          return reply(`*Request Denied for ${endpoint}!*`);
+
+        const caption = `Here's a pic of ${endpoint}`;
+        await conn.sendMessage(
+          m.chat,
+          { image: { url: json.url }, caption },
+          { quoted: m }
+        );
+
+        // Clear reaction after 5 seconds.
+        setTimeout(() => {
+          clearReaction(m);
+        }, 5000);
+      } catch (e) {
+        reply(`Error in ${endpoint} command:\n\n${e}`);
+      }
+    }
+  );
 });
 
+/* ------------------------------------------------------------------
+   2. xsearch Command for NSFW content search
+   ------------------------------------------------------------------ */
 cmd(
-    {
-        pattern: 'series',
-        alias: ['tvdl', 'episode'],
-        desc: 'TV series episode downloader',
-        category: 'media',
-        react: '📺',
-        use: '<series> <season> <episode>',
-        filename: __filename,
-    },
-    async (conn, mek, m, { text, reply }) => {
-        try {
-            // Input validation
-            if (!text) return reply(`📺 *Usage:* ${Config.PREFIX}seriesdl <series> <season> <episode>\nExample: ${Config.PREFIX}seriesdl "Money Heist" 1 1`);
+  {
+    pattern: "xsearch",
+    desc: "Search for NSFW content based on a query.",
+    category: "hentai",
+    react: "🔍",
+    filename: __filename,
+  },
+  async (
+    conn,
+    mek,
+    m,
+    { from, quoted, body, isCmd, command, args, q, isGroup, sender, botNumber, pushname, isMe, isOwner, reply }
+  ) => {
+    try {
+      const query = q;
+      if (!query)
+        return reply("Please provide a search term, e.g., `.xsearch mom and son`.");
 
-            await conn.sendMessage(mek.chat, { react: { text: "⏳", key: mek.key } });
+      await reply("fetching results please wait....");
 
-            // Parse input (supports both formats)
-            let seriesName, seasonNum, episodeNum;
-            
-            // Format 1: "series S01E01"
-            const seasonEpisodeMatch = text.match(/(.+?)\s*s(\d+)e(\d+)/i);
-            if (seasonEpisodeMatch) {
-                seriesName = seasonEpisodeMatch[1];
-                seasonNum = seasonEpisodeMatch[2].padStart(2, '0');
-                episodeNum = seasonEpisodeMatch[3].padStart(2, '0');
-            } 
-            // Format 2: "series 1 1"
-            else {
-                const parts = text.trim().split(/\s+/);
-                if (parts.length >= 3) {
-                    seriesName = parts.slice(0, -2).join(' ');
-                    seasonNum = parts[parts.length-2].padStart(2, '0');
-                    episodeNum = parts[parts.length-1].padStart(2, '0');
-                }
-            }
+      const searchUrl = `${giftedApiUrl}/search/xnxxsearch?apikey=gifted_api_6hf50c4j&query=${encodeURIComponent(query)}`;
+      const response = await fetch(searchUrl);
+      if (!response.ok)
+        return reply(`*_Error: ${response.status} ${response.statusText}_*`);
 
-            if (!seriesName || !seasonNum || !episodeNum) {
-                return reply('📺 *Invalid format!* Use:\n.seriesdl <series> <season> <episode>\nOR\n.seriesdl <series> S01E01');
-            }
+      const data = await response.json();
+      if (
+        !data.success ||
+        !data.results ||
+        data.results.length === 0
+      ) {
+        return reply(`No results found for "${query}".`);
+      }
 
-            // API request
-            const apiUrl = `https://draculazyx-xyzdrac.hf.space/api/Movie/episode?query=${encodeURIComponent(`${seriesName} S${seasonNum}EP${episodeNum}`)}`;
-            const { data } = await apiClient.get(apiUrl);
+      let message = `*Results for "${query}":*\n\n`;
+      data.results.forEach((result, index) => {
+        message += `${index + 1}. ${result.title}\nLink: ${result.link}\n\n`;
+      });
 
-            if (!data?.download_link) {
-                return reply('📺 *Episode not found!* Check your inputs or try another series');
-            }
-
-            // Prepare and send episode info
-            const cleanTitle = data.title.replace(/\s*\|\s*TV Series.*$/i, '').trim();
-            const fileName = data.download_link.split('/').pop() || `${seriesName}_S${seasonNum}E${episodeNum}.mkv`;
-            
-            const episodeInfo = {
-                text: `📺 *${cleanTitle}*\n\n` +
-                      `🔄 S${seasonNum}E${episodeNum}\n` +
-                      `🔗 ${data.download_link}\n\n` +
-                      `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴍʀ ғʀᴀɴᴋ`,
-                contextInfo: {
-                    externalAdReply: {
-                        title: cleanTitle,
-                        body: `Season ${seasonNum} • Episode ${episodeNum}`,
-                        thumbnailUrl: 'https://files.catbox.moe/dmwm11.jpg',
-                        mediaType: 1,
-                        sourceUrl: data.download_link
-                    }
-                }
-            };
-            await conn.sendMessage(mek.chat, episodeInfo, { quoted: mek });
-
-            // Now send the video file
-            try {
-                const videoResponse = await axios.get(data.download_link, {
-                    responseType: 'arraybuffer',
-                    timeout: 60000,
-                    httpsAgent: new https.Agent({ rejectUnauthorized: false })
-                });
-
-                await conn.sendMessage(mek.chat, {
-                    video: videoResponse.data,
-                    caption: `📺 ${cleanTitle} - S${seasonNum}E${episodeNum}`,
-                    fileName: fileName,
-                    mimetype: 'video/mp4'
-                });
-
-                await conn.sendMessage(mek.chat, { react: { text: "✅", key: mek.key } });
-            } catch (downloadError) {
-                console.error('Download failed:', downloadError);
-                await conn.sendMessage(mek.chat, { react: { text: "⚠️", key: mek.key } });
-                reply('📺 *Video send failed!* Use the provided download link instead');
-            }
-
-        } catch (error) {
-            console.error('SeriesDL Error:', error);
-            await conn.sendMessage(mek.chat, { react: { text: "❌", key: mek.key } });
-            reply('📺 *Error:* ' + (error.message || 'Check console for details'));
-        }
+      await reply(message);
+      setTimeout(() => {
+        clearReaction(m);
+      }, 5000);
+    } catch (e) {
+      reply(`Error in xsearch command:\n\n${e}`);
     }
+  }
 );
 
-        
+/* ------------------------------------------------------------------
+   3. xdl Command for NSFW Video Download
+   ------------------------------------------------------------------ */
+cmd(
+  {
+    pattern: "xdl",
+    alias: ["xx"],
+    desc: "Download video from a given link.",
+    category: "hentai",
+    react: "⏳",
+    filename: __filename,
+    use: "<Video URL>",
+  },
+  async (
+    conn,
+    mek,
+    m,
+    { from, quoted, body, isCmd, command, args, q, isGroup, sender, botNumber, pushname, isMe, isOwner, reply }
+  ) => {
+    try {
+      if (!q)
+        return reply("*Please provide a video URL*");
+      const videoUrl = q;
+
+      const apiUrl = `${giftedApiUrl}/download/xnxxdl?apikey=gifted_api_6hf50c4j&url=${encodeURIComponent(videoUrl)}`;
+      const response = await axios.get(apiUrl);
+      const data = response.data;
+
+      console.log("API Response:", data);
+
+      if (
+        data.success &&
+        data.result &&
+        data.result.files &&
+        data.result.files.high
+      ) {
+        const videoDownloadUrl = data.result.files.high;
+        const videoResponse = await axios({
+          url: videoDownloadUrl,
+          method: "GET",
+          responseType: "stream",
+        });
+
+        const tempFilePath = path.join(__dirname, `${Date.now()}.mp4`);
+        const writer = fs.createWriteStream(tempFilePath);
+        videoResponse.data.pipe(writer);
+
+        await new Promise((resolve, reject) => {
+          writer.on("finish", resolve);
+          writer.on("error", reject);
+        });
+
+        console.log(`Video saved to ${tempFilePath}`);
+
+        await conn.sendMessage(
+          m.chat,
+          {
+            video: { url: tempFilePath },
+            caption: "Here is your downloaded video",
+            fileName: `${Date.now()}.mp4`,
+            mimetype: "video/mp4",
+          },
+          { quoted: m }
+        );
+
+        // Delete the temporary file.
+        fs.unlinkSync(tempFilePath);
+
+        setTimeout(() => {
+          clearReaction(m);
+        }, 5000);
+      } else {
+        console.log("Error: Could not retrieve video download URL. API response:", data);
+        return reply("*Error: Could not retrieve the video download URL. Please try again later!*");
+      }
+    } catch (err) {
+      console.error("Caught Error in xdl command:", err);
+      return reply(`Error in xdl command:\n\n${err}`);
+    }
+  }
+);
