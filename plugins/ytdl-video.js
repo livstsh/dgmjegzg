@@ -3,120 +3,102 @@ const axios = require('axios');
 const yts = require('yt-search');
 
 cmd({
-    pattern: "song2",
-    alias: ["play2", "music2"],
-    react: "🎵",
-    desc: "Download YouTube audio",
-    category: "download",
-    use: "<query or url>",
-    filename: __filename
-}, async (conn, m, mek, { from, q, reply }) => {
-    try {
-        if (!q) return reply("❌ Please provide a song name or YouTube URL!");
+    pattern: 'ytsong',
+        alias: ['youtube', 'song02'],
+        desc: 'Download YouTube videos/audio',
+        category: 'download',
+        react: '⬇️',
+        use: '<url or search term>',
+        filename: __filename
+    },
+    async (conn, msg, { text, reply }) => {
+        try {
+            if (!text) return reply('🎬 *Usage:* .yt <url/query>\nExample: .yt https://youtu.be/...\n.yt never gonna give you up');
 
-        // Get YouTube URL from query if needed
-        let videoUrl = q;
-        if (!q.match(/(youtube\.com|youtu\.be)/)) {
-            const search = await yts(q);
-            if (!search.videos.length) return reply("❌ No results found!");
-            videoUrl = search.videos[0].url;
-        }
+            // Show processing message
+            await reply('🔍 Processing your request...');
 
-        await reply("⏳ Processing your request...");
-
-        // API Request with proper error handling
-        const apiUrl = `https://jawad-tech.vercel.app/download/audio?url=${encodeURIComponent(videoUrl)}&apikey=adb523bb-74e0-4aa0-a0f2-31a41ab56cf1`;
-        
-        const { data } = await axios.get(apiUrl, {
-            validateStatus: function (status) {
-                return status < 500; // Reject only if status is 500 or above
+            // Get video info from API
+            const apiUrl = `https://romektricks-subzero-yt.hf.space/yt?query=${encodeURIComponent(text)}`;
+            const { data } = await axios.get(apiUrl);
+            
+            if (!data.success || !data.result) {
+                return reply('❌ Failed to fetch video info');
             }
-        });
 
-        if (!data?.download_url) {
-            if (data?.message) {
-                return reply(`❌ API Error: ${data.message}`);
-            }
-            return reply("❌ Failed to get download link from API");
-        }
+            const video = data.result;
+            const thumbnailUrl = video.thumbnail || video.image;
 
-        // Send the audio file
-        await conn.sendMessage(from, {  
-            audio: { url: data.download_url },  
-            mimetype: 'audio/mpeg',
-            fileName: (data.title || "audio").replace(/[^\w\s.-]/g, '') + '.mp3',
-            contextInfo: {  
-                externalAdReply: {  
-                    title: data.title || "YouTube Audio",
-                    body: data.author ? `By ${data.author}` : "Downloaded via Kaiz API",
-                    mediaType: 2,
-                    mediaUrl: videoUrl
-                }  
-            }  
-        }, { quoted: mek });
+            // Prepare info message with options
+            const infoMsg = `🎬 *${video.title}*\n\n` +
+                           `⏱ Duration: ${video.timestamp || video.duration?.timestamp || 'N/A'}\n` +
+                           `👤 Author: ${video.author?.name || 'Unknown'}\n` +
+                           `👀 Views: ${video.views ? video.views.toLocaleString() : 'N/A'}\n\n` +
+                           `*Reply with:*\n` +
+                           `1 - For Video Download (${video.timestamp || ''}) 🎥\n` +
+                           `2 - For Audio Download (MP3) 🎵`;
 
-    } catch (error) {
-        console.error("Error:", error);
-        if (error.response?.data?.message) {
-            reply(`❌ API Error: ${error.response.data.message}`);
-        } else {
-            reply(`❌ Error: ${error.message}`);
-        }
-    }
-});
+            // Send video info with thumbnail
+            const sentMsg = await conn.sendMessage(
+                msg.chat,
+                {
+                    image: { url: thumbnailUrl },
+                    caption: infoMsg
+                },
+                { quoted: msg }
+            );
 
+            // Set up response handler
+            const handleResponse = async (mek) => {
+                try {
+                    if (!mek.message || !mek.key.remoteJid === msg.chat) return;
 
-cmd({
-    pattern: "ytmp3",
-    alias: ["song3", "play3"],
-    react: "🎵",
-    desc: "Download YouTube audio",
-    category: "download",
-    use: "<YouTube link or search query>",
-    filename: __filename
-}, async (conn, m, mek, { from, q, reply }) => {
-    try {
-        if (!q) return reply("❌ Please provide a YouTube link or search query");
+                    const isReply = mek.message.extendedTextMessage?.contextInfo?.stanzaId === sentMsg.key.id;
+                    const choice = mek.message.conversation || mek.message.extendedTextMessage?.text;
 
-        // Get YouTube URL
-        let videoUrl = q;
-        if (!q.match(/youtu(be\.com|\.be)/)) {
-            const search = await yts(q);
-            if (!search.videos.length) return reply("❌ No videos found");
-            videoUrl = search.videos[0].url;
-        }
+                    if (!isReply || !['1', '2'].includes(choice)) return;
 
-        await reply("⬇️ Downloading audio...");
+                    // Remove listener
+                    conn.ev.off('messages.upsert', handleResponse);
 
-        // API request
-        const apiUrl = `https://jawad-tech.vercel.app/download/audio?url=${encodeURIComponent(videoUrl)}&apikey=adb523bb-74e0-4aa0-a0f2-31a41ab56cf1`;
-        const { data } = await axios.get(apiUrl);
+                    // Delete the options message
+                    try {
+                        await conn.sendMessage(msg.chat, { delete: sentMsg.key });
+                    } catch (e) {
+                        console.log('Could not delete message:', e);
+                    }
 
-        if (!data?.download_url) {
-            return reply("❌ Failed to get download URL");
-        }
+                    // Get download URL
+                    const downloadUrl = choice === '1' ? video.download.video : video.download.audio;
+                    const fileType = choice === '1' ? 'video' : 'audio';
+                    const fileName = `${video.title.replace(/[^\w\s]/gi, '')}.${fileType === 'video' ? 'mp4' : 'mp3'}`;
 
-        // Send as document for better quality
-        await conn.sendMessage(from, {
-            document: { url: data.download_url },
-            fileName: `${data.title || 'audio'}.mp3`.replace(/[^\w\s.-]/g, ''),
-            mimetype: 'audio/mpeg',
-            contextInfo: {
-                externalAdReply: {
-                    title: data.title || "YouTube Audio",
-                    body: `Duration: ${data.duration || 'N/A'}`,
-                    thumbnail: await axios.get(data.thumbnail || '', { responseType: 'arraybuffer' })
-                        .then(res => res.data)
-                        .catch(() => null),
-                    mediaType: 2,
-                    mediaUrl: videoUrl
+                    // Send downloading message
+                    await reply(`⬇️ Downloading ${fileType === 'video' ? 'video' : 'audio'}...`);
+
+                    // Send the media file
+                    await conn.sendMessage(
+                        msg.chat,
+                        {
+                            [fileType]: { url: downloadUrl },
+                            mimetype: fileType === 'video' ? 'video/mp4' : 'audio/mpeg',
+                            fileName: fileName
+                        },
+                        { quoted: mek }  // Quote the user's reply
+                    );
+
+                } catch (error) {
+                    console.error('Response handling error:', error);
+                    reply('❌ Error processing your request');
                 }
-            }
-        }, { quoted: mek });
+            };
 
-    } catch (error) {
-        console.error("Error:", error);
-        reply(`❌ Error: ${error.response?.data?.message || error.message}`);
+            conn.ev.on('messages.upsert', handleResponse);
+
+        } catch (error) {
+            console.error('YouTube Download Error:', error);
+            reply('❌ Error: ' + (error.message || 'Failed to process request'));
+        }
     }
-});
-      
+);
+                
