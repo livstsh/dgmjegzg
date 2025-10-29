@@ -1,159 +1,193 @@
-/*
-Please Give Credit 🙂❤️
-⚖️𝐏𝐨𝐰𝐞𝐫𝐞𝐝 𝐁𝐲 - : ©ᴋᴀᴍʀᴀɴ-ᴍᴅ ꜱᴜᴘᴘᴏʀᴛ 💚
-*/
-
-const { cmd, commands } = require('../command');
-const { fetchJson } = require('../lib/functions');
-const domain = `https://mr-manul-ofc-apis.vercel.app/`;
-const api_key = `Manul-Ofc-Sl-Sub-Key-9`;
-
-//===== Api-Key එක මට Message එකක් දාල ඉල්ලගන්න, +92 319 5068 309 සල්ලි ගන්න නෙවේ, කීයක් Use කරනවද දැනගන්න...❤️=====
-
-//============================================
+const { cmd } = require('../command');
+const config = require('../config');
 
 cmd({
-    pattern: "mv3",
-    alias: ["slsub", "mv"],
-    react: '🎬',
-    category: "download",
-    desc: "Search movies on sinhalasub and get download links",
-    filename: __filename
-}, async (conn, m, mek, { from, isMe, isOwner, q, reply }) => {
-    try {
-        // Check if search query is provided
-        if (!q || q.trim() === '') return await reply('*Please provide a search query! (e.g., Deadpool)*');
-        
-
-        // Fetch search results from API
-        const manu = await fetchJson(`${domain}/api/sl-sub-search?query=${q}&apikey=${api_key}`);
-        const movieData = manu.data.data; // Use the `data.data` array
-
-        // Check if the API returned valid results (array of movies)
-        if (!Array.isArray(movieData) || movieData.length === 0) {
-            return await reply(`No results found for: ${q}`);
-        }
-
-        // Limit to first 10 results
-        const searchResults = movieData.slice(0, 10);
-
-        // Format and send the search results message
-        let resultsMessage = `🤍 *𝐊𝐀𝐕𝐈-𝐌𝐃 𝐌𝐎𝐕𝐈𝐄 𝐑𝐄𝐒𝐔𝐋𝐓𝐒* 🤍
-                             
-                          "${q}":\n\n`;
-        searchResults.forEach((result, index) => {
-            const title = result.title || 'No title available';
-            const link = result.link || 'No link available';
-            const thumbnail = result.thumbnail || 'https://via.placeholder.com/150'; // Fallback if thumbnail is missing
-            resultsMessage += `*${index + 1}.* ${title}\n🔗 Link: ${link}\n`;
-
-            // You can also display the thumbnail in the results if needed
-            resultsMessage += `📸 Thumbnail: ${thumbnail}\n\n`;
-        });
-
-        const sentMsg = await conn.sendMessage(m.chat, {
-            image: { url: searchResults[0].thumbnail }, // Show the thumbnail of the first result
-            caption: `${resultsMessage}`
-        }, { quoted: mek });
-
-        const messageID = sentMsg.key.id;
-
-        // Event listener for user's selection of a movie from search results
-        const handleSearchReply = async (replyMek, selectedNumber) => {
-            const selectedMovie = searchResults[selectedNumber - 1];
-            const response = await fetchJson(`${domain}/api/slsub-movie-info?url=${encodeURIComponent(selectedMovie.link)}&apikey=${api_key}`);
-            
-            try {
-                const movieDetails = response.data;
-                const downloadLinks = movieDetails.downloadLinks || [];
-
-                if (downloadLinks.length === 0) {
-                    return await reply('No download links found.');
-                }
-
-                let downloadMessage = `🎥 *${movieDetails.title}*\n\n*Available Download Links:*\n`;
-                downloadLinks.forEach((link, index) => {
-                    downloadMessage += `*${index + 1}.* ${link.quality} - ${link.size}\n🔗 Link: ${link.link}\n\n`;
-                });
-
-                const pixelDrainMsg = await conn.sendMessage(m.chat, {
-                    image: { url: selectedMovie.thumbnail }, // Show the selected movie's thumbnail
-                    caption: `${downloadMessage}`
-                }, { quoted: replyMek });
-
-                const pixelDrainMessageID = pixelDrainMsg.key.id;
-
-                // Event listener for the user to choose download quality
-                const handleDownloadReply = async (pdReply, qualityNumber) => {
-                    const selectedLink = downloadLinks[qualityNumber - 1];
-                    const file = selectedLink.link;
-                    const fileResponse = await fetchJson(`${domain}/api/slsub-direct-link?url=${encodeURIComponent(file)}&apikey=${api_key}`);
-                    const downloadLink = fileResponse.data.downloadLink;
-                    const fileId = downloadLink.split('/').pop();
-
-                    await conn.sendMessage(from, { react: { text: '⬇️', key: mek.key } });
-
-                    const directDownloadUrl = `https://pixeldrain.com/api/file/${fileId}`;
-
-                    await conn.sendMessage(from, { react: { text: '⬆', key: mek.key } });
-
-                    await conn.sendMessage(from, {
-                                document: {
-                                    url: directDownloadUrl
-                                },
-                                mimetype: 'video/mp4',
-                                fileName: `🎬𝗞𝗔𝗩𝗜-𝗠𝗗🎬${movieDetails.title} - ${selectedLink.quality}.mp4`,
-                                caption: `\n\n*~🔱𝗡𝗔𝗠𝗘:-~${movieDetails.title}*\n\n*~🔱𝗤𝗨𝗔𝗟𝗬𝗧𝗬:-~${selectedLink.quality}*\n> *Download Withing 14 Days.❗*\n> *Enjoy & Stay With Us✨*\n\n𝐌𝐚𝐝𝐞 𝐛𝐲 *𝐊𝐀𝐕𝐈𝐃𝐔 𝐑𝐀𝐒𝐀𝐍𝐆𝐀*  🌟`
-                            }, { quoted: pdReply });
-
-                    await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
-                };
-
-                // Listen for user's reply to select the download quality
-                conn.ev.on('messages.upsert', async (pdUpdate) => {
-                    const pdReply = pdUpdate.messages[0];
-                    if (!pdReply.message) return;
-                    const pdMessageType = pdReply.message.conversation || pdReply.message.extendedTextMessage?.text;
-                    const isReplyToPixelDrainMsg = pdReply.message.extendedTextMessage && pdReply.message.extendedTextMessage.contextInfo.stanzaId === pixelDrainMessageID;
-
-                    if (isReplyToPixelDrainMsg) {
-                        const qualityNumber = parseInt(pdMessageType.trim());
-                        if (!isNaN(qualityNumber) && qualityNumber > 0 && qualityNumber <= downloadLinks.length) {
-                            handleDownloadReply(pdReply, qualityNumber);
-                        } else {
-                            await reply('Invalid selection. Please reply with a valid number.');
-                        }
-                    }
-                });
-
-            } catch (error) {
-                console.error('Error fetching movie details:', error);
-                await reply('Sorry, something went wrong while fetching the movie details.');
-            }
-        };
-
-        // Listen for user to select a movie from search results
-        conn.ev.on('messages.upsert', async (messageUpdate) => {
-            const replyMek = messageUpdate.messages[0];
-            if (!replyMek.message) return;
-            const messageType = replyMek.message.conversation || replyMek.message.extendedTextMessage?.text;
-            const isReplyToSentMsg = replyMek.message.extendedTextMessage && replyMek.message.extendedTextMessage.contextInfo.stanzaId === messageID;
-
-            if (isReplyToSentMsg) {
-                const selectedNumber = parseInt(messageType.trim());
-                if (!isNaN(selectedNumber) && selectedNumber > 0 && selectedNumber <= searchResults.length) {
-                    handleSearchReply(replyMek, selectedNumber);
-                } else {
-                    await reply('Invalid selection. Please reply with a valid number.‼️');
-                }
-            }
-        });
-
-    } catch (error) {
-        console.error('Error in sinhala command:', error);
-        await reply('Sorry, something went wrong. Please try again later.🙁');
+    pattern: "mediafire2",
+  alias: ["mfire2", "mfdownload2"],
+  react: '📥',
+  desc: "Download files from MediaFire.",
+  category: "download",
+  use: ".mediafire <MediaFire URL>",
+  filename: __filename
+}, async (conn, mek, m, { from, reply, args }) => {
+  try {
+    // Check if the user provided a MediaFire URL
+    const mediafireUrl = args[0];
+    if (!mediafireUrl || !mediafireUrl.includes("mediafire.com")) {
+      return reply('Please provide a valid MediaFire URL. Example: `.mediafire https://mediafire.com/...`');
     }
+
+    // Add a reaction to indicate processing
+    await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+
+    // Prepare the Velyn API URL
+    const apiUrl = `https://velyn.vercel.app/api/downloader/mediafire?url=${encodeURIComponent(mediafireUrl)}`;
+
+    // Call the Velyn API using GET
+    const response = await axios.get(apiUrl);
+
+    // Check if the API response is valid
+    if (!response.data || !response.data.status || !response.data.data) {
+      return reply('❌ Unable to fetch the file. Please check the URL and try again.');
+    }
+
+    // Extract the file details
+    const { filename, size, mimetype, link } = response.data.data;
+
+    // Inform the user that the file is being downloaded
+    await reply(`📥 *Downloading ${filename} (${size})... Please wait.*`);
+
+    // Download the file
+    const fileResponse = await axios.get(link, { responseType: 'arraybuffer' });
+    if (!fileResponse.data) {
+      return reply('❌ Failed to download the file. Please try again later.');
+    }
+
+    // Prepare the file buffer
+    const fileBuffer = Buffer.from(fileResponse.data, 'binary');
+
+    // Send the file based on its MIME type
+    if (mimetype.startsWith('image')) {
+      // Send as image
+      await conn.sendMessage(from, {
+        image: fileBuffer,
+        caption: `📥 *File Details*\n\n` +
+          `🔖 *Name*: ${filename}\n` +
+          `📏 *Size*: ${size}\n\n` +
+          `> © Powered By DR KAMRAN`,
+        contextInfo: {
+          mentionedJid: [m.sender],
+          forwardingScore: 999,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363418144382782@newsletter',
+            newsletterName: '『 KAMRAN-MD 』',
+            serverMessageId: 143
+          }
+        }
+      }, { quoted: mek });
+    } else if (mimetype.startsWith('video')) {
+      // Send as video
+      await conn.sendMessage(from, {
+        video: fileBuffer,
+        caption: `📥 *File Details*\n\n` +
+          `🔖 *Name*: ${filename}\n` +
+          `📏 *Size*: ${size}\n\n` +
+          `> © Powered By DR KAMRAN`,
+        contextInfo: {
+          mentionedJid: [m.sender],
+          forwardingScore: 999,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363418144382782@newsletter',
+            newsletterName: '『 KAMRAN-MD 』',
+            serverMessageId: 143
+          }
+        }
+      }, { quoted: mek });
+    } else {
+      // Send as document
+      await conn.sendMessage(from, {
+        document: fileBuffer,
+        mimetype: mimetype,
+        fileName: filename,
+        caption: `📥 *File Details*\n\n` +
+          `🔖 *Name*: ${filename}\n` +
+          `📏 *Size*: ${size}\n\n` +
+          `> © Powered By Mr Lucky 218`,
+        contextInfo: {
+          mentionedJid: [m.sender],
+          forwardingScore: 999,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363418144382782@newsletter',
+            newsletterName: '『 KAMRAN-MD 』',
+            serverMessageId: 143
+          }
+        }
+      }, { quoted: mek });
+    }
+
+    // Add a reaction to indicate success
+    await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    reply('❌ Unable to download the file. Please try again later.');
+
+    // Add a reaction to indicate failure
+    await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+  }
 });
 
-//=============©ᴋᴀᴍʀᴀɴ-ᴍᴅ ꜱᴜᴘᴘᴏʀᴛ 💚==========
-  
+
+/// MEDIAFIRE 2
+
+malvin({
+  pattern: "mediafire",
+  alias: ["mfire", "media"],
+  react: '📂',
+  desc: "Download files from MediaFire using Keith's API.",
+  category: "download",
+  use: ".mediafire2 <MediaFire URL>",
+  filename: __filename
+}, async (conn, mek, m, { from, reply, args, q }) => {
+  try {
+    // Check if the user provided a URL
+    if (!q) {
+      return reply('Please provide a MediaFire URL. Example: `.mediafire2 https://www.mediafire.com/...`');
+    }
+
+    // Add a reaction to indicate processing
+    await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+
+    // Prepare the API URL
+    const apiUrl = `https://apis-keith.vercel.app/download/mfire?url=${encodeURIComponent(q)}`;
+
+    // Call the API using GET
+    const response = await axios.get(apiUrl);
+
+    // Check if the API response is valid
+    if (!response.data || !response.data.status || !response.data.result || !response.data.result.dl_link) {
+      return reply('❌ Unable to fetch the file. Please try again later.');
+    }
+
+    // Extract file details
+    const { fileName, fileType, size, date, dl_link } = response.data.result;
+
+    // Inform the user that the file is being downloaded
+    await reply(`📂 *Downloading ${fileName}...*`);
+
+    // Download the file
+    const fileResponse = await axios.get(dl_link, { responseType: 'arraybuffer' });
+    if (!fileResponse.data) {
+      return reply('❌ Failed to download the file. Please try again later.');
+    }
+
+    // Send the file with emojis in the message content
+    await conn.sendMessage(from, {
+      document: fileResponse.data,
+      mimetype: fileType,
+      fileName: fileName,
+      caption: `📂 *File Name:* ${fileName}\n📦 *File Size:* ${size}\n📅 *Upload Date:* ${date}\n `,
+      contextInfo: {
+        mentionedJid: [m.sender],
+        forwardingScore: 999,
+        isForwarded: true,
+        forwardedNewsletterMessageInfo: {
+          newsletterJid: '120363418144382782@newsletter',
+          newsletterName: '『 KAMRAN-MD 』',
+          serverMessageId: 143
+        }
+      }
+    }, { quoted: mek });
+
+    // Add a reaction to indicate success
+    await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    reply('❌ Unable to download the file. Please try again later.');
+
+    // Add a reaction to indicate failure
+    await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+  }
+});
