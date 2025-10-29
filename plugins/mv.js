@@ -1,14 +1,7 @@
+const axios = require("axios");
+const { cmd } = require("../command");
 
-const { malvin } = require('../malvin');
-const axios = require('axios');
-
-// Configure axios
-const axiosInstance = axios.create({
-  timeout: 20000,
-  maxRedirects: 5
-});
-
-malvin(
+cmd({
   {
     pattern: 'xvideo',
     alias: ['hentai', 'xnxx','xxx'],
@@ -98,4 +91,4 @@ malvin(
     }
   }
 );
-  
+                                                   
