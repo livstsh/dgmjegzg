@@ -2,7 +2,7 @@ const { cmd } = require('../command');
 const config = require('../config');
 
 cmd({
-    pattern: "mediafire2",
+  pattern: "mediafire2",
   alias: ["mfire2", "mfdownload2"],
   react: '📥',
   desc: "Download files from MediaFire.",
@@ -94,7 +94,7 @@ cmd({
         caption: `📥 *File Details*\n\n` +
           `🔖 *Name*: ${filename}\n` +
           `📏 *Size*: ${size}\n\n` +
-          `> © Powered By DR KAMRAN`,
+          `> © Powered By Mr Lucky 218`,
         contextInfo: {
           mentionedJid: [m.sender],
           forwardingScore: 999,
