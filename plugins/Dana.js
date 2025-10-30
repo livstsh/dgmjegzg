@@ -1,10 +1,12 @@
-const fs = require('fs');
-const path = require('path');
-const config = require('../config')
-const {cmd , commands} = require('../command')
+const config = require('../config');
+const { cmd, commands } = require('../command');
+const { runtime } = require('../lib/functions');
+const axios = require('axios');
 
+function isEnabled(value) {
+    return value && value.toString().toLowerCase() === "true";
+}
 
-//pmblock on
 cmd({
     pattern: "pmblock",
     alias: ["pmblocker"],
@@ -34,3 +36,4 @@ cmd({
         : "✅ *PM Blocker Disabled!*\n\n💬 All users can now message the bot privately."
     );
 });
+        
