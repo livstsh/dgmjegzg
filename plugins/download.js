@@ -161,8 +161,8 @@ cmd({
 // MediaFire-dl
 
 cmd({
-  pattern: "mediafirer",
-  alias: ["mfirer"],
+  pattern: "mediafire",
+  alias: ["mfire"],
   desc: "To download MediaFire files.",
   react: "🎥",
   category: "download",
