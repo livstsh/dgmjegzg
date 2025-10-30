@@ -1,5 +1,5 @@
-const { cmd } = require('../command');
-const config = require("../config");
+const { cmd, commands } = require('../command');
+const config = require('../config');
 
 cmd({
   'on': "body"
@@ -23,66 +23,79 @@ cmd({
       return;
     }
 
-    // List of link patterns to detect
-    const linkPatterns = [
-      /https?:\/\/(?:chat\.whatsapp\.com|wa\.me)\/\S+/gi, // WhatsApp links
-      /https?:\/\/(?:api\.whatsapp\.com|wa\.me)\/\S+/gi,  // WhatsApp API links
-      /wa\.me\/\S+/gi,                                    // WhatsApp.me links
-      /https?:\/\/(?:t\.me|telegram\.me)\/\S+/gi,         // Telegram links
-      /https?:\/\/(?:www\.)?\.com\/\S+/gi,                // Generic .com links
-      /https?:\/\/(?:www\.)?twitter\.com\/\S+/gi,         // Twitter links
-      /https?:\/\/(?:www\.)?linkedin\.com\/\S+/gi,        // LinkedIn links
-      /https?:\/\/(?:whatsapp\.com|channel\.me)\/\S+/gi,  // Other WhatsApp/channel links
-      /https?:\/\/(?:www\.)?reddit\.com\/\S+/gi,          // Reddit links
-      /https?:\/\/(?:www\.)?discord\.com\/\S+/gi,         // Discord links
-      /https?:\/\/(?:www\.)?twitch\.tv\/\S+/gi,           // Twitch links
-      /https?:\/\/(?:www\.)?vimeo\.com\/\S+/gi,           // Vimeo links
-      /https?:\/\/(?:www\.)?dailymotion\.com\/\S+/gi,     // Dailymotion links
-      /https?:\/\/(?:www\.)?medium\.com\/\S+/gi           // Medium links
-    ];
+    // Check if anti-link is disabled
+    if (config.ANTI_LINK === 'false' || !config.ANTI_LINK) {
+      return;
+    }
 
+    // Clean the message body and prepare for URL detection
+    let cleanBody = body.replace(/[\s\u200b-\u200d\uFEFF]/g, '').toLowerCase();
+    
+    // Custom domains to block - only detect actual URLs including WhatsApp
+    const urlRegex = /(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.(?:com|org|net|co|pk|biz|id|info|xyz|online|site|website|tech|shop|store|blog|app|dev|io|ai|gov|edu|mil|me)(?:\/[^\s]*)?|whatsapp\.com\/channel\/|wa\.me\//gi;
+    
     // Check if message contains any forbidden links
-    const containsLink = linkPatterns.some(pattern => pattern.test(body));
+    const containsLink = urlRegex.test(cleanBody);
 
-    // Only proceed if anti-link is enabled and link is detected
-    if (containsLink && config.ANTI_LINK === 'true') {
+    if (containsLink) {
       console.log(`Link detected from ${sender}: ${body}`);
 
-      // Try to delete the message
+      // Try to delete the message (regardless of mode)
       try {
-        await conn.sendMessage(from, {
-          delete: m.key
-        });
+        await conn.sendMessage(from, { 'delete': m.key }, { 'quoted': m });
         console.log(`Message deleted: ${m.key.id}`);
       } catch (error) {
         console.error("Failed to delete message:", error);
       }
 
-      // Update warning count for user
-      global.warnings[sender] = (global.warnings[sender] || 0) + 1;
-      const warningCount = global.warnings[sender];
+      // MODE: "delete" - Delete links only, don't remove member
+      if (config.ANTI_LINK === 'delete') {
+        await conn.sendMessage(from, {
+          'text': `⚠️ Links are not allowed in this group.\n@${sender.split('@')[0]}, your link has been deleted. 🚫`,
+          'mentions': [sender]
+        }, { 'quoted': m });
+        return;
+      }
 
-      // Handle warnings
-      if (warningCount < 1) {
-        // Send warning message
+      // MODE: true - Delete and kick immediately
+      if (config.ANTI_LINK === 'true') {
         await conn.sendMessage(from, {
-          text: `‎*⚠️LINKS ARE NOT ALLOWED⚠️*\n` +
-                `*╭────⬡ WARNING ⬡────*\n` +
-                `*├▢ USER :* @${sender.split('@')[0]}!\n` +
-                `*├▢ COUNT : ${warningCount}*\n` +
-                `*├▢ REASON : LINK SENDING*\n` +
-                `*├▢ WARN LIMIT : 1*\n` +
-                `*╰────────────────*`,
-          mentions: [sender]
-        });
-      } else {
-        // Remove user if they exceed warning limit
-        await conn.sendMessage(from, {
-          text: `@${sender.split('@')[0]} HAS BEEN REMOVED - WARN LIMIT EXCEEDED!*`,
-          mentions: [sender]
-        });
+          'text': `⚠️ Links are not allowed in this group.\n@${sender.split('@')[0]} has been removed. 🚫`,
+          'mentions': [sender]
+        }, { 'quoted': m });
+
         await conn.groupParticipantsUpdate(from, [sender], "remove");
-        delete global.warnings[sender];
+        return;
+      }
+
+      // MODE: "warn" - Warning system (3 warnings then kick)
+      if (config.ANTI_LINK === 'warn') {
+        // Update warning count for user
+        global.warnings[sender] = (global.warnings[sender] || 0) + 1;
+        const warningCount = global.warnings[sender];
+
+        // Handle warnings
+        if (warningCount < 3) {
+          // Send warning message
+          await conn.sendMessage(from, {
+            text: `‎*⚠️LINKS ARE NOT ALLOWED⚠️*\n` +
+                  `*╭────⬡ WARNING ⬡────*\n` +
+                  `*├▢ USER :* @${sender.split('@')[0]}!\n` +
+                  `*├▢ COUNT : ${warningCount}*\n` +
+                  `*├▢ REASON : LINK SENDING*\n` +
+                  `*├▢ WARN LIMIT : 3*\n` +
+                  `*╰────────────────*`,
+            mentions: [sender]
+          });
+        } else {
+          // Remove user if they exceed warning limit
+          await conn.sendMessage(from, {
+            text: `@${sender.split('@')[0]} *HAS BEEN REMOVED - WARN LIMIT EXCEEDED!*`,
+            mentions: [sender]
+          });
+          await conn.groupParticipantsUpdate(from, [sender], "remove");
+          delete global.warnings[sender];
+        }
       }
     }
   } catch (error) {
