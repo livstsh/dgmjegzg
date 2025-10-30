@@ -1,39 +1,52 @@
 const config = require('../config');
 const { cmd, commands } = require('../command');
-const { runtime } = require('../lib/functions');
-const axios = require('axios');
-
-function isEnabled(value) {
-    return value && value.toString().toLowerCase() === "true";
-}
+const { fetchJson } = require('../lib/functions');
 
 cmd({
-    pattern: "pmblock",
-    alias: ["pmblocker"],
-    desc: "Enable or disable private message blocking for non-owners.",
-    category: "security",
-    filename: __filename,
-    usage: "pmblock [on/off]",
-    react: "🚫",
-    ownerOnly: true
-}, async (conn, mek, m, { args, reply }) => {
-    const action = args[0]?.toLowerCase();
+    pattern: "gemini", // Command name changed to "gemini"
+    desc: "Chat with Gemini AI",
+    category: "main",
+    filename: __filename
+},
+async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply }) => {
+    try {
+        if (!q) return reply('🔍 *Question missing!* \n\nDR KAMRAN BOT.\nDR: ```.gemini GEMINI OF CHAT?```');
 
-    if (!action || !['on', 'off'].includes(action)) {
-        return reply(`
-❓ *Invalid Usage*
+        const apiEndpoints = [
+            `https://vapis.my.id/api/gemini?q=${encodeURIComponent(q)}`,
+            `https://api.siputzx.my.id/api/ai/gemini-pro?content=${encodeURIComponent(q)}`,
+            `https://api.ryzendesu.vip/api/ai/gemini?text=${encodeURIComponent(q)}`,
+            `https://api.dreaded.site/api/gemini2?text=${encodeURIComponent(q)}`,
+            `https://api.giftedtech.my.id/api/ai/geminiai?apikey=gifted&q=${encodeURIComponent(q)}`,
+            `https://api.giftedtech.my.id/api/ai/geminiaipro?apikey=gifted&q=${encodeURIComponent(q)}`
+        ];
 
-🛠️ *Usage:* \`.pmblock on\` or \`.pmblock off\`
-📌 *Description:* Enable or disable PM blocking for non-owners.
-        `.trim());
+        let result;
+        let lastError;
+
+        for (const endpoint of apiEndpoints) {
+            try {
+                const data = await fetchJson(endpoint);
+                if (data?.data) result = data.data;
+                else if (data?.result) result = data.result;
+                else if (data?.response) result = data.response;
+                else if (data?.message) result = data.message;
+                
+                if (result) break; // Exit loop if response is valid
+            } catch (e) {
+                lastError = e;
+                continue; // Try next API
+            }
+        }
+
+        if (result) {
+            return reply(`🤖 *Gemini AI*:\n\n${result}`);
+        } else {
+            return reply('❌ *Gemini is not responding!*\n\nDR: ' + (lastError?.message || 'All APIs failed. Try again later.'));
+        }
+    } catch (e) {
+        console.error('Gemini Error:', e);
+        reply('⚠️ *Error occurred!* \n\n' + e.message);
     }
-
-    config.PM_BLOCKER = action === "on" ? "true" : "false";
-
-    return reply(
-        action === "on"
-        ? "🚫 *PM Blocker Enabled!*\n\n🛡️ The bot will now ignore private messages from non-owners."
-        : "✅ *PM Blocker Disabled!*\n\n💬 All users can now message the bot privately."
-    );
 });
-        
+
