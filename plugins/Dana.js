@@ -1,9 +1,10 @@
-const { cmd } = require('../command');
-const config = require('../config');
-let BLOCK = false;
-let pmblockEnabled = config.PM_BLOCK === "true"; // Initial value from config
+const fs = require('fs');
+const path = require('path');
+const config = require('../config')
+const {cmd , commands} = require('../command')
 
-// Activation / désactivation via commande
+
+//pmblock on
 cmd({
     pattern: "pmblock",
     alias: ["pmblocker"],
