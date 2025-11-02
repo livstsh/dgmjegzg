@@ -1,88 +1,49 @@
 const axios = require("axios");
-const FormData = require('form-data');
-const fs = require('fs');
-const os = require('os');
-const path = require("path");
 const { cmd } = require("../command");
 
 cmd({
-  pattern: "hd",
-  alias: ["enhance", "hq", "qualityup"],
-  react: '✨',
-  desc: "Enhance photo quality using Remini AI",
-  category: "utility",
-  use: ".remini [reply to image]",
+  pattern: "mfre",
+  alias: ["mfire", "mfdownload"],
+  react: '📥',
+  desc: "Download files from MediaFire",
+  category: "download",
+  use: ".mediafire <MediaFire URL>",
   filename: __filename
-}, async (client, message, { reply, quoted }) => {
+}, async (conn, mek, m, { from, reply, args }) => {
   try {
-    // Check if quoted message exists and has media
-    const quotedMsg = quoted || message;
-    const mimeType = (quotedMsg.msg || quotedMsg).mimetype || '';
-    
-    if (!mimeType || !mimeType.startsWith('image/')) {
-      return reply("Please reply to an image file (JPEG/PNG)");
+    const url = args[0];
+    if (!url || !url.includes("mediafire.com")) {
+      return reply("❌ Please provide a valid MediaFire URL\nExample: .mediafire https://www.mediafire.com/file/...");
     }
 
-    // Download the media
-    const mediaBuffer = await quotedMsg.download();
-    
-    // Get file extension based on mime type
-    let extension = '';
-    if (mimeType.includes('image/jpeg')) extension = '.jpg';
-    else if (mimeType.includes('image/png')) extension = '.png';
-    else {
-      return reply("Unsupported image format. Please use JPEG or PNG");
+    await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+
+    const apiUrl = `https://api.mrfrankofc.gleeze.com/api/d/mediafire?url=${encodeURIComponent(url)}`;
+    const { data } = await axios.get(apiUrl);
+
+    if (!data || !data.downloadLink) {
+      return reply("❌ Failed to fetch file info. Invalid URL or API error.");
     }
 
-    // Create temp file
-    const tempFilePath = path.join(os.tmpdir(), `remini_input_${Date.now()}${extension}`);
-    fs.writeFileSync(tempFilePath, mediaBuffer);
+    await reply(`📥 Downloading File (${data.size})...`);
 
-    // Upload to Catbox
-    const form = new FormData();
-    form.append('fileToUpload', fs.createReadStream(tempFilePath), `image${extension}`);
-    form.append('reqtype', 'fileupload');
+    const fileResponse = await axios.get(data.downloadLink, { responseType: 'arraybuffer' });
+    const fileBuffer = Buffer.from(fileResponse.data);
 
-    const uploadResponse = await axios.post("https://catbox.moe/user/api.php", form, {
-      headers: form.getHeaders()
-    });
+    const messageOptions = {
+      document: fileBuffer,
+      fileName: data.fileName,
+      mimetype: data.mimeType,
+      caption: `*MediaFire Download*\n\n📄 *Size:* ${data.size}\n\nPowered by KHAN-MD`
+    };
 
-    const imageUrl = uploadResponse.data;
-    fs.unlinkSync(tempFilePath); // Clean up temp file
-
-    if (!imageUrl) {
-      throw "Failed to upload image to Catbox";
-    }
-
-    // Enhance image using Remini API
-    const apiUrl = `https://jawad-tech.vercel.app/ai/imageedit?url=${encodeURIComponent(imageUrl)}`;
-    const response = await axios.get(apiUrl, { 
-      responseType: 'arraybuffer',
-      timeout: 60000 // 1 minute timeout
-    });
-
-    // Check if response is valid image
-    if (!response.data || response.data.length < 100) {
-      throw "API returned invalid image data";
-    }
-
-    // Save enhanced image
-    const outputPath = path.join(os.tmpdir(), `remini_output_${Date.now()}.jpg`);
-    fs.writeFileSync(outputPath, response.data);
-
-    // Send the enhanced image with loading message
-    await reply("🔄 Enhancing image quality...");
-    await client.sendMessage(message.chat, {
-      image: fs.readFileSync(outputPath),
-      caption: "✅ Image enhanced successfully!",
-    }, { quoted: message });
-
-    // Clean up
-    fs.unlinkSync(outputPath);
+    await conn.sendMessage(from, messageOptions, { quoted: mek });
+    await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
   } catch (error) {
-    console.error('Remini Error:', error);
-    await reply(`❌ Error: ${error.message || "Failed to enhance image. The image might be too large or the API is unavailable."}`);
+    console.error("MediaFire Error:", error);
+    reply("❌ Failed to download file. Please try again later.");
+    await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
   }
 });
-
+                           
