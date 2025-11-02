@@ -1,1 +1,81 @@
-const _0x953c0f=_0x6ca3;(function(_0x1958c6,_0x34d052){const _0xe98a27=_0x6ca3,_0x440405=_0x1958c6();while(!![]){try{const _0x1ebd2d=parseInt(_0xe98a27(0x147))/0x1*(-parseInt(_0xe98a27(0x149))/0x2)+-parseInt(_0xe98a27(0x14b))/0x3*(parseInt(_0xe98a27(0x13c))/0x4)+-parseInt(_0xe98a27(0x150))/0x5+-parseInt(_0xe98a27(0x13f))/0x6+parseInt(_0xe98a27(0x13b))/0x7+-parseInt(_0xe98a27(0x13a))/0x8+parseInt(_0xe98a27(0x145))/0x9*(parseInt(_0xe98a27(0x14f))/0xa);if(_0x1ebd2d===_0x34d052)break;else _0x440405['push'](_0x440405['shift']());}catch(_0x1ace7d){_0x440405['push'](_0x440405['shift']());}}}(_0x24d6,0xa17e7));const axios=require(_0x953c0f(0x152)),fs=require('fs'),path=require(_0x953c0f(0x151)),{cmd,commands}=require('../command'),config=require(_0x953c0f(0x14d));function _0x6ca3(_0x1644c5,_0x4feb80){const _0x24d677=_0x24d6();return _0x6ca3=function(_0x6ca3d,_0x4e4eec){_0x6ca3d=_0x6ca3d-0x13a;let _0x36ca84=_0x24d677[_0x6ca3d];return _0x36ca84;},_0x6ca3(_0x1644c5,_0x4feb80);}function _0x24d6(){const _0x4b735f=['3aqnwAJ','log','../config','❌\x20Error\x20downloading\x20video:\x20','32230STnPPx','5137280taNrJP','path','axios','finish','tempVideo.mp4','unlinkSync','sendMessage','⏳\x20*Waiting,\x20your\x20video\x20is\x20downloading...*\x20⏳','Random\x20Video','video_files','https://api.pexels.com/videos/search?query=random&per_page=1&page=','9249112pnkSfG','2140397oIWtMz','3502480HOsOBI','message','length','3574488PfpbeT','PEXELS_API_KEY','get','random','Fetch\x20and\x20send\x20a\x20random\x20video\x20from\x20Pexels.','error','14589uBFKxv','createWriteStream','134868Pxhbhb','floor','18MlwyEK','No\x20video\x20files\x20found\x20in\x20the\x20response'];_0x24d6=function(){return _0x4b735f;};return _0x24d6();}cmd({'pattern':'rvideo','desc':_0x953c0f(0x143),'category':'fun','react':'🎥','filename':__filename},async(_0x15829f,_0x5d7fc6,_0x40b5d9,{from:_0x1ae75e,quoted:_0x4098aa,body:_0x1251e1,isCmd:_0x5da98d,command:_0x1e2fe9,args:_0x53ca88,q:_0x4bd0a6,isGroup:_0x3f999d,sender:_0xc1cf50,senderNumber:_0x5ba45b,botNumber2:_0x348567,botNumber:_0x5b59e8,pushname:_0x37a014,isMe:_0x1451a0,isOwner:_0x57c17a,groupMetadata:_0x3d3619,groupName:_0x1bd538,participants:_0x175413,groupAdmins:_0x5d06d6,isBotAdmins:_0x65bef0,isAdmins:_0x2daa4e,reply:_0x4404ca})=>{const _0x2d108b=_0x953c0f;try{await _0x15829f['sendMessage'](_0x1ae75e,{'text':_0x2d108b(0x157)},{'quoted':_0x5d7fc6});const _0x42feac=_0x2d108b(0x15a)+(Math[_0x2d108b(0x148)](Math[_0x2d108b(0x142)]()*0x64)+0x1),_0xf51961=await axios[_0x2d108b(0x141)](_0x42feac,{'headers':{'Authorization':config[_0x2d108b(0x140)]}}),_0x1fee90=_0xf51961['data']['videos'][0x0];if(!_0x1fee90||!_0x1fee90[_0x2d108b(0x159)]||_0x1fee90[_0x2d108b(0x159)][_0x2d108b(0x13e)]===0x0)throw new Error(_0x2d108b(0x14a));const _0x263240=_0x1fee90['video_files'][0x0]['link'],_0x45ee50=_0x1fee90['title']||_0x2d108b(0x158),_0x3e6b62=path['join'](__dirname,_0x2d108b(0x154)),_0x40ab85=fs[_0x2d108b(0x146)](_0x3e6b62),_0x1650ad=await axios[_0x2d108b(0x141)](_0x263240,{'responseType':'stream'});_0x1650ad['data']['pipe'](_0x40ab85),_0x40ab85['on'](_0x2d108b(0x153),async()=>{const _0x412aaf=_0x2d108b;await _0x15829f[_0x412aaf(0x156)](_0x1ae75e,{'text':'✅\x20*Your\x20video\x20has\x20been\x20successfully\x20downloaded!*\x20✅'},{'quoted':_0x5d7fc6}),await _0x15829f[_0x412aaf(0x156)](_0x1ae75e,{'video':{'url':_0x3e6b62},'caption':'🎥\x20*Random\x20Pexels\x20Video*\x20🎥\x0a\x0aTitle:\x20'+_0x45ee50+'\x0a>\x20Avishka_X-MD'},{'quoted':_0x5d7fc6}),fs[_0x412aaf(0x155)](_0x3e6b62);}),_0x40ab85['on'](_0x2d108b(0x144),_0xf8de6a=>{const _0x4562e4=_0x2d108b;console[_0x4562e4(0x14c)](_0xf8de6a),_0x4404ca(_0x4562e4(0x14e)+_0xf8de6a[_0x4562e4(0x13d)]);});}catch(_0x2f9443){console[_0x2d108b(0x14c)](_0x2f9443),_0x4404ca('❌\x20Error\x20fetching\x20video:\x20'+_0x2f9443[_0x2d108b(0x13d)]);}});
+const axios = require('axios');
+const { zandile, commands } = require('../Command');
+const config = require("../settings");
+const { setConfig, getConfig } = require("../lib/functions");
+
+// Default AI state if not set
+let AI_ENABLED = "false"; // Default enabled
+
+zandile({
+    pattern: "aichat",
+    alias: ["chatbot", "ibot"],
+    desc: "Enable or disable AI chatbot responses",
+    category: "settings",
+    filename: __filename,
+    react: "✅"
+}, async (conn, mek, m, { from, args, isOwner, reply }) => {
+    if (!isOwner) return reply("*📛 Only the owner can use this command!*");
+
+    const status = args[0]?.toLowerCase();
+    if (status === "on") {
+        AI_ENABLED = "true";
+        await setConfig("AI_ENABLED", "true");
+        return reply("🤖 AI chatbot is now enabled");
+    } else if (status === "off") {
+        AI_ENABLED = "false";
+        await setConfig("AI_ENABLED", "false");
+        return reply("🤖 AI chatbot is now disabled");
+    } else {
+        return reply(`Current AI state: ${AI_ENABLED === "true" ? "ON" : "OFF"}\nUsage: ${prefix}aichat on/off`);
+    }
+});
+
+// Initialize AI state on startup
+(async () => {
+    const savedState = await getConfig("AI_ENABLED");
+    if (savedState) AI_ENABLED = savedState;
+})();
+
+// AI Chatbot 
+malvin({
+    on: "body"
+}, async (conn, m, store, {
+    from,
+    body,
+    sender,
+    isGroup,
+    isBotAdmins,
+    isAdmins,
+    reply
+}) => {
+    try {
+        // Check if AI is disabled
+        if (AI_ENABLED !== "true") return;
+
+        // Optional: Prevent bot responding to its own messages or commands
+        if (!body || m.key.fromMe || body.startsWith(config.PREFIX)) return;
+
+        // Encode message for the query
+        const query = encodeURIComponent(body);
+        const prompt = encodeURIComponent("you are mildred md whatsapp bot made by DR KAMRAN( BY KAMRAN-MD). a tech genius in zimbabwe. act smart and enigmatic about personal stuff about him. He is 22 years (2025).Every mesaage you reply put footer \n> ᴘᴏᴡᴇʀᴇᴅ  ©️ʙʏ DR KAMRAN 👑🫡☑ ");
+
+        // BK9 API Request
+        const apiUrl = `https://bk9.fun/ai/BK93?BK9=${prompt}&q=${query}`;
+
+        const { data } = await axios.get(apiUrl);
+
+        if (data && data.status && data.BK9) {
+            await conn.sendMessage(from, {
+                text: data.BK9
+            }, { quoted: m });
+        } else {
+            reply("⚠️ KAMRAN AI failed to generate a response.");
+        }
+
+    } catch (err) {
+        console.error("AI Chatbot Error:", err.message);
+        reply("❌ An error occurred while contacting the AI.");
+    }
+});
+
+
