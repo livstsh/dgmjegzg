@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { zandile, commands } = require('../Command');
+const { cmd, commands } = require('../Command');
 const config = require("../settings");
 const { setConfig, getConfig } = require("../lib/functions");
 
