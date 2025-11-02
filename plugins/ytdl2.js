@@ -1,12 +1,11 @@
-const axios = require('axios');
-const { cmd, commands } = require('../Command');
-const config = require("../settings");
+const { cmd, commands } = require('../command');
+const config = require('../config');
 const { setConfig, getConfig } = require("../lib/functions");
 
 // Default AI state if not set
 let AI_ENABLED = "false"; // Default enabled
 
-zandile({
+cmd({
     pattern: "aichat",
     alias: ["chatbot", "ibot"],
     desc: "Enable or disable AI chatbot responses",
@@ -78,4 +77,4 @@ malvin({
     }
 });
 
-
+               
