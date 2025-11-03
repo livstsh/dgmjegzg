@@ -316,7 +316,7 @@ cmd({
 },
 async (conn, mek, m, { from, reply }) => {
     try {
-        const loadingMessage = await conn.sendMessage(from, { text: 'DARKZONE-AI🗿' });
+        const loadingMessage = await conn.sendMessage(from, { text: 'KAMRAN-MD🗿' });
         
         // Define the ASCII art messages
         const asciiMessages = [
