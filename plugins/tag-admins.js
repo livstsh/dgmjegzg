@@ -3,7 +3,7 @@ const { cmd, commands } = require('../command')
 const { getBuffer, getGroupAdmins, getRandom, h2k, isUrl, Json, runtime, sleep, fetchJson} = require('../lib/functions')
 
 cmd({
-    pattern: "tagadmins",
+    pattern: "tagadmin",
     react: "👑",
     alias: ["gc_tagadmins"],
     desc: "To Tag all Admins of the Group",
