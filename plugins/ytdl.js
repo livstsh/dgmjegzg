@@ -1,9 +1,14 @@
-const { cmd } = require('../command');
-const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const config = require('../config')
+const {cmd , commands} = require('../command')
 
+//auto reply 
 cmd({
-    pattern: "aichat",
-    alias: ["chatbot", "malvinbot"],
+  on: "body"
+},    
+pattern: "aichat",
+    alias: ["chatbot", "mbot"],
     desc: "Enable or disable AI chatbot responses",
     category: "settings",
     filename: __filename,
@@ -74,4 +79,3 @@ malvin({
 });
 
 
-    
