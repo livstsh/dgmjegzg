@@ -1,86 +1,62 @@
-const axios = require('axios');
-const { cmd } = require('../command');
+const fetch = require("node-fetch");
+const { cmd } = require("../command");
 
 cmd({
-   pattern: 'moviedl',
-        alias: ['movie', 'film'],
-        desc: 'Smart movie downloader with auto file/link',
-        category: 'media',
-        react: '🔍',
-        use: '<movie title>',
-        filename: __filename,
-    },
-    async (conn, mek, m, { text, reply }) => {
-        try {
-            if (!text) return reply(`🎬 *Usage:* ${Config.PREFIX}moviedl <movie title>\nExample: ${Config.PREFIX}moviedl spiderman 2`);
+  pattern: "ysearch",
+  alias: ["yfind", "ys"],
+  desc: "Search for YouTube videos using a query.",
+  react: '✅',
+  category: 'tools',
+  filename: __filename
+}, async (conn, m, store, {
+  from,
+  args,
+  reply
+}) => {
+  if (!args[0]) {
+    return reply("🎥 What do you want to search on YouTube?\n\n*Usage Example:*\n.ytsearch <query>");
+  }
 
-            await conn.sendMessage(mek.chat, { react: { text: "⏳", key: mek.key } });
+  const query = args.join(" ");
+  await store.react('⌛');
 
-            // 1. Get movie metadata (using insecure agent only for this API)
-            const apiUrl = `https://draculazyx-xyzdrac.hf.space/api/Movie?query=${encodeURIComponent(text)}`;
-            const { data } = await movieAxios.get(apiUrl);
-            
-            if (!data?.download_link) {
-                return reply('🎬 *Movie not found!* Try another title');
-            }
+  try {
+    reply(`🔎 Searching YouTube for: *${query}*`);
+    
+    const response = await fetch(`https://silva-ytapi.onrender.com/api/download/search?q=${encodeURIComponent(query)}`);
+    const data = await response.json();
 
-            // 2. Prepare info message
-            const yearMatch = data.title.match(/\((\d{4})\)/);
-            const cleanTitle = data.title.replace(/\s*\|\s*Download.*$/, '').trim();
-            const shortDesc = data.description ? 
-                data.description.substring(0, 150) + (data.description.length > 150 ? '...' : '') : 
-                'No description available';
-
-            const infoMsg = `🎬 *${cleanTitle}* ${yearMatch ? `(${yearMatch[1]})` : ''}\n\n` +
-                           `📝 ${shortDesc}\n\n` +
-                           `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴀᴍʀᴀɴ-ᴍᴅ`;
-
-            // 3. Check file size (using secure axios for the download link)
-            let fileSizeMB;
-            try {
-                const headRes = await secureAxios.head(data.download_link);
-                fileSizeMB = headRes.headers['content-length'] ? 
-                    Math.round(headRes.headers['content-length'] / (1024 * 1024)) : null;
-            } catch (e) {
-                console.log('Size check failed, defaulting to link');
-                fileSizeMB = null;
-            }
-
-            // 4. Send file or link based on size
-            if (fileSizeMB && fileSizeMB <= 200) {
-                try {
-                    const response = await secureAxios.get(data.download_link, {
-                        responseType: 'arraybuffer',
-                        maxContentLength: 200 * 1024 * 1024
-                    });
-
-                    await conn.sendMessage(mek.chat, {
-                        document: response.data,
-                        fileName: `${cleanTitle.replace(/[^\w\s]/gi, '')}.mp4`,
-                        mimetype: 'video/mp4',
-                        caption: infoMsg
-                    });
-                } catch (downloadError) {
-                    console.error('Download failed, falling back to link', downloadError);
-                    await conn.sendMessage(mek.chat, {
-                        text: infoMsg + `\n\n📥 *Download Link:* ${data.download_link}\n` +
-                              `⚠️ *Couldn't send file directly*`
-                    });
-                }
-            } else {
-                await conn.sendMessage(mek.chat, {
-                    text: infoMsg + `\n\n📥 *Download Link:* ${data.download_link}\n` +
-                          `💡 *File too large for direct send*`
-                });
-            }
-
-            await conn.sendMessage(mek.chat, { react: { text: "✅", key: mek.key } });
-
-        } catch (error) {
-            console.error('MovieDL Error:', error);
-            await conn.sendMessage(mek.chat, { react: { text: "❌", key: mek.key } });
-            reply('🎬 *Error:* ' + (error.message || 'Failed to process request'));
-        }
+    if (!data || !data.results || data.results.length === 0) {
+      await store.react('❌');
+      return reply("❌ No results found for your query. Please try with a different keyword.");
     }
-);
-                
+
+    // Get up to 5 top results
+    const results = data.results.slice(0, 5);
+
+    for (const video of results) {
+      const message = `🎬 *YouTube Video Result*:\n\n`
+        + `*• Title*: ${video.title}\n`
+        + `*• Channel*: ${video.channel || 'Unknown'}\n`
+        + `*• Duration*: ${video.duration || "Unknown"}\n`
+        + `*• URL*: ${video.url}\n\n`
+        + `━━━━━━━━━━━━━━\n⚡ Powered by DR KAMRAN YTSearch API`;
+
+      if (video.thumbnail) {
+        await conn.sendMessage(from, {
+          image: { url: video.thumbnail },
+          caption: message
+        }, { quoted: m });
+      } else {
+        await conn.sendMessage(from, { text: message }, { quoted: m });
+      }
+    }
+
+    await store.react('✅');
+  } catch (error) {
+    console.error("Error in ytsearch command:", error);
+    await store.react('❌');
+    reply("❌ An error occurred while searching YouTube. Please try again later.");
+  }
+});
+     
