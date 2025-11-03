@@ -1,113 +1,77 @@
-const fetch = require("node-fetch");
-const yts = require("yt-search");
-const { cmd } = require("../command");
+const config = require('../config');
+const { cmd } = require('../command');
+const DY_SCRAP = require('@dark-yasiya/scrap');
+const dy_scrap = new DY_SCRAP();
 
-const youtubeRegexID = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/;
+function replaceYouTubeID(url) {
+    const regex = /(?:youtube\.com\/(?:.*v=|.*\/)|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+}
 
-// ===== PLAY / YT DOWNLOAD PLUGIN =====
 cmd({
     pattern: "song3",
-    alias: ["music2", "song2", "song4", "song5", "ytv", "ytmp4", "mp4"],
-    react: "🎶",
-    desc: "Play or download YouTube songs and videos.",
-    category: "downloads",
-    use: ".play <song name / YouTube link>",
+    alias: ["music3", "song2"],
+    react: "🎵",
+    desc: "Download YT as MP3",
+    category: "download",
+    use: ".song <Text or YT URL>",
     filename: __filename
-},
-async (conn, mek, m, { from, q, command, reply }) => {
+}, async (conn, m, mek, { from, q, reply }) => {
     try {
-        if (!q) return reply("❀ Please enter the name of the music or a YouTube link.");
+        if (!q) return await reply("❌ Please provide a query or YouTube URL!");
 
-        // Detect YouTube ID from URL
-        let videoIdToFind = q.match(youtubeRegexID) || null;
-        let ytResult = await yts(videoIdToFind === null ? q : `https://youtu.be/${videoIdToFind[1]}`);
+        let id = q.startsWith("https://") ? replaceYouTubeID(q) : null;
 
-        // Pick correct video
-        if (videoIdToFind) {
-            const videoId = videoIdToFind[1];
-            ytResult = ytResult.all.find(item => item.videoId === videoId) || ytResult.videos.find(item => item.videoId === videoId);
+        if (!id) {
+            const searchResults = await dy_scrap.ytsearch(q);
+            if (!searchResults?.results?.length) return await reply("❌ No results found!");
+            id = searchResults.results[0].videoId;
         }
-        ytResult = ytResult.all?.[0] || ytResult.videos?.[0] || ytResult;
 
-        if (!ytResult || ytResult.length === 0) return reply("✧ No results found for your search.");
+        const data = await dy_scrap.ytsearch(`https://youtube.com/watch?v=${id}`);
+        if (!data?.results?.length) return await reply("❌ Failed to fetch video!");
 
-        let { title, thumbnail, timestamp, views, ago, url, author } = ytResult;
-        const channel = author?.name || "Unknown";
+        const song = data.results[0]; // Correctly define song
+        const { url, title, image, timestamp, ago, views, author, downloadUrl } = song;
 
-        const formattedViews = formatViews(views);
-        const infoMessage = `
-「✦」Downloading *${title || "Unknown"}*
+        let info = `🍄 *SONG DOWNLOADER* 🍄\n\n` +
+            `🎵 *Title:* ${title || "Unknown"}\n` +
+            `⏳ *Duration:* ${timestamp || "Unknown"}\n` +
+            `👀 *Views:* ${views || "Unknown"}\n` +
+            `🌏 *Release Ago:* ${ago || "Unknown"}\n` +
+            `👤 *Author:* ${author?.name || "Unknown"}\n` +
+            `🖇 *Url:* ${url || "Unknown"}\n\n` +
+            `🔽 *Reply with your choice:*\n` +
+            `1.1 *Audio Type* 🎵\n` +
+            `1.2 *Document Type* 📁\n\n` +
+            `${config.FOOTER || "𓆩andbad𓆪"}`;
 
-> ✧ Channel   » *${channel}*
-> ✰ Views     » *${formattedViews || "Unknown"}*
-> ⴵ Duration  » *${timestamp || "Unknown"}*
-> ✐ Published » *${ago || "Unknown"}*
-> 🜸 Link      » ${url}
-        `.trim();
+        // Send thumbnail + info
+        await conn.sendMessage(from, { image: { url: image }, caption: info }, { quoted: mek });
 
-        // Send info preview with externalAdReply
+        // Send audio
         await conn.sendMessage(from, {
-            text: infoMessage,
+            audio: { url: downloadUrl },
+            mimetype: "audio/mpeg",
+            fileName: `${title}.mp3`,
             contextInfo: {
                 externalAdReply: {
-                    title: "KAMRAN-MD Player",
-                    body: "Powered by KAMRAM Organisation",
+                    title: title.length > 25 ? `${title.substring(0, 22)}...` : title,
+                    body: "Follow our WhatsApp Channel",
                     mediaType: 1,
-                    sourceUrl: url,
-                    thumbnailUrl: thumbnail,
+                    thumbnailUrl: image,
+                    sourceUrl: 'https://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O',
+                    mediaUrl: 'https://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O',
+                    showAdAttribution: true,
                     renderLargerThumbnail: true
                 }
             }
         }, { quoted: mek });
 
-        // Handle Audio
-        if (["play", "yta", "ytmp3", "playaudio"].includes(command)) {
-            try {
-                const api = await (await fetch(`https://jawad-tech.vercel.app/download/ytdl?url=${url}&quality=128`)).json();
-                const result = api?.result?.download?.url;
-
-                if (!result) throw new Error("⚠ Failed to fetch audio link.");
-
-                await conn.sendMessage(from, {
-                    audio: { url: result },
-                    fileName: `${api.result.title}.mp3`,
-                    mimetype: "audio/mpeg"
-                }, { quoted: mek });
-            } catch (e) {
-                return reply("⚠︎ Could not send the audio. Try again later.");
-            }
-        }
-
-        // Handle Video
-        else if (["play8", "ytv3", "yttmp4", "ymp4"].includes(command)) {
-            try {
-                const response = await fetch(`https://api.neoxr.eu/api/youtube?url=${url}&type=video&quality=480p&apikey=GataDios`);
-                const json = await response.json();
-
-                if (!json?.data?.url) throw new Error("⚠ Failed to fetch video link.");
-
-                await conn.sendMessage(from, {
-                    video: { url: json.data.url },
-                    caption: title
-                }, { quoted: mek });
-            } catch (e) {
-                return reply("⚠︎ Could not send the video. Try again later.");
-            }
-        }
-
     } catch (error) {
         console.error(error);
-        return reply(`⚠︎ An error occurred: ${error.message}`);
+        await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
+        await reply(`❌ *An error occurred:* ${error.message || "Unknown error"}`);
     }
 });
-
-// ===== Function to format view counts =====
-function formatViews(views) {
-    if (!views) return "Unknown";
-
-    if (views >= 1_000_000_000) return `${(views / 1_000_000_000).toFixed(1)}B (${views.toLocaleString()})`;
-    if (views >= 1_000_000) return `${(views / 1_000_000).toFixed(1)}M (${views.toLocaleString()})`;
-    if (views >= 1_000) return `${(views / 1_000).toFixed(1)}K (${views.toLocaleString()})`;
-
-    return views.toString();
-            }
