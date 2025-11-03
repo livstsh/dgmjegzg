@@ -1,171 +1,113 @@
+const fetch = require("node-fetch");
+const yts = require("yt-search");
+const { cmd } = require("../command");
 
+const youtubeRegexID = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/;
 
-const { cmd, commands } = require('../command')
-const { fetchJson } = require('../lib/functions');
-var cants = "I cant find this."
-
+// ===== PLAY / YT DOWNLOAD PLUGIN =====
 cmd({
-    pattern: "china",
-    react: '🌸',
+    pattern: "song3",
+    alias: ["music2", "song2", "song4", "song5", "ytv", "ytmp4", "mp4"],
+    react: "🎶",
+    desc: "Play or download YouTube songs and videos.",
+    category: "downloads",
+    use: ".play <song name / YouTube link>",
     filename: __filename
 },
-async(conn, mek, m,{from, l, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply}) => {
-try{
+async (conn, mek, m, { from, q, command, reply }) => {
+    try {
+        if (!q) return reply("❀ Please enter the name of the music or a YouTube link.");
 
-let res = await fetchJson(`https://api.agatz.xyz/api/china`)
-let wm = `🧧 Random china image
+        // Detect YouTube ID from URL
+        let videoIdToFind = q.match(youtubeRegexID) || null;
+        let ytResult = await yts(videoIdToFind === null ? q : `https://youtu.be/${videoIdToFind[1]}`);
 
-> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴍʀᴀɴ-ᴍᴅ ꜱᴜᴘᴘᴏʀᴛ : )*`
-await conn.sendMessage(from, { image: { url: res.data.url }, caption: wm}, { quoted: mek })
-} catch (e) {
-reply(cants)
-console.log(e)
-}
+        // Pick correct video
+        if (videoIdToFind) {
+            const videoId = videoIdToFind[1];
+            ytResult = ytResult.all.find(item => item.videoId === videoId) || ytResult.videos.find(item => item.videoId === videoId);
+        }
+        ytResult = ytResult.all?.[0] || ytResult.videos?.[0] || ytResult;
+
+        if (!ytResult || ytResult.length === 0) return reply("✧ No results found for your search.");
+
+        let { title, thumbnail, timestamp, views, ago, url, author } = ytResult;
+        const channel = author?.name || "Unknown";
+
+        const formattedViews = formatViews(views);
+        const infoMessage = `
+「✦」Downloading *${title || "Unknown"}*
+
+> ✧ Channel   » *${channel}*
+> ✰ Views     » *${formattedViews || "Unknown"}*
+> ⴵ Duration  » *${timestamp || "Unknown"}*
+> ✐ Published » *${ago || "Unknown"}*
+> 🜸 Link      » ${url}
+        `.trim();
+
+        // Send info preview with externalAdReply
+        await conn.sendMessage(from, {
+            text: infoMessage,
+            contextInfo: {
+                externalAdReply: {
+                    title: "KAMRAN-MD Player",
+                    body: "Powered by KAMRAM Organisation",
+                    mediaType: 1,
+                    sourceUrl: url,
+                    thumbnailUrl: thumbnail,
+                    renderLargerThumbnail: true
+                }
+            }
+        }, { quoted: mek });
+
+        // Handle Audio
+        if (["play", "yta", "ytmp3", "playaudio"].includes(command)) {
+            try {
+                const api = await (await fetch(`https://jawad-tech.vercel.app/download/ytdl?url=${url}&quality=128`)).json();
+                const result = api?.result?.download?.url;
+
+                if (!result) throw new Error("⚠ Failed to fetch audio link.");
+
+                await conn.sendMessage(from, {
+                    audio: { url: result },
+                    fileName: `${api.result.title}.mp3`,
+                    mimetype: "audio/mpeg"
+                }, { quoted: mek });
+            } catch (e) {
+                return reply("⚠︎ Could not send the audio. Try again later.");
+            }
+        }
+
+        // Handle Video
+        else if (["play8", "ytv3", "yttmp4", "ymp4"].includes(command)) {
+            try {
+                const response = await fetch(`https://api.neoxr.eu/api/youtube?url=${url}&type=video&quality=480p&apikey=GataDios`);
+                const json = await response.json();
+
+                if (!json?.data?.url) throw new Error("⚠ Failed to fetch video link.");
+
+                await conn.sendMessage(from, {
+                    video: { url: json.data.url },
+                    caption: title
+                }, { quoted: mek });
+            } catch (e) {
+                return reply("⚠︎ Could not send the video. Try again later.");
+            }
+        }
+
+    } catch (error) {
+        console.error(error);
+        return reply(`⚠︎ An error occurred: ${error.message}`);
+    }
 });
-cmd({
-    pattern: "japan",
-    react: '🌸',
-    filename: __filename
-},
-async(conn, mek, m,{from, l, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply}) => {
-try{
 
-let res = await fetchJson(`https://api.agatz.xyz/api/Japan`)
-let wm = `🧧 Random japan image
+// ===== Function to format view counts =====
+function formatViews(views) {
+    if (!views) return "Unknown";
 
-> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴍʀᴀɴ-ᴍᴅ ꜱᴜᴘᴘᴏʀᴛ : )*`
-await conn.sendMessage(from, { image: { url: res.data.url }, caption: wm}, { quoted: mek })
-} catch (e) {
-reply(cants)
-console.log(e)
-}
-});
-cmd({
-    pattern: "indonesia",
-    react: '🌸',
-    filename: __filename
-},
-async(conn, mek, m,{from, l, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply}) => {
-try{
+    if (views >= 1_000_000_000) return `${(views / 1_000_000_000).toFixed(1)}B (${views.toLocaleString()})`;
+    if (views >= 1_000_000) return `${(views / 1_000_000).toFixed(1)}M (${views.toLocaleString()})`;
+    if (views >= 1_000) return `${(views / 1_000).toFixed(1)}K (${views.toLocaleString()})`;
 
-let res = await fetchJson(`https://api.agatz.xyz/api/indonesia`)
-let wm = `🧧 Random indonesia image
-
-> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴍʀᴀɴ-ᴍᴅ : )*`
-await conn.sendMessage(from, { image: { url: res.data.url }, caption: wm}, { quoted: mek })
-} catch (e) {
-reply(cants)
-console.log(e)
-}
-});
-cmd({
-    pattern: "vietnam",
-    react: '🌸',
-    filename: __filename
-},
-async(conn, mek, m,{from, l, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply}) => {
-try{
-
-let res = await fetchJson(`https://api.agatz.xyz/api/vietnam`)
-let wm = `🧧 Random vietnam image
-
-> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴍʀᴀɴ-ᴍᴅ : )*`
-await conn.sendMessage(from, { image: { url: res.data.url }, caption: wm}, { quoted: mek })
-} catch (e) {
-reply(cants)
-console.log(e)
-}
-});
-cmd({
-    pattern: "korea",
-    react: '🌸',
-    filename: __filename
-},
-async(conn, mek, m,{from, l, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply}) => {
-try{
-
-let res = await fetchJson(`https://api.agatz.xyz/api/korea`)
-let wm = `🧧 Random korean image
-
-> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴍʀᴀɴ-ᴍᴅ : )*`
-await conn.sendMessage(from, { image: { url: res.data.url }, caption: wm}, { quoted: mek })
-} catch (e) {
-reply(cants)
-console.log(e)
-}
-});
-cmd({
-    pattern: "malaysia",
-    react: '🌸',
-    filename: __filename
-},
-async(conn, mek, m,{from, l, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply}) => {
-try{
-
-let res = await fetchJson(`https://api.agatz.xyz/api/malaysia`)
-let wm = `🧧 Random malaysia image
-
-> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴍʀᴀɴ-ᴍᴅ : )*`
-await conn.sendMessage(from, { image: { url: res.data.url }, caption: wm}, { quoted: mek })
-} catch (e) {
-reply(cants)
-console.log(e)
-}
-});
-cmd({
-    pattern: "thailand",
-    react: '🌸',
-    filename: __filename
-},
-async(conn, mek, m,{from, l, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply}) => {
-try{
-
-let res = await fetchJson(`https://api.agatz.xyz/api/thailand`)
-let wm = `🧧 Random thailand image
-
-> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴍʀᴀɴ-ᴍᴅ : )*`
-await conn.sendMessage(from, { image: { url: res.data.url }, caption: wm}, { quoted: mek })
-} catch (e) {
-reply(cants)
-console.log(e)
-}
-});
-cmd({
-    pattern: "asupan",
-    react: '🌸',
-    filename: __filename
-},
-async(conn, mek, m,{from, l, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply}) => {
-try{
-
-let res = await fetchJson(`https://api.agatz.xyz/api/asupan`)
-let wm = `🧧 Random asupan video
-
-> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴍʀᴀɴ-ᴍᴅ : )*`
-await conn.sendMessage(from, { video: { url: res.data }, caption: wm, ptv: true }, { quoted: mek })
-} catch (e) {
-reply(cants)
-console.log(e)
-}
-});
-cmd({
-    pattern: "gore",
-    react: '🌸',
-    filename: __filename
-},
-async(conn, mek, m,{from, l, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply}) => {
-try{
-
-let res = await fetchJson(`https://api.agatz.xyz/api/gore`)
-let wm = `🧧 Random gore video
-
-*Title:* ${res.data.title}
-
-
-> *ᴘᴏᴡᴇʀᴅ ʙʏ  ᴋᴀᴍʀᴀɴ-ᴍᴅ : )*`
-await conn.sendMessage(from, { video: { url: res.data.video2 }, caption: wm, ptv: true }, { quoted: mek })
-} catch (e) {
-reply(cants)
-console.log(e)
-}
-});
+    return views.toString();
+            }
