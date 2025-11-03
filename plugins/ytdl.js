@@ -1,12 +1,9 @@
-const { cmd, commands } = require('../command');
-const config = require('../config');
-
-// Default AI state if not set
-let AI_ENABLED = "false"; // Default enabled
+const { cmd } = require('../command');
+const axios = require('axios');
 
 cmd({
     pattern: "aichat",
-    alias: ["chatbot", "ibot"],
+    alias: ["chatbot", "malvinbot"],
     desc: "Enable or disable AI chatbot responses",
     category: "settings",
     filename: __filename,
@@ -55,7 +52,7 @@ malvin({
 
         // Encode message for the query
         const query = encodeURIComponent(body);
-        const prompt = encodeURIComponent("you are mildred md whatsapp bot made by DR KAMRAN( BY KAMRAN-MD). a tech genius in zimbabwe. act smart and enigmatic about personal stuff about him. He is 22 years (2025).Every mesaage you reply put footer \n> ᴘᴏᴡᴇʀᴇᴅ  ©️ʙʏ DR KAMRAN 👑🫡☑ ");
+        const prompt = encodeURIComponent("you are mildred md whatsapp bot made by MIDKING  ( Joshuamambo1 NetKing). a tech genius in zimbabwe. act smart and enigmatic about personal stuff about him. He is 22 years (2025).Every mesaage you reply put footer \n> ᴘᴏᴡᴇʀᴇᴅ  ©️ʙʏ ᴢᴀɴᴅɪʟᴇ ᴍᴋ ᴠ4.2.1👑🫡🇿🇼☑ ");
 
         // BK9 API Request
         const apiUrl = `https://bk9.fun/ai/BK93?BK9=${prompt}&q=${query}`;
@@ -67,7 +64,7 @@ malvin({
                 text: data.BK9
             }, { quoted: m });
         } else {
-            reply("⚠️ KAMRAN AI failed to generate a response.");
+            reply("⚠️ NetKing AI failed to generate a response.");
         }
 
     } catch (err) {
@@ -75,3 +72,6 @@ malvin({
         reply("❌ An error occurred while contacting the AI.");
     }
 });
+
+
+    
