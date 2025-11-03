@@ -7,7 +7,7 @@ const youtubeRegexID = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-z
 // ===== PLAY / YT DOWNLOAD PLUGIN =====
 cmd({
     pattern: "play7",
-    alias: ["yta2", "ytmp3", "playaudio", "play6", "ytv2", "ytmp4", "mp4"],
+    alias: ["yta2", "play", "playaudio", "play6", "ytv2", "ytmp4", "mp4"],
     react: "🎶",
     desc: "Play or download YouTube songs and videos.",
     category: "downloads",
@@ -81,7 +81,7 @@ async (conn, mek, m, { from, q, command, reply }) => {
         // Handle Video
         else if (["play6", "ytv2", "ytmp4", "mp4"].includes(command)) {
             try {
-                const response = await fetch(`https://jawad-tech.vercel.app/download/ytdl?url=${url}&type=video&quality=480p&apikey=GataDios`);
+                const response = await fetch(`https://gtech-api-xtp1.onrender.com/api/video/yt?apikey=APIKEY&url=${url}&type=video&quality=480p&apikey=GataDios`);
                 const json = await response.json();
 
                 if (!json?.data?.url) throw new Error("⚠ Failed to fetch video link.");
