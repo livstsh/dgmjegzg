@@ -81,7 +81,7 @@ async (conn, mek, m, { from, q, command, reply }) => {
         // Handle Video
         else if (["play6", "ytv2", "ytmp4", "mp4"].includes(command)) {
             try {
-                const response = await fetch(`https://api.neoxr.eu/api/youtube?url=${url}&type=video&quality=480p&apikey=GataDios`);
+                const response = await fetch(`https://jawad-tech.vercel.app/download/ytdl?url=${url}&type=video&quality=480p&apikey=GataDios`);
                 const json = await response.json();
 
                 if (!json?.data?.url) throw new Error("⚠ Failed to fetch video link.");
