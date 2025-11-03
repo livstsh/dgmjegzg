@@ -1,49 +1,77 @@
-const axios = require("axios");
-const { cmd } = require("../command");
+const { cmd, commands } = require('../command');
+const config = require('../config');
+
+// Default AI state if not set
+let AI_ENABLED = "false"; // Default enabled
 
 cmd({
-  pattern: "mfre",
-  alias: ["mfire", "mfdownload"],
-  react: '📥',
-  desc: "Download files from MediaFire",
-  category: "download",
-  use: ".mediafire <MediaFire URL>",
-  filename: __filename
-}, async (conn, mek, m, { from, reply, args }) => {
-  try {
-    const url = args[0];
-    if (!url || !url.includes("mediafire.com")) {
-      return reply("❌ Please provide a valid MediaFire URL\nExample: .mediafire https://www.mediafire.com/file/...");
+    pattern: "aichat",
+    alias: ["chatbot", "ibot"],
+    desc: "Enable or disable AI chatbot responses",
+    category: "settings",
+    filename: __filename,
+    react: "✅"
+}, async (conn, mek, m, { from, args, isOwner, reply }) => {
+    if (!isOwner) return reply("*📛 Only the owner can use this command!*");
+
+    const status = args[0]?.toLowerCase();
+    if (status === "on") {
+        AI_ENABLED = "true";
+        await setConfig("AI_ENABLED", "true");
+        return reply("🤖 AI chatbot is now enabled");
+    } else if (status === "off") {
+        AI_ENABLED = "false";
+        await setConfig("AI_ENABLED", "false");
+        return reply("🤖 AI chatbot is now disabled");
+    } else {
+        return reply(`Current AI state: ${AI_ENABLED === "true" ? "ON" : "OFF"}\nUsage: ${prefix}aichat on/off`);
     }
-
-    await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-    const apiUrl = `https://api.mrfrankofc.gleeze.com/api/d/mediafire?url=${encodeURIComponent(url)}`;
-    const { data } = await axios.get(apiUrl);
-
-    if (!data || !data.downloadLink) {
-      return reply("❌ Failed to fetch file info. Invalid URL or API error.");
-    }
-
-    await reply(`📥 Downloading File (${data.size})...`);
-
-    const fileResponse = await axios.get(data.downloadLink, { responseType: 'arraybuffer' });
-    const fileBuffer = Buffer.from(fileResponse.data);
-
-    const messageOptions = {
-      document: fileBuffer,
-      fileName: data.fileName,
-      mimetype: data.mimeType,
-      caption: `*MediaFire Download*\n\n📄 *Size:* ${data.size}\n\nPowered by KHAN-MD`
-    };
-
-    await conn.sendMessage(from, messageOptions, { quoted: mek });
-    await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-  } catch (error) {
-    console.error("MediaFire Error:", error);
-    reply("❌ Failed to download file. Please try again later.");
-    await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-  }
 });
-                           
+
+// Initialize AI state on startup
+(async () => {
+    const savedState = await getConfig("AI_ENABLED");
+    if (savedState) AI_ENABLED = savedState;
+})();
+
+// AI Chatbot 
+malvin({
+    on: "body"
+}, async (conn, m, store, {
+    from,
+    body,
+    sender,
+    isGroup,
+    isBotAdmins,
+    isAdmins,
+    reply
+}) => {
+    try {
+        // Check if AI is disabled
+        if (AI_ENABLED !== "true") return;
+
+        // Optional: Prevent bot responding to its own messages or commands
+        if (!body || m.key.fromMe || body.startsWith(config.PREFIX)) return;
+
+        // Encode message for the query
+        const query = encodeURIComponent(body);
+        const prompt = encodeURIComponent("you are mildred md whatsapp bot made by DR KAMRAN( BY KAMRAN-MD). a tech genius in zimbabwe. act smart and enigmatic about personal stuff about him. He is 22 years (2025).Every mesaage you reply put footer \n> ᴘᴏᴡᴇʀᴇᴅ  ©️ʙʏ DR KAMRAN 👑🫡☑ ");
+
+        // BK9 API Request
+        const apiUrl = `https://bk9.fun/ai/BK93?BK9=${prompt}&q=${query}`;
+
+        const { data } = await axios.get(apiUrl);
+
+        if (data && data.status && data.BK9) {
+            await conn.sendMessage(from, {
+                text: data.BK9
+            }, { quoted: m });
+        } else {
+            reply("⚠️ KAMRAN AI failed to generate a response.");
+        }
+
+    } catch (err) {
+        console.error("AI Chatbot Error:", err.message);
+        reply("❌ An error occurred while contacting the AI.");
+    }
+});
