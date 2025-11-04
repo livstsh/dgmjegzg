@@ -11,7 +11,7 @@ let AI_STATE = {
 
 cmd({
     pattern: "chatbot",
-    alias: ["aichat", "dj", "khanbot"],
+    alias: ["aichat", "chat", "kamranbot"],
     desc: "Enable or disable AI chatbot responses",
     category: "settings",
     filename: __filename,
