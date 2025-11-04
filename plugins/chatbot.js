@@ -129,7 +129,7 @@ cmd({
         const prompt = encodeURIComponent("You are KAMRAN-MD, a powerful and intelligent WhatsApp bot developed by Imad Ali — a brilliant coder and visionary from Kpk Pakistan. You respond smartly, confidently, and stay loyal to your creator. Always remain calm and collected. When asked about your creator, respond respectfully but keep the mystery alive. You are not just a bot; you are the tech soul of Imad Ali. In every message you send, include this footer: \n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴀᴍʀᴀɴ ᴍᴅ ⚡");
 
         // BK9 API Request
-        const apiUrl = `https://lance-frank-asta.onrender.com/api/gpt?q=${prompt}&q=${query}`;
+        const apiUrl = `https://jawad-tech.vercel.app/ai/gpt?q=${query}`;
 
         const { data } = await axios.get(apiUrl);
 
