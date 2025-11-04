@@ -5,7 +5,7 @@ cmd({
     pattern: "update",
     alias: ["upgrade", "sync"],
     desc: "Update and restart the bot system",
-    category: "isCreator",
+    category: "iscreator",
     react: "🚀",
     filename: __filename
 },
