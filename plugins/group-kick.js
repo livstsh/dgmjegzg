@@ -5,7 +5,7 @@ cmd({
   pattern: "kick",
   alias: ["k", "remove", "nital"],
   desc: "Remove a user from the group",
-  category: "group",
+  category: "admin",
   react: "🦶",
   filename: __filename
 }, async (conn, mek, m, {
