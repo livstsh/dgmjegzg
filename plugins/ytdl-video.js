@@ -48,7 +48,7 @@ cmd({
         }, { quoted: mek });
 
         // ⚙️ Fetch from DR KAMRAN API
-        const apiUrl = `https://api.nekolabs.web.id/downloader/youtube/v5?url=${encodeURIComponent(url)}`;
+        const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
         const { data } = await axios.get(apiUrl);
 
         if (!data?.status || !data?.result?.mp4) {
