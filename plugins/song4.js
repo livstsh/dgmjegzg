@@ -7,7 +7,7 @@ const youtubeRegexID = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-z
 // ===== PLAY / YT DOWNLOAD PLUGIN =====
 cmd({
     pattern: "play7",
-    alias: ["yta2", "play", "playaudio", "play6", "ytv2", "ytmp4", "mp4"],
+    alias: ["yta2", "play8", "playaudio", "play6", "ytv2", "ytmp4", "mp4"],
     react: "🎶",
     desc: "Play or download YouTube songs and videos.",
     category: "downloads",
@@ -63,7 +63,7 @@ async (conn, mek, m, { from, q, command, reply }) => {
         // Handle Audio
         if (["play", "yta", "ytmp3", "playaudio"].includes(command)) {
             try {
-                const api = await (await fetch(`https://api.vreden.my.id/api/v1/download/youtube/audio?url=${url}&quality=128`)).json();
+                const api = await (await fetch(`https://jawad-tech.vercel.app/download/audio?url=${url}&quality=128`)).json();
                 const result = api?.result?.download?.url;
 
                 if (!result) throw new Error("⚠ Failed to fetch audio link.");
