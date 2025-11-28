@@ -48,7 +48,7 @@ cmd({
         }, { quoted: mek });
 
         // ⚙️ Fetch from DR KAMRAN API
-        const apiUrl = `https://delirius-apiofc.vercel.app/download/ytmp4?url=${encodeURIComponent(url)}`;
+        const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
         const { data } = await axios.get(apiUrl);
 
         if (!data?.status || !data?.result?.mp4) {
