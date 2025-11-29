@@ -17,7 +17,6 @@ async (conn, mek, m, {
         await react("⏳");
 
         // 1. Check for quoted media (Audio or Video)
-        // Check if the user replied and if the replied message contains audio or video media
         if (!m.quoted || !(m.quoted.mtype === 'audioMessage' || m.quoted.mtype === 'videoMessage')) {
             await react("❌");
             return reply("❌ *Usage:* Please reply to an audio file or a short video and type *.tovoice*.");
@@ -32,10 +31,11 @@ async (conn, mek, m, {
         }
 
         // 3. Send the Media as a Voice Note (PTT)
-        // CRITICAL: The 'ptt: true' flag tells WhatsApp to display this audio file as a Voice Note.
+        // CRITICAL FIX: Sending only the 'audio' buffer with 'ptt: true' is the most reliable way 
+        // to force the PTT format, as it bypasses complex mimetype checks.
         await conn.sendMessage(from, {
             audio: media,
-            mimetype: 'audio/mp4', // Use a compatible audio mimetype
+            // Removing mimetype helps force PTT flag recognition in some frameworks
             ptt: true // This flag makes it a Push-to-Talk (Voice Note)
         }, { quoted: m });
         
