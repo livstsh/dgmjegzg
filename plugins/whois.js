@@ -1,5 +1,4 @@
 const { cmd } = require('../command');
-// Note: We are using the standard parameters available in your bot
 
 cmd({
     pattern: "whois",
@@ -13,9 +12,7 @@ async (conn, mek, m, {
     from, 
     reply, 
     react,
-    participants, // List of group participants
-    groupAdmins, // List of current group admins
-    isOwner // True if the bot owner
+    isGroup // Added check for group context
 }) => {
     try {
         await react("⏳");
@@ -29,31 +26,47 @@ async (conn, mek, m, {
         // 2. Get Target JID and Message Info
         const targetJid = m.quoted.sender;
         const targetNumber = targetJid.split('@')[0];
-        const quotedText = m.quoted.text || m.quoted.caption || "Media/Attachment";
-        const quotedTimestamp = new Date(m.quoted.messageTimestamp * 1000).toLocaleString();
+        const quotedText = m.quoted.text || m.quoted.caption || "[Media/Attachment]";
+        
+        // Ensure timestamp calculation is robust
+        const quotedTimestamp = m.quoted.messageTimestamp 
+                               ? new Date(m.quoted.messageTimestamp * 1000).toLocaleString('en-US') 
+                               : "N/A";
 
-        // 3. Get User Profile Information (Name and Status)
-        // Note: conn.getName() is assumed to be available to get the display name
-        const targetName = await conn.getName(targetJid) || "User Not Found";
-
-        // 4. Check Roles
+        // 3. Get User Profile Information (Name and Roles)
+        
+        // FIX 1: Robust Name Fetching (Falls back to number if name is unavailable)
+        const targetName = await conn.getName(targetJid) || `+${targetNumber}`; 
+        
         let userRole = "👤 Normal Member";
+        let groupMetadata = null;
         
-        if (groupAdmins && groupAdmins.includes(targetJid)) {
-            userRole = "👑 Group Admin";
+        // Check group context to determine admin status
+        if (isGroup) {
+             // Fetch metadata to find the user's role
+             groupMetadata = await conn.groupMetadata(from);
+             
+             // FIX 2: Admin Role Check
+             if (groupMetadata && groupMetadata.participants) {
+                 const targetParticipant = groupMetadata.participants.find(p => p.id === targetJid);
+                 
+                 if (targetParticipant) {
+                     if (targetParticipant.admin === 'superadmin') {
+                         userRole = "👑 Group Creator/Super Admin";
+                     } else if (targetParticipant.admin === 'admin') {
+                         userRole = "⭐ Group Admin";
+                     }
+                 }
+             }
         }
         
-        if (targetJid === m.sender) { // Check if the target is the command sender
-            userRole = "💡 You (Command Sender)";
+        // Check if the target is the command sender (for clarity)
+        if (targetJid === m.sender) { 
+            // If the user is the sender, prioritize their existing admin role, or use the 'You' tag
+            userRole = userRole.includes("Admin") ? userRole : "💡 You (Command Sender)";
         }
         
-        // This JID check needs the exact owner JID, which is often in config.
-        // Assuming your framework defines `isOwner` based on a config JID:
-        // const isTargetOwner = targetJid.startsWith(config.OWNER_JID.split('@')[0]);
-        // if (isTargetOwner) userRole = "⭐ Bot Owner";
-
-        
-        // 5. Construct the output message
+        // 4. Construct the output message
         let infoMessage = `*🕵️ Message Detective: User Information*\n\n`;
         infoMessage += `-------------------------------------------------\n`;
         infoMessage += `*Name:* ${targetName}\n`;
@@ -65,10 +78,10 @@ async (conn, mek, m, {
         infoMessage += `\n> ⚜️ _𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐝_ *- :* *_KAMRAN MD MAX_ ᵀᴹ*`;
 
 
-        // 6. Send the message with mentions
+        // 5. Send the message with mentions
         await conn.sendMessage(from, { 
             text: infoMessage,
-            mentions: [targetJid] 
+            mentions: [targetJid] // Ensure the target user is mentioned
         }, { quoted: m });
         
         await react("✅");
