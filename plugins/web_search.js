@@ -2,117 +2,66 @@ const axios = require("axios");
 // Assuming 'cmd' and 'commands' are defined in the command file as per the user's snippet
 const { cmd, commands } = require("../command");
 
-// --- API Configuration and Helper Functions ---
-
-// The API key is assumed to be provided by the runtime environment.
-const apiKey = "";
-const apiUrl = `https://delirius-apiofc.vercel.app/search/googlesearch?=${apiKey}`;
-
-/**
- * Parses the Gemini API response to extract text and grounding sources.
- * @param {object} result - The parsed JSON response from the API.
- * @returns {object} - Object containing the generated text and an array of sources.
- */
-function processResponse(result) {
-    const candidate = result.candidates?.[0];
-    let text = "Could not generate content. Please try again.";
-    let sources = [];
-
-    if (candidate && candidate.content?.parts?.[0]?.text) {
-        text = candidate.content.parts[0].text;
-
-        const groundingMetadata = candidate.groundingMetadata;
-        if (groundingMetadata && groundingMetadata.groundingAttributions) {
-            sources = groundingMetadata.groundingAttributions
-                .map(attribution => ({
-                    uri: attribution.web?.uri,
-                    title: attribution.web?.title,
-                }))
-                .filter(source => source.uri && source.title);
-        }
-    }
-    return { text, sources };
-}
-
-/**
- * Fetches data from the Gemini API with exponential backoff for retries.
- * @param {object} payload - The request body for the API.
- * @param {number} maxRetries - Maximum number of retries.
- * @returns {Promise<object>} - The processed response data (text and sources).
- */
-async function fetchWithRetry(payload, maxRetries = 3) {
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            const response = await axios.post(apiUrl, payload, {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            return processResponse(response.data);
-        } catch (error) {
-            if (i < maxRetries - 1) {
-                // Exponential backoff
-                const delay = Math.pow(2, i) * 1000;
-                await new Promise(resolve => setTimeout(resolve, delay));
-                // Do not log retry attempts in the console as an error
-            } else {
-                throw new Error("Failed to fetch content from the API after multiple retries.");
-            }
-        }
-    }
-}
-
-
-// --- Command Definition ---
+// The base URL provided by the user, assuming the search query needs to be appended.
+const API_BASE_URL = "https://delirius-apiofc.vercel.app/search/googlesearch?=";
 
 cmd({
-    pattern: "search",
-    alias: ["gsearch", "web", "google"],
-    desc: "Performs a Google-grounded web search using the Gemini API for current information.",
-    react: "🌐",
-    category: "utility",
+    pattern: "dsearch",
+    alias: ["deliriussearch", "dgoogle"],
+    desc: "Performs a Google Search using the Delirius API endpoint.",
+    react: "🔍",
+    category: "external",
     filename: __filename,
 },
 async (conn, mek, m, { from, reply, args }) => {
     try {
-        const userQuery = args.join(" ");
-        if (!userQuery) {
-            return reply("Please provide a search query! Example: .search What are the latest tech stock market movements?");
+        const query = args.join(" ");
+        if (!query) {
+            return reply("Kripya search karne ke liye koi query dein! Example: .dsearch Chandrayaan-3 latest updates");
         }
 
-        // 1. Construct the API payload for Google Search Grounding
-        const payload = {
-            contents: [{ parts: [{ text: userQuery }] }],
-            // Enable Google Search grounding tool
-            tools: [{ "google_search": {} }],
-            // Optional: System instruction to guide the model's response format
-            systemInstruction: {
-                parts: [{ text: "You are a concise and helpful web search assistant. Summarize the search results directly and clearly." }]
-            },
-        };
+        // 1. Construct the full API URL with the encoded query
+        const searchUrl = `${API_BASE_URL}${encodeURIComponent(query)}`;
 
-        await reply("🌐 Searching the web, please wait...");
+        await reply("🔍 Delirius API dwara web search ho raha hai, kripya intezaar karein...");
 
-        // 2. Fetch the data
-        const { text, sources } = await fetchWithRetry(payload);
+        // 2. Make the API request
+        const { data } = await axios.get(searchUrl);
 
-        let responseText = `*🌐 Google Search Results:*\n\n${text}\n\n`;
-
-        // 3. Append Sources/Citations
-        if (sources.length > 0) {
-            responseText += `\n\n*📚 Sources:*\n`;
-            // Limit to top 5 sources for brevity
-            sources.slice(0, 5).forEach((source, index) => {
-                responseText += `${index + 1}. *Title:* ${source.title}\n   *URL:* ${source.uri}\n`;
-            });
-            if (sources.length > 5) {
-                 responseText += `...and ${sources.length - 5} more sources.\n`;
-            }
+        // 3. Process the response (Assuming the API returns a standard structure with results)
+        if (!data || data.status !== 200 || !data.results || data.results.length === 0) {
+            return reply("Aapki query ke liye koi result nahi mila. Kripya doosra keyword try karein.");
         }
+
+        // Assuming the first result contains the main snippet or answer
+        const firstResult = data.results[0];
+
+        let responseText = `*🔍 Delirius Google Search Result:*\n\n`;
+
+        // Check if there's a main answer/snippet
+        if (data.answer) {
+            responseText += `*Answer:* ${data.answer}\n\n`;
+        }
+
+        responseText += `*Title:* ${firstResult.title}\n`;
+        responseText += `*Source:* ${firstResult.source}\n`;
+        responseText += `*Snippet:* ${firstResult.snippet}\n\n`;
+
+        responseText += `*Link:* ${firstResult.url}`;
+
 
         // 4. Send the final formatted message
         await reply(responseText);
-
+        
     } catch (error) {
-        console.error("Error in web search command:", error);
-        reply("❌ Sorry, I encountered an error while processing the web search. This might be due to a connection issue or an API problem.");
+        // Log detailed error for debugging
+        console.error("Error in dsearch command:", error);
+        if (error.response) {
+            console.error("API Response Status:", error.response.status);
+            console.error("API Response Data:", error.response.data);
+            reply(`❌ Sorry, API se data fetch karne mein error aaya. Status Code: ${error.response.status}`);
+        } else {
+            reply("❌ Sorry, search command mein koi samasya (problem) aayi. Kripya phir se try karein.");
+        }
     }
 });
