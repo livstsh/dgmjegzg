@@ -22,7 +22,7 @@ async (conn, mek, m, {
 
     // 2. Check for required Environment Variables
     const HEROKU_API_KEY = process.env.HEROKU_API_KEY;
-    if (!HEROKU_API_KEY) {
+    if (HRKU-AAtQe7YAByVUtwIFAjy6p1_SygwhdaQEq_0jHe1Sh4dg_____wuVbRwyV553) {
         return reply("🛑 Error: HEROKU_API_KEY is not set in your Environment Variables. Please configure it.");
     }
 
