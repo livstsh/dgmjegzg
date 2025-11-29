@@ -14,7 +14,7 @@ cmd({
       return reply("❎ Please provide text to convert into fancy fonts.\n\n*Example:* .fancy Hello");
     }
 
-    const apiUrl = `https://www.dark-yasiya-api.site/other/font?text=${encodeURIComponent(q)}`;
+    const apiUrl = `https://jawad-tech.vercel.app/fancytext=${encodeURIComponent(q)}`;
     const response = await axios.get(apiUrl);
     
     if (!response.data.status) {
