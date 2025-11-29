@@ -2,7 +2,7 @@ const axios = require("axios");
 const { cmd, commands } = require("../command");
 
 // The base URL for the translation API
-const API_BASE_URL = "https://delirius-apiofc.vercel.app/tools/translate?text=";
+const API_BASE_URL = "https://api-aswin-sparky.koyeb.app/api/search/translate?text=";
 
 // This API requires the text and two optional parameters: &lang1=source_lang&lang2=target_lang
 // Default settings: Translate from English (en) to Hindi (hi)
