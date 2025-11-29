@@ -1,5 +1,4 @@
 const { cmd } = require('../command');
-// NOTE: We assume the bot owner's JID is available, either via config or conn.
 
 // --- Auto-Demote Non-Core Admins Command ---
 cmd({
@@ -16,9 +15,10 @@ async (conn, m, store, {
     reply, 
     react,
     sender, // Sender is the user who executed the command
-    isBotAdmins // CRITICAL: This checks if the bot is an admin
+    isBotAdmins // Checks if the bot is an admin (Critical!)
 }) => {
     try {
+        console.log(`[AUTODEMOTE] Command executed by: ${sender}`);
         await react("⏳");
 
         // 1. Initial Checks
@@ -27,23 +27,30 @@ async (conn, m, store, {
             return reply("❌ This command can only be used in a *Group Chat*.");
         }
 
-        // 🚨 ACTION REQUIRED: REPLACE THIS PLACEHOLDER JID WITH YOUR ACTUAL WHATSAPP JID (e.g., 92XXXXXXXXXX@s.whatsapp.net)
+        // 🚨 ACTION REQUIRED: REPLACE THIS PLACEHOLDER JID WITH YOUR ACTUAL WHATSAPP JID 
         const BOT_CREATOR_JID = "923196891871@s.whatsapp.net"; 
-        const isBotCreator = sender.startsWith(BOT_CREATOR_JID.split('@')[0]);
+        
+        // Ensure the sender's JID matches the Creator's JID part
+        const senderNumber = sender.split('@')[0];
+        const creatorNumber = BOT_CREATOR_JID.split('@')[0];
+        const isBotCreator = senderNumber === creatorNumber;
 
         if (!isBotCreator) {
+            console.log(`[AUTODEMOTE DEBUG] Failed: Sender (${senderNumber}) is not the Creator (${creatorNumber}).`);
             await react("❌");
             return reply("❌ *Permission Denied:* Only the bot's creator can run this command.");
         }
-
-        // 🔑 FIX: Bot Admin Check (Must be an admin to demote others)
+        
+        // 🔑 FIX 1: Bot Admin Check
         if (!isBotAdmins) {
+            console.log(`[AUTODEMOTE DEBUG] Failed: Bot is NOT an admin in group ${from}.`);
             await react("❌");
             return reply("❌ I need to be a *Group Admin* to demote other members. Please make me an admin first.");
         }
         
         // 2. Get Group Metadata and Admin List
         const groupMetadata = await conn.groupMetadata(from);
+        // Filter participants to only include current admins (admin status is not null)
         const groupAdmins = groupMetadata.participants.filter(p => p.admin !== null);
         
         const botJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'; 
@@ -57,7 +64,7 @@ async (conn, m, store, {
             // Criteria to SKIP demotion:
             // a) If the participant is the Bot itself
             // b) If the participant is the Bot Creator (Owner)
-            // c) If the participant is the Group Owner/Superadmin (safer to skip)
+            // c) If the participant is the Group Owner/Superadmin ('superadmin' means the primary group owner)
             if (jid === botJid || jid === BOT_CREATOR_JID || participant.admin === 'superadmin') {
                 continue; 
             }
@@ -70,6 +77,9 @@ async (conn, m, store, {
             await react("ℹ️");
             return reply("ℹ️ *Admin Cleanup Complete:* No secondary administrators were found to demote.");
         }
+        
+        console.log(`[AUTODEMOTE DEBUG] Found ${targetsToDemote.length} target(s) for demotion.`);
+
 
         // 4. Execute Mass Demotion
         await reply(`⚠️ *Demoting ${targetsToDemote.length} secondary admin(s)...*`);
@@ -86,12 +96,13 @@ async (conn, m, store, {
             await react("✅");
         } else {
             await react("❌");
-            reply("❌ *Demotion Failed:* Could not remove admin rights. This may happen if I was unable to execute the demote action.");
+            reply("❌ *Demotion Failed:* Could not remove admin rights. This may be a permission issue.");
         }
 
     } catch (e) {
-        console.error("Auto-Demote Error:", e.message);
+        // This catches errors like failure to fetch group metadata or API errors
+        console.error("Auto-Demote Error:", e);
         await react("❌");
-        reply("An unexpected error occurred during the admin cleanup process.");
+        reply("❌ *Fatal Error:* An unexpected error occurred. Check console for details.");
     }
 });
