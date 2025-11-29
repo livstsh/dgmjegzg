@@ -1,94 +1,152 @@
 const { cmd } = require('../command');
+const { exec } = require('child_process');
+const config = require('../config');
 
+// 1. Shutdown Bot
 cmd({
-    pattern: "whois",
-    alias: ["senderinfo", "midentify", "jankari"],
-    desc: "Provides detailed information about the sender of a quoted message.",
-    category: "utility",
-    react: "🕵️",
+    pattern: "nshutdown",
+    desc: "Shutdown the bot.",
+    category: "owner",
+    react: "🛑",
     filename: __filename
 },
-async (conn, mek, m, { 
-    from, 
-    reply, 
-    react,
-    isGroup // Added check for group context
-}) => {
+async (conn, mek, m, { from, isOwner, reply }) => {
+    if (!isOwner) return reply("❌ You are not the owner!");
+    reply("🛑 Shutting down...").then(() => process.exit());
+});
+
+// 2. Broadcast Message to All Groups
+cmd({
+    pattern: "cbroadcast",
+    desc: "Broadcast a message to all groups.",
+    category: "owner",
+    react: "📢",
+    filename: __filename
+},
+async (conn, mek, m, { from, isOwner, args, reply }) => {
+    if (!isOwner) return reply("❌ уσυ αяє ησт тнє σωηєя!");
+    if (args.length === 0) return reply("📢 ρℓєαѕє ρяσνι∂є α мєѕѕαgє тσ вяσα∂¢αѕт.");
+
+    const message = args.join(' ');
+    const groups = Object.keys(await conn.groupFetchAllParticipating());
+
+    for (const groupId of groups) {
+        await conn.sendMessage(groupId, { text: message }, { quoted: mek });
+    }
+
+    reply("📢 мєѕѕαgє вяσα∂¢αѕтє∂ тσ αℓℓ gяσυρѕ.");
+});
+
+// 3. Set Profile Picture
+cmd({
+    pattern: "pp",
+    desc: "Set bot profile picture.",
+    category: "owner",
+    react: "🖼️",
+    filename: __filename
+},
+async (conn, mek, m, { from, isOwner, quoted, reply }) => {
+    if (!isOwner) return reply("❌ уσυ αяє ησт тнє σωηєя!");
+    if (!quoted || !quoted.message.imageMessage) return reply("❌ ρℓєαѕє яєρℓу тσ αη ιмαgє.");
+
     try {
-        await react("⏳");
-
-        // 1. Check for quoted message
-        if (!m.quoted) {
-            await react("❌");
-            return reply("❌ *Usage:* Please reply to any message and type *.whois*.");
-        }
-
-        // 2. Get Target JID and Message Info
-        const targetJid = m.quoted.sender;
-        const targetNumber = targetJid.split('@')[0];
-        const quotedText = m.quoted.text || m.quoted.caption || "[Media/Attachment]";
-        
-        // Ensure timestamp calculation is robust
-        const quotedTimestamp = m.quoted.messageTimestamp 
-                               ? new Date(m.quoted.messageTimestamp * 1000).toLocaleString('en-US') 
-                               : "N/A";
-
-        // 3. Get User Profile Information (Name and Roles)
-        
-        // FIX 1: Robust Name Fetching (Falls back to number if name is unavailable)
-        const targetName = await conn.getName(targetJid) || `+${targetNumber}`; 
-        
-        let userRole = "👤 Normal Member";
-        let groupMetadata = null;
-        
-        // Check group context to determine admin status
-        if (isGroup) {
-             // Fetch metadata to find the user's role
-             groupMetadata = await conn.groupMetadata(from);
-             
-             // FIX 2: Admin Role Check
-             if (groupMetadata && groupMetadata.participants) {
-                 const targetParticipant = groupMetadata.participants.find(p => p.id === targetJid);
-                 
-                 if (targetParticipant) {
-                     if (targetParticipant.admin === 'superadmin') {
-                         userRole = "👑 Group Creator/Super Admin";
-                     } else if (targetParticipant.admin === 'admin') {
-                         userRole = "⭐ Group Admin";
-                     }
-                 }
-             }
-        }
-        
-        // Check if the target is the command sender (for clarity)
-        if (targetJid === m.sender) { 
-            // If the user is the sender, prioritize their existing admin role, or use the 'You' tag
-            userRole = userRole.includes("Admin") ? userRole : "💡 You (Command Sender)";
-        }
-        
-        // 4. Construct the output message
-        let infoMessage = `*🕵️ Message Detective: User Information*\n\n`;
-        infoMessage += `-------------------------------------------------\n`;
-        infoMessage += `*Name:* ${targetName}\n`;
-        infoMessage += `*Number:* ${targetNumber}\n`;
-        infoMessage += `*Role:* ${userRole}\n`;
-        infoMessage += `*Message Time:* ${quotedTimestamp}\n`;
-        infoMessage += `-------------------------------------------------\n`;
-        infoMessage += `*Message Content:* \n"${quotedText.substring(0, 100)}..."\n`;
-        infoMessage += `\n> ⚜️ _𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐝_ *- :* *_KAMRAN MD MAX_ ᵀᴹ*`;
-
-
-        // 5. Send the message with mentions
-        await conn.sendMessage(from, { 
-            text: infoMessage,
-            mentions: [targetJid] // Ensure the target user is mentioned
-        }, { quoted: m });
-        
-        await react("✅");
-
+        const media = await conn.downloadMediaMessage(quoted);
+        await conn.updateProfilePicture(conn.user.jid, { url: media });
+        reply("🖼️ ρяσƒιℓє ρι¢тυяє υρ∂αтє∂ ѕυ¢¢єѕѕƒυℓℓу!");
     } catch (error) {
-        console.error("Whois Command Error:", error);
-        await react("❌");
-        reply("❌ An error occurred while retrieving information.");
+        reply(`❌ єяяσя υρ∂αтιηg ρяσƒιℓє ρι¢тυяє: ${error.message}`);
     }
 });
+
+// 4. Block User
+cmd({
+    pattern: "eblock",
+    desc: "Block a user.",
+    category: "owner",
+    react: "🚫",
+    filename: __filename
+},
+async (conn, mek, m, { from, isOwner, quoted, reply }) => {
+    if (!isOwner) return reply("❌ уσυ αяє ησт тнє σωηєя!");
+    if (!quoted) return reply("❌ ρℓєαѕє яєρℓу тσ тнє υѕєя уσυ ωαηт тσ вℓσ¢к.");
+
+    const user = quoted.sender;
+    try {
+        await conn.updateBlockStatus(user, 'block');
+        reply(`🚫 User ${user} вℓσ¢кє∂ ѕυ¢¢єѕѕƒυℓℓу.`);
+    } catch (error) {
+        reply(`❌ єяяσя вℓσ¢кιηg υѕєя: ${error.message}`);
+    }
+});
+
+// 5. Unblock User
+cmd({
+    pattern: "eunblock",
+    desc: "Unblock a user.",
+    category: "owner",
+    react: "✅",
+    filename: __filename
+},
+async (conn, mek, m, { from, isOwner, quoted, reply }) => {
+    if (!isOwner) return reply("❌ уσυ αяє ησт тнє σωηєя!");
+    if (!quoted) return reply("❌ ρℓєαѕє яєρℓу тσ тнє υѕєя уσυ ωαηт тσ υηвℓσ¢к.");
+
+    const user = quoted.sender;
+    try {
+        await conn.updateBlockStatus(user, 'unblock');
+        reply(`✅ User ${user} υηвℓσ¢кє∂ ѕυ¢¢єѕѕƒυℓℓу.`);
+    } catch (error) {
+        reply(`❌ єяяσя υηвℓσ¢кιηg υѕєя: ${error.message}`);
+    }
+});
+
+// 6. Clear All Chats
+cmd({
+    pattern: "clear",
+    desc: "Clear all chats from the bot.",
+    category: "owner",
+    react: "🧹",
+    filename: __filename
+},
+async (conn, mek, m, { from, isOwner, reply }) => {
+    if (!isOwner) return reply("❌ уσυ αяє ησт тнє σωηєя!");
+    try {
+        const chats = conn.chats.all();
+        for (const chat of chats) {
+            await conn.modifyChat(chat.jid, 'delete');
+        }
+        reply("🧹 αℓℓ ¢нαтѕ ¢ℓєαяє∂ ѕυ¢¢єѕѕƒυℓℓу!");
+    } catch (error) {
+        reply(`❌ єяяσя ¢ℓєαяιηg ¢нαтѕ: ${error.message}`);
+    }
+});
+
+// 7. Get Bot JID
+cmd({
+    pattern: "jidf",
+    desc: "Get the bot's JID.",
+    category: "owner",
+    react: "🤖",
+    filename: __filename
+},
+async (conn, mek, m, { from, isOwner, reply }) => {
+    if (!isOwner) return reply("❌ уσυ αяє ησт тнє σωηєя!");
+    reply(`🤖 *Bot JID:* ${conn.user.jid}`);
+});
+
+// 8. Group JIDs List
+cmd({
+    pattern: "gjidf",
+    desc: "Get the list of JIDs for all groups the bot is part of.",
+    category: "owner",
+    react: "📝",
+    filename: __filename
+},
+async (conn, mek, m, { from, isOwner, reply }) => {
+    if (!isOwner) return reply("❌ уσυ αяє ησт тнє σωηєя!");
+
+    const groups = await conn.groupFetchAllParticipating();
+    const groupJids = Object.keys(groups).join('\n');
+    reply(`📝 *Group JIDs:*\n\n${groupJids}`);
+});
+        
