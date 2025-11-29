@@ -1,100 +1,96 @@
-const { cmd } = require('../command');
+const config = require('../config');
+const {cmd , commands} = require('../command');
+const { fetchJson } = require('../lib/functions')
 const axios = require('axios');
+const cheerio = require('cheerio');
 
-// Configure axios
-const axiosInstance = axios.create({
-  timeout: 20000,
-  maxRedirects: 5
-});
-
-cmd(
-  {
-    pattern: 'xvideo',
-    alias: ['hentai', 'xnxx','xxx'],
-    desc: '🔞 Download 18+ videos from Xvideos',
-    category: 'media',
-    react: '🔞',
-    use: '<search query>',
-    filename: __filename,
-  },
-  async (conn, mek, m, { text, reply }) => {
+cmd({
+    pattern: "xvid",
+    alias: ["xvideo"],
+    use: '.xvid <query>',
+    react: "🔞",
+    desc: "xvideo download",
+    category: "download",
+    filename: __filename
+}, async (messageHandler, context, quotedMessage, { from, q, reply }) => {
     try {
-      // Ensure we have a search term
-      if (!text) {
-        await reply('🔞 *Usage:* .xvideo <search query>\nExample: .xvideo big boobs');
-        return;
-      }
+        if (!q) return reply('⭕ *Please Provide Search Terms.*');
 
-      // Show loading reaction
-      await conn.sendMessage(mek.chat, { react: { text: '⏳', key: mek.key } });
+        let res = await fetchJson(`https://raganork-network.vercel.app/api/xvideos/search?query=${q}`);
+        
+        if (!res || !res.result || res.result.length === 0) return reply("N_FOUND");
 
-      // Query Dracula Xvideos API
-      const apiUrl = `https://delirius-apiofc.vercel.app/download/xnxxdl?url=${encodeURIComponent(text.trim())}`;
-      const { data } = await axiosInstance.get(apiUrl);
+        const data = res.result.slice(0, 10);
+        
+        if (data.length < 1) return await messageHandler.sendMessage(from, { text: "⭕ *I Couldn't Find Anything 🙄*" }, { quoted: quotedMessage });
 
-      // Check for a valid video
-      if (data.STATUS !== 200 || !data.video?.downloadLink) {
-        await conn.sendMessage(mek.chat, { react: { text: '❌', key: mek.key } });
-        await reply('🔞 No results found or API error');
-        return;
-      }
+        let message = `*🔞 KAMRAN MD XVIDEO DOWNLOADER 🔞*\n\n`;
+        let options = '';
 
-      const { title, imageUrl, videoUrl, downloadLink } = data.video;
+        data.forEach((v, index) => {
+            options += `${index + 1}. *${v.title}*\n\n`;
+        });
+        
+        message += options;
+        message += `> ⚜️ _𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐝_ *- :* *_KAMRAN MAX_ ᵀᴹ*\n\n`;
 
-      // Attempt to fetch thumbnail
-      let thumbBuf = null;
-      try {
-        const thumbRes = await axiosInstance.get(imageUrl, { responseType: 'arraybuffer' });
-        thumbBuf = Buffer.from(thumbRes.data);
-      } catch { /* silent thumbnail failure */ }
+        const sentMessage = await messageHandler.sendMessage(from, {
+            image: { url: `https://i.ibb.co/ntvzPr8/s-Wuxk4b-KHr.jpg` },
+            caption: message
+        }, { quoted: quotedMessage });
 
-      // Send thumbnail preview with link
-      await conn.sendMessage(
-        mek.chat,
-        {
-          image: thumbBuf,
-          caption: `🔞 *${title}*\n🔗 ${videoUrl}`,
-          contextInfo: {
-            externalAdReply: {
-              title,
-              body: 'Powered by Dracula API',
-              mediaType: 1,
-              thumbnail: thumbBuf,
-              mediaUrl: videoUrl,
-              sourceUrl: videoUrl
+        session[from] = {
+            searchResults: data,
+            messageId: sentMessage.key.id,
+        };
+
+        const handleUserReply = async (update) => {
+            const userMessage = update.messages[0];
+
+            if (!userMessage.message.extendedTextMessage ||
+                userMessage.message.extendedTextMessage.contextInfo.stanzaId !== sentMessage.key.id) {
+                return;
             }
-          }
-        },
-        { quoted: mek }
-      );
 
-      // Download the video
-      const videoRes = await axiosInstance.get(downloadLink, {
-        responseType: 'arraybuffer',
-        headers: { Referer: 'https://www.xvideos.com/' }
-      });
-      const videoBuf = Buffer.from(videoRes.data);
+            const userReply = userMessage.message.extendedTextMessage.text.trim();
+            const videoIndexes = userReply.split(',').map(x => parseInt(x.trim()) - 1);
 
-      // Sanitize filename and send video
-      const safeTitle = title.replace(/[\\/:"*?<>|]/g, '').slice(0, 50) || 'video';
-      await conn.sendMessage(
-        mek.chat,
-        {
-          video: videoBuf,
-          mimetype: 'video/mp4',
-          fileName: `${safeTitle}.mp4`,
-          caption: `📹 ${title}`
-        }
-      );
+            for (let index of videoIndexes) {
+                if (isNaN(index) || index < 0 || index >= data.length) {
+                    return reply("⭕ *Please Enter Valid Numbers From The List.*");
+                }
+            }
 
-      // All done!
-      await conn.sendMessage(mek.chat, { react: { text: '✅', key: mek.key } });
+            for (let index of videoIndexes) {
+                const selectedVideo = data[index];
+
+                try {
+                    let downloadRes = await fetchJson(`https://raganork-network.vercel.app/api/xvideos/download?url=${selectedVideo.url}`);
+                    let videoUrl = downloadRes.url;
+
+                    if (!videoUrl) {
+                        return reply(`⭕ *Failed To Fetch Video* for "${selectedVideo.title}".`);
+                    }
+
+                    await messageHandler.sendMessage(from, {
+                        video: { url: videoUrl },
+                        caption: `${selectedVideo.title}\n\n> ⚜️ _𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐝_ *- :* *_KAMRAN MD MAX_ ᵀᴹ*`
+                    });
+
+                } catch (err) {
+                    console.error(err);
+                    return reply(`⭕ *An Error Occurred While Downloading "${selectedVideo.title}".*`);
+                }
+            }
+
+            delete session[from];
+        };
+
+        messageHandler.ev.on("messages.upsert", handleUserReply);
 
     } catch (error) {
-      // React and reply with error message
-      await conn.sendMessage(mek.chat, { react: { text: '❌', key: mek.key } });
-      await reply(`🔞 Error: ${error.message || 'Please try again later'}`);
+        console.error(error);
+        await messageHandler.sendMessage(from, { text: '⭕ *Error Occurred During The Process!*' }, { quoted: quotedMessage });
     }
-  }
-);
-          
+});
+                                                                         
