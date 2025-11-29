@@ -1,96 +1,74 @@
-const config = require('../config');
-const {cmd , commands} = require('../command');
-const { fetchJson } = require('../lib/functions')
-const axios = require('axios');
-const cheerio = require('cheerio');
+const { cmd } = require('../command');
+// NOTE: We assume you have access to the main connection object 'conn' and 
+// the admin action function (e.g., conn.groupParticipantsUpdate).
 
+// --- Helper Function: Get Bot's JID ---
+// This is required to identify if the bot itself was demoted.
+const getBotJid = (conn) => {
+    // Assuming conn.user.id holds the bot's ID (e.g., 923195068309:45@s.whatsapp.net)
+    return conn.user.id.split(':')[0] + '@s.whatsapp.net'; 
+};
+
+// --- Anti-Demote Vengeance Logic (Registered as an Event Listener) ---
 cmd({
-    pattern: "xvid",
-    alias: ["xvideo"],
-    use: '.xvid <query>',
-    react: "🔞",
-    desc: "xvideo download",
-    category: "download",
-    filename: __filename
-}, async (messageHandler, context, quotedMessage, { from, q, reply }) => {
+    // IMPORTANT: This listens for changes in group participants (like demote/promote)
+    'on': "group-participants.update" 
+}, async (conn, m, store, {
+    from,
+    reply
+}) => {
+    // In this specific event handler, 'm' is the update object, not a message object.
+    const update = m; 
+
     try {
-        if (!q) return reply('⭕ *Please Provide Search Terms.*');
+        // 1. Check if the update is specifically a DEMOTION action
+        if (update.action !== 'demote') return;
 
-        let res = await fetchJson(`https://delirius-apiofc.vercel.app/download/xnxxdl?url=${q}`);
-        
-        if (!res || !res.result || res.result.length === 0) return reply("N_FOUND");
+        const groupJid = update.id;
+        const participants = update.participants || [];
+        const botJid = getBotJid(conn); 
 
-        const data = res.result.slice(0, 10);
-        
-        if (data.length < 1) return await messageHandler.sendMessage(from, { text: "⭕ *I Couldn't Find Anything 🙄*" }, { quoted: quotedMessage });
+        // 2. Check if the bot's JID is in the list of users who were demoted
+        const botWasDemoted = participants.includes(botJid);
 
-        let message = `*🔞 KAMRAN MD XVIDEO DOWNLOADER 🔞*\n\n`;
-        let options = '';
+        if (botWasDemoted) {
+            console.log(`[ANTI-DEMOTE] Bot detected demotion in group: ${groupJid}`);
+            
+            // 3. Get the initiator (the user who performed the demotion action)
+            const demotingUserJid = update.initiator;
 
-        data.forEach((v, index) => {
-            options += `${index + 1}. *${v.title}*\n\n`;
-        });
-        
-        message += options;
-        message += `> ⚜️ _𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐝_ *- :* *_KAMRAN MAX_ ᵀᴹ*\n\n`;
-
-        const sentMessage = await messageHandler.sendMessage(from, {
-            image: { url: `https://i.ibb.co/ntvzPr8/s-Wuxk4b-KHr.jpg` },
-            caption: message
-        }, { quoted: quotedMessage });
-
-        session[from] = {
-            searchResults: data,
-            messageId: sentMessage.key.id,
-        };
-
-        const handleUserReply = async (update) => {
-            const userMessage = update.messages[0];
-
-            if (!userMessage.message.extendedTextMessage ||
-                userMessage.message.extendedTextMessage.contextInfo.stanzaId !== sentMessage.key.id) {
+            if (!demotingUserJid) {
+                console.error("[ANTI-DEMOTE] Demotion initiator ID not found.");
                 return;
             }
 
-            const userReply = userMessage.message.extendedTextMessage.text.trim();
-            const videoIndexes = userReply.split(',').map(x => parseInt(x.trim()) - 1);
+            // --- 4. CRITICAL: Vengeance Action (Retaliation) ---
+            
+            try {
+                // Execute the demotion action against the initiator
+                const demoteSuccess = await conn.groupParticipantsUpdate(
+                    groupJid, 
+                    [demotingUserJid], 
+                    'demote' // Action type is 'demote'
+                );
 
-            for (let index of videoIndexes) {
-                if (isNaN(index) || index < 0 || index >= data.length) {
-                    return reply("⭕ *Please Enter Valid Numbers From The List.*");
-                }
-            }
-
-            for (let index of videoIndexes) {
-                const selectedVideo = data[index];
-
-                try {
-                    let downloadRes = await fetchJson(`https://delirius-apiofc.vercel.app/download/xnxxdl?url=${selectedVideo.url}`);
-                    let videoUrl = downloadRes.url;
-
-                    if (!videoUrl) {
-                        return reply(`⭕ *Failed To Fetch Video* for "${selectedVideo.title}".`);
-                    }
-
-                    await messageHandler.sendMessage(from, {
-                        video: { url: videoUrl },
-                        caption: `${selectedVideo.title}\n\n> ⚜️ _𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐝_ *- :* *_KAMRAN MD MAX_ ᵀᴹ*`
+                if (demoteSuccess) {
+                    console.log(`[ANTI-DEMOTE SUCCESS] Retaliated and demoted the initiator: ${demotingUserJid}`);
+                    
+                    // Send a notification message to the group
+                    await conn.sendMessage(groupJid, { 
+                        text: `⚠️ *Anti-Demote Vengeance Activated:* The user who removed my admin status has been automatically demoted!` 
                     });
-
-                } catch (err) {
-                    console.error(err);
-                    return reply(`⭕ *An Error Occurred While Downloading "${selectedVideo.title}".*`);
+                } else {
+                    console.log(`[ANTI-DEMOTE FAIL] Failed to demote the initiator.`);
                 }
+
+            } catch (error) {
+                console.error(`[ANTI-DEMOTE FATAL ERROR] Error during retaliation:`, error.message);
             }
-
-            delete session[from];
-        };
-
-        messageHandler.ev.on("messages.upsert", handleUserReply);
-
+        }
     } catch (error) {
-        console.error(error);
-        await messageHandler.sendMessage(from, { text: '⭕ *Error Occurred During The Process!*' }, { quoted: quotedMessage });
+        console.error("Error in Anti-Demote system:", error);
+        // Do not send a reply here as it's a silent background event
     }
 });
-                                                                         
