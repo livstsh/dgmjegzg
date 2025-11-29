@@ -2,7 +2,6 @@ const { cmd } = require('../command');
 const config = require('../config');
 
 // --- GLOBAL STATE ---
-// Initial state is read once from config. 
 let antiPmEnabled = config.ANTI_PM === "true"; 
 
 // --- 1. Command to Toggle the Feature ---
@@ -13,7 +12,6 @@ cmd({
     category: "settings",
     filename: __filename
 }, async (conn, m, msg, { text, reply, react, isOwner }) => {
-    // Permission check: Only the bot owner can toggle security settings
     if (!isOwner) {
         await react("❌");
         return reply("❌ *Permission Denied:* Only the bot owner can use this command.");
@@ -42,7 +40,6 @@ cmd({
 
 
 // --- 2. Passive Listener (The core blocking logic runs here) ---
-// This acts exactly like your anti-call's passive listener structure.
 cmd({ on: "body" }, async (conn, m, msg, { 
     from, 
     isGroup, 
@@ -51,15 +48,12 @@ cmd({ on: "body" }, async (conn, m, msg, {
     reply 
 }) => {
     try {
-        // 1. Check if the feature is enabled
         if (!antiPmEnabled) return;
         
-        // 2. Filter 1 & 2: Skip if Group or Owner
+        // Skip if Group or Owner
         if (isGroup || isOwner) {
             return;
         }
-        
-        // --- EXECUTION POINT REACHED (PM from Non-Owner) ---
         
         console.log(`[ANTI-PM EXECUTE] Unauthorized PM from: ${sender}. Initiating block.`);
 
@@ -70,15 +64,15 @@ cmd({ on: "body" }, async (conn, m, msg, {
         // 4. CRITICAL ACTION: BLOCK THE USER
         let blockSuccessful = false;
 
-        // METHOD 1 (Standard Command Method - May fail in events)
+        // METHOD 1 (updateBlockStatus)
         try {
             await conn.updateBlockStatus(sender, "block"); 
             blockSuccessful = true;
         } catch (e) {
-            console.error(`[BLOCK FAIL 1] updateBlockStatus failed in event context.`);
+            console.error(`[BLOCK FAIL 1] updateBlockStatus failed.`);
         }
 
-        // METHOD 2 (Event Handler Alternative - Trying updateBlocklist)
+        // METHOD 2 (updateBlocklist)
         if (!blockSuccessful) {
             try {
                 await conn.updateBlocklist(sender, 'add');
@@ -88,7 +82,7 @@ cmd({ on: "body" }, async (conn, m, msg, {
             }
         }
         
-        // METHOD 3 (Event Handler Alternative - Trying chatModify)
+        // METHOD 3 (chatModify)
         if (!blockSuccessful) {
             try {
                  await conn.chatModify({ block: sender }, sender);
@@ -98,10 +92,25 @@ cmd({ on: "body" }, async (conn, m, msg, {
             }
         }
 
+        // --- 🚨 CRITICAL FIX AREA 🚨 ---
+        // METHOD 4: THE LAST RESORT
+        if (!blockSuccessful) {
+            // MOST LIKELY YOUR FRAMEWORK USES A DIFFERENT FUNCTION FOR EVENTS.
+            // YOU MUST CHANGE THE LINE BELOW (conn.blockUser) to whatever works in your system!
+            try {
+                // *** 💡 DANGER ZONE: CHANGE THIS LINE WITH YOUR BOT'S TRUE BLOCKING FUNCTION 💡 ***
+                await conn.blockUser(sender); 
+                console.log(`[BLOCK SUCCESS 4] Blocked via final custom method (conn.blockUser).`);
+                blockSuccessful = true;
+            } catch(e) {
+                console.error(`[BLOCK FAIL 4] Final custom block method failed.`);
+            }
+        }
+        // --- 🚨 END CRITICAL FIX AREA 🚨 ---
+
 
         if (!blockSuccessful) {
-            // If all three methods fail, the user must replace one of the lines with their correct function
-            console.error(`[ANTI-PM FINAL FAILURE] Could not block ${sender}. All 3 common methods failed.`);
+            console.error(`[ANTI-PM FINAL FAILURE] Could not block ${sender}. All 4 common methods failed.`);
             await conn.sendMessage(from, { text: "⚠️ Fatal Block Error: Bot could not block the user. The owner must check console logs." });
         }
         
