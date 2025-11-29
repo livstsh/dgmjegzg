@@ -15,7 +15,8 @@ async (conn, m, store, {
     isGroup, 
     reply, 
     react,
-    sender // Sender is the user who executed the command
+    sender, // Sender is the user who executed the command
+    isBotAdmins // CRITICAL: This checks if the bot is an admin
 }) => {
     try {
         await react("⏳");
@@ -26,8 +27,8 @@ async (conn, m, store, {
             return reply("❌ This command can only be used in a *Group Chat*.");
         }
 
-        // Placeholder for Owner Check: Replace with your actual Bot Owner/Creator check
-        const BOT_CREATOR_JID = "923195068309@s.whatsapp.net"; // Example Creator JID
+        // 🚨 ACTION REQUIRED: REPLACE THIS PLACEHOLDER JID WITH YOUR ACTUAL WHATSAPP JID (e.g., 92XXXXXXXXXX@s.whatsapp.net)
+        const BOT_CREATOR_JID = "923196891871@s.whatsapp.net"; 
         const isBotCreator = sender.startsWith(BOT_CREATOR_JID.split('@')[0]);
 
         if (!isBotCreator) {
@@ -35,9 +36,11 @@ async (conn, m, store, {
             return reply("❌ *Permission Denied:* Only the bot's creator can run this command.");
         }
 
-        // Placeholder for Bot Admin Check (Essential for groupParticipantsUpdate)
-        // You MUST ensure the bot is an admin here before proceeding.
-        // if (!isBotAdmins) return reply("❌ I need to be a Group Admin to demote others.");
+        // 🔑 FIX: Bot Admin Check (Must be an admin to demote others)
+        if (!isBotAdmins) {
+            await react("❌");
+            return reply("❌ I need to be a *Group Admin* to demote other members. Please make me an admin first.");
+        }
         
         // 2. Get Group Metadata and Admin List
         const groupMetadata = await conn.groupMetadata(from);
@@ -54,7 +57,7 @@ async (conn, m, store, {
             // Criteria to SKIP demotion:
             // a) If the participant is the Bot itself
             // b) If the participant is the Bot Creator (Owner)
-            // c) If the participant is the Group Owner (optional, but safer to skip)
+            // c) If the participant is the Group Owner/Superadmin (safer to skip)
             if (jid === botJid || jid === BOT_CREATOR_JID || participant.admin === 'superadmin') {
                 continue; 
             }
@@ -83,7 +86,7 @@ async (conn, m, store, {
             await react("✅");
         } else {
             await react("❌");
-            reply("❌ *Demotion Failed:* Could not remove admin rights. Check if the bot is a Group Admin with full privileges.");
+            reply("❌ *Demotion Failed:* Could not remove admin rights. This may happen if I was unable to execute the demote action.");
         }
 
     } catch (e) {
