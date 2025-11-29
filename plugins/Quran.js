@@ -20,7 +20,7 @@ cmd({
       return reply('Type Surah Number or Type *.Surahmenu* for getting Surah numbers');
     }
 
-    let surahListRes = await fetchJson('https://quran-endpoint.vercel.app/quran');
+    let surahListRes = await fetchJson('.fatch https://api.nexoracle.com/islamic/quran-surah?q=');
     let surahList = surahListRes.data;
 
     let surahData = surahList.find(surah => 
@@ -33,7 +33,7 @@ cmd({
       return reply(`Couldn't find surah with number or name "${surahInput}"`);
     }
 
-    let res = await fetch(`https://quran-endpoint.vercel.app/quran/${surahData.number}`);
+    let res = await fetch(`https://api.nexoracle.com/islamic/quran-surah?q=${surahData.number}`);
     
     if (!res.ok) {
       let error = await res.json(); 
