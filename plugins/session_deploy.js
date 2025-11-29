@@ -27,7 +27,7 @@ async (conn, mek, m, {
     }
 
     // 3. Your Custom Deployment API Endpoint (This must be built separately!)
-    const DEPLOYMENT_API_URL = "https://your-custom-deploy-api.com/deploy/new"; 
+    const DEPLOYMENT_API_URL = "dashboard.heroku.com/new?template"; 
     
     // 4. GitHub Repository URL to be deployed
     const GITHUB_REPO = process.env.HEROKU_REPO_URL || "https://github.com/KAMRAN-SMD/KAMRAN-MD"; 
