@@ -1,56 +1,122 @@
-const { cmd } = require("../command");
-const Jimp = require("jimp");
+const { cmd } = require('../command');
+const { getBuffer, fetchJson } = require('../lib/functions');
 
 cmd({
-  pattern: "fullpp",
-  alias: ["setpp", "setdp", "pp"],
-  react: "🖼️",
-  desc: "Set full image as bot's profile picture",
-  category: "tools",
-  filename: __filename
-}, async (client, message, match, { from, isCreator }) => {
-  try {
-    // Get bot's JID (two possible methods)
-    const botJid = client.user?.id || (client.user.id.split(":")[0] + "@s.whatsapp.net");
-    
-    // Allow both bot owner and bot itself to use the command
-    if (message.sender !== botJid && !isCreator) {
-      return await client.sendMessage(from, {
-        text: "*📛 This command can only be used by the bot or its owner.*"
-      }, { quoted: message });
+    pattern: "person",
+    react: "👤",
+    alias: ["userinfo", "profile"],
+    desc: "Get complete user profile information",
+    category: "utility",
+    use: '.person [@tag or reply]',
+    filename: __filename
+},
+async (conn, mek, m, { from, sender, isGroup, reply, quoted, participants }) => {
+    try {
+        // 1. DETERMINE TARGET USER
+        let userJid = quoted?.sender || 
+                     mek.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || 
+                     sender;
+
+        // 2. VERIFY USER EXISTS
+        const [user] = await conn.onWhatsApp(userJid).catch(() => []);
+        if (!user?.exists) return reply("❌ User not found on WhatsApp");
+
+        // 3. GET PROFILE PICTURE
+        let ppUrl;
+        try {
+            ppUrl = await conn.profilePictureUrl(userJid, 'image');
+        } catch {
+            ppUrl = 'https://i.ibb.co/KhYC4FY/1221bc0bdd2354b42b293317ff2adbcf-icon.png';
+        }
+
+        // 4. GET NAME (MULTI-SOURCE FALLBACK)
+        let userName = userJid.split('@')[0];
+        try {
+            // Try group participant info first
+            if (isGroup) {
+                const member = participants.find(p => p.id === userJid);
+                if (member?.notify) userName = member.notify;
+            }
+            
+            // Try contact DB
+            if (userName === userJid.split('@')[0] && conn.contactDB) {
+                const contact = await conn.contactDB.get(userJid).catch(() => null);
+                if (contact?.name) userName = contact.name;
+            }
+            
+            // Try presence as final fallback
+            if (userName === userJid.split('@')[0]) {
+                const presence = await conn.presenceSubscribe(userJid).catch(() => null);
+                if (presence?.pushname) userName = presence.pushname;
+            }
+        } catch (e) {
+            console.log("Name fetch error:", e);
+        }
+
+        // 5. GET BIO/ABOUT
+        let bio = {};
+        try {
+            // Try personal status
+            const statusData = await conn.fetchStatus(userJid).catch(() => null);
+            if (statusData?.status) {
+                bio = {
+                    text: statusData.status,
+                    type: "Personal",
+                    updated: statusData.setAt ? new Date(statusData.setAt * 1000) : null
+                };
+            } else {
+                // Try business profile
+                const businessProfile = await conn.getBusinessProfile(userJid).catch(() => null);
+                if (businessProfile?.description) {
+                    bio = {
+                        text: businessProfile.description,
+                        type: "Business",
+                        updated: null
+                    };
+                }
+            }
+        } catch (e) {
+            console.log("Bio fetch error:", e);
+        }
+
+        // 6. GET GROUP ROLE
+        let groupRole = "";
+        if (isGroup) {
+            const participant = participants.find(p => p.id === userJid);
+            groupRole = participant?.admin ? "👑 Admin" : "👥 Member";
+        }
+
+        // 7. FORMAT OUTPUT
+        const formattedBio = bio.text ? 
+            `${bio.text}\n└─ 📌 ${bio.type} Bio${bio.updated ? ` | 🕒 ${bio.updated.toLocaleString()}` : ''}` : 
+            "No bio available";
+
+        const userInfo = `
+*GC MEMBER INFORMATION 🧊*
+
+📛 *Name:* ${userName}
+🔢 *Number:* ${userJid.replace(/@.+/, '')}
+📌 *Account Type:* ${user.isBusiness ? "💼 Business" : user.isEnterprise ? "🏢 Enterprise" : "👤 Personal"}
+
+*📝 About:*
+${formattedBio}
+
+*⚙️ Account Info:*
+✅ Registered: ${user.isUser ? "Yes" : "No"}
+🛡️ Verified: ${user.verifiedName ? "✅ Verified" : "❌ Not verified"}
+${isGroup ? `👥 *Group Role:* ${groupRole}` : ''}
+`.trim();
+
+        // 8. SEND RESULT
+        await conn.sendMessage(from, {
+            image: { url: ppUrl },
+            caption: userInfo,
+            mentions: [userJid]
+        }, { quoted: mek });
+
+    } catch (e) {
+        console.error("Person command error:", e);
+        reply(`❌ Error: ${e.message || "Failed to fetch profile"}`);
     }
-
-    if (!message.quoted || !message.quoted.mtype || !message.quoted.mtype.includes("image")) {
-      return await client.sendMessage(from, {
-        text: "*⚠️ Please reply to an image to set as profile picture*"
-      }, { quoted: message });
-    }
-
-    await client.sendMessage(from, {
-      text: "*⏳ Processing image, please wait...*"
-    }, { quoted: message });
-
-    const imageBuffer = await message.quoted.download();
-    const image = await Jimp.read(imageBuffer);
-
-    // Image processing pipeline
-    const blurredBg = image.clone().cover(640, 640).blur(10);
-    const centeredImage = image.clone().contain(640, 640);
-    blurredBg.composite(centeredImage, 0, 0);
-    const finalImage = await blurredBg.getBufferAsync(Jimp.MIME_JPEG);
-
-    // Update profile picture
-    await client.updateProfilePicture(botJid, finalImage);
-
-    await client.sendMessage(from, {
-      text: "*✅ Bot's profile picture updated successfully!*"
-    }, { quoted: message });
-
-  } catch (error) {
-    console.error("fullpp Error:", error);
-    await client.sendMessage(from, {
-      text: `*❌ Error updating profile picture:*\n${error.message}`
-    }, { quoted: message });
-  }
 });
-        
+                
