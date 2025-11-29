@@ -6,7 +6,7 @@ const { cmd, commands } = require("../command");
 
 // The API key is assumed to be provided by the runtime environment.
 const apiKey = "";
-const apiUrl = `https://delirius-apiofc.vercel.app/search/googlesearch?query=}`;
+const apiUrl = `https://delirius-apiofc.vercel.app/search/googlesearch?=${apiKey}`;
 
 /**
  * Parses the Gemini API response to extract text and grounding sources.
@@ -64,7 +64,7 @@ async function fetchWithRetry(payload, maxRetries = 3) {
 // --- Command Definition ---
 
 cmd({
-    pattern: "sech",
+    pattern: "search",
     alias: ["gsearch", "web", "google"],
     desc: "Performs a Google-grounded web search using the Gemini API for current information.",
     react: "🌐",
