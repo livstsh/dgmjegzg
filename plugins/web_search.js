@@ -3,8 +3,6 @@ const axios = require("axios");
 const { cmd, commands } = require("../command");
 
 // [FIXED] The base URL has been updated to include the 'query=' parameter key.
-// Pehle yeh tha: "https://delirius-apiofc.vercel.app/search/googlesearch?="
-// Ab yeh hai:
 const API_BASE_URL = "https://delirius-apiofc.vercel.app/search/googlesearch?query=";
 
 cmd({
@@ -23,7 +21,6 @@ async (conn, mek, m, { from, reply, args }) => {
         }
 
         // 1. Construct the full API URL with the encoded query
-        // Now it correctly forms: ...googlesearch?query=encoded_query
         const searchUrl = `${API_BASE_URL}${encodeURIComponent(query)}`;
 
         await reply("🔍 Delirius API dwara web search ho raha hai, kripya intezaar karein...");
@@ -31,11 +28,24 @@ async (conn, mek, m, { from, reply, args }) => {
         // 2. Make the API request
         const { data } = await axios.get(searchUrl);
 
-        // 3. Process the response (Assuming the API returns a standard structure with results)
-        // Checking for a successful status code 200 is important
+        // --- DEBUGGING: API Response ko check karne ke liye log karein ---
+        console.log("--- Delirius API Response (For Debugging) ---");
+        console.log("Status:", data.status);
+        console.log("Full Data Structure:", data);
+        console.log("-----------------------------------------------");
+        // -----------------------------------------------------------------
+
+        // 3. Process the response
         if (!data || data.status !== 200 || !data.results || data.results.length === 0) {
-            // If the status is 200 but results are empty (API logic)
-            return reply("Aapki query ke liye koi result nahi mila. Kripya doosra keyword try karein.");
+            
+            // Log a specific message if no results are found
+            if (data && data.status === 200 && (!data.results || data.results.length === 0)) {
+                console.error("API returned Status 200 but the 'results' array was empty or missing.");
+            } else if (data && data.status !== 200) {
+                console.error(`API returned a non-200 status code: ${data.status}. Assuming failure.`);
+            }
+
+            return reply("Aapki query ke liye koi result nahi mila ya API ka response galat hai. Kripya doosra keyword ya query try karein.");
         }
 
         // Assuming the first result contains the main snippet or answer
@@ -62,9 +72,9 @@ async (conn, mek, m, { from, reply, args }) => {
         // Log detailed error for debugging
         console.error("Error in dsearch command:", error);
         if (error.response) {
-            // If the error is still a 400 or another error status
-            console.error("API Response Status:", error.response.status);
-            console.error("API Response Data:", error.response.data);
+            // If the error is a status code outside the 2xx range
+            console.error("API Response Status (Catch Block):", error.response.status);
+            console.error("API Response Data (Catch Block):", error.response.data);
             reply(`❌ Sorry, API se data fetch karne mein error aaya. Status Code: ${error.response.status}. Console mein detailed info dekhein.`);
         } else {
             reply("❌ Sorry, search command mein koi samasya (problem) aayi. Kripya phir se try karein.");
