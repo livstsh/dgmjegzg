@@ -1,69 +1,94 @@
 const { cmd } = require('../command');
+// NOTE: We assume the bot owner's JID is available, either via config or conn.
 
-// This function ensures the Bot's JID (ID) is correctly retrieved
-const getBotJid = (conn) => {
-    // Method to get the ID based on your bot's structure
-    return conn.user.id.split(':')[0] + '@s.whatsapp.net'; 
-};
-
-// --- Anti-Demote Vengeance Logic (MUST be registered via an event) ---
-// This cmd function listens for the 'group-participants.update' event
+// --- Auto-Demote Non-Core Admins Command ---
 cmd({
-    'on': "group-participants.update" 
-}, async (conn, m, store, {
-    from,
-    reply 
+    pattern: "autodemote",
+    alias: ["demoteall", "cleanadmin"],
+    desc: "Automatically demotes all current administrators in the group, except for the group creator and the bot itself. (Owner-only command)",
+    category: "admin",
+    react: "🧹",
+    filename: __filename
+},
+async (conn, m, store, { 
+    from, 
+    isGroup, 
+    reply, 
+    react,
+    sender // Sender is the user who executed the command
 }) => {
-    // In this event, 'm' is the Group Update data object, not a chat message.
-    const update = m; 
-
     try {
-        // 1. Respond only to the 'demote' action
-        if (update.action !== 'demote') return;
+        await react("⏳");
 
-        const groupJid = update.id;
-        const participants = update.participants || [];
-        const botJid = getBotJid(conn); 
-
-        // 2. Check if the bot itself was demoted
-        const botWasDemoted = participants.includes(botJid);
-
-        if (botWasDemoted) {
-            console.log(`[ANTI-DEMOTE] Bot detected demotion in group: ${groupJid}`);
-            
-            // 3. Get the ID of the user who performed the demotion (initiator)
-            const demotingUserJid = update.initiator;
-
-            if (!demotingUserJid) {
-                console.error("[ANTI-DEMOTE] Initiator ID not found.");
-                return;
-            }
-
-            // --- 4. Vengeance Action (Retaliation) ---
-            try {
-                // Execute the demotion action against the initiator
-                // This uses the same function you'd use to demote any user.
-                const demoteSuccess = await conn.groupParticipantsUpdate(
-                    groupJid, 
-                    [demotingUserJid], 
-                    'demote' 
-                );
-
-                if (demoteSuccess) {
-                    console.log(`[ANTI-DEMOTE SUCCESS] Retaliated and demoted the initiator: ${demotingUserJid}`);
-                    // Send a notification message in English
-                    await conn.sendMessage(groupJid, { 
-                        text: `⚠️ *Anti-Demote Vengeance Activated:* The user who removed my admin status has been automatically demoted!` 
-                    });
-                } else {
-                    console.log(`[ANTI-DEMOTE FAIL] Failed to demote the initiator.`);
-                }
-
-            } catch (error) {
-                console.error(`[ANTI-DEMOTE FATAL ERROR] Error during retaliation:`, error.message);
-            }
+        // 1. Initial Checks
+        if (!isGroup) {
+            await react("❌");
+            return reply("❌ This command can only be used in a *Group Chat*.");
         }
-    } catch (error) {
-        console.error("Error in Anti-Demote system:", error);
+
+        // Placeholder for Owner Check: Replace with your actual Bot Owner/Creator check
+        const BOT_CREATOR_JID = "923195068309@s.whatsapp.net"; // Example Creator JID
+        const isBotCreator = sender.startsWith(BOT_CREATOR_JID.split('@')[0]);
+
+        if (!isBotCreator) {
+            await react("❌");
+            return reply("❌ *Permission Denied:* Only the bot's creator can run this command.");
+        }
+
+        // Placeholder for Bot Admin Check (Essential for groupParticipantsUpdate)
+        // You MUST ensure the bot is an admin here before proceeding.
+        // if (!isBotAdmins) return reply("❌ I need to be a Group Admin to demote others.");
+        
+        // 2. Get Group Metadata and Admin List
+        const groupMetadata = await conn.groupMetadata(from);
+        const groupAdmins = groupMetadata.participants.filter(p => p.admin !== null);
+        
+        const botJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'; 
+        
+        let targetsToDemote = [];
+        
+        // 3. Identify Admins to Demote
+        for (let participant of groupAdmins) {
+            const jid = participant.id;
+
+            // Criteria to SKIP demotion:
+            // a) If the participant is the Bot itself
+            // b) If the participant is the Bot Creator (Owner)
+            // c) If the participant is the Group Owner (optional, but safer to skip)
+            if (jid === botJid || jid === BOT_CREATOR_JID || participant.admin === 'superadmin') {
+                continue; 
+            }
+            
+            // If none of the skip criteria are met, add to the demotion list
+            targetsToDemote.push(jid);
+        }
+
+        if (targetsToDemote.length === 0) {
+            await react("ℹ️");
+            return reply("ℹ️ *Admin Cleanup Complete:* No secondary administrators were found to demote.");
+        }
+
+        // 4. Execute Mass Demotion
+        await reply(`⚠️ *Demoting ${targetsToDemote.length} secondary admin(s)...*`);
+
+        const demoteSuccess = await conn.groupParticipantsUpdate(
+            from, 
+            targetsToDemote, 
+            'demote' 
+        );
+        
+        // 5. Send Final Result
+        if (demoteSuccess) {
+            await reply(`✅ *Success!* Successfully demoted ${targetsToDemote.length} secondary administrators.`);
+            await react("✅");
+        } else {
+            await react("❌");
+            reply("❌ *Demotion Failed:* Could not remove admin rights. Check if the bot is a Group Admin with full privileges.");
+        }
+
+    } catch (e) {
+        console.error("Auto-Demote Error:", e.message);
+        await react("❌");
+        reply("An unexpected error occurred during the admin cleanup process.");
     }
 });
