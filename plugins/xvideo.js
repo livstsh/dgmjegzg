@@ -1,61 +1,57 @@
 const { cmd } = require('../command');
-// NOTE: We assume you have access to the main connection object 'conn' and 
-// the admin action function (e.g., conn.groupParticipantsUpdate).
 
-// --- Helper Function: Get Bot's JID ---
-// This is required to identify if the bot itself was demoted.
+// This function ensures the Bot's JID (ID) is correctly retrieved
 const getBotJid = (conn) => {
-    // Assuming conn.user.id holds the bot's ID (e.g., 923195068309:45@s.whatsapp.net)
+    // Method to get the ID based on your bot's structure
     return conn.user.id.split(':')[0] + '@s.whatsapp.net'; 
 };
 
-// --- Anti-Demote Vengeance Logic (Registered as an Event Listener) ---
+// --- Anti-Demote Vengeance Logic (MUST be registered via an event) ---
+// This cmd function listens for the 'group-participants.update' event
 cmd({
-    // IMPORTANT: This listens for changes in group participants (like demote/promote)
     'on': "group-participants.update" 
 }, async (conn, m, store, {
     from,
-    reply
+    reply 
 }) => {
-    // In this specific event handler, 'm' is the update object, not a message object.
+    // In this event, 'm' is the Group Update data object, not a chat message.
     const update = m; 
 
     try {
-        // 1. Check if the update is specifically a DEMOTION action
+        // 1. Respond only to the 'demote' action
         if (update.action !== 'demote') return;
 
         const groupJid = update.id;
         const participants = update.participants || [];
         const botJid = getBotJid(conn); 
 
-        // 2. Check if the bot's JID is in the list of users who were demoted
+        // 2. Check if the bot itself was demoted
         const botWasDemoted = participants.includes(botJid);
 
         if (botWasDemoted) {
             console.log(`[ANTI-DEMOTE] Bot detected demotion in group: ${groupJid}`);
             
-            // 3. Get the initiator (the user who performed the demotion action)
+            // 3. Get the ID of the user who performed the demotion (initiator)
             const demotingUserJid = update.initiator;
 
             if (!demotingUserJid) {
-                console.error("[ANTI-DEMOTE] Demotion initiator ID not found.");
+                console.error("[ANTI-DEMOTE] Initiator ID not found.");
                 return;
             }
 
-            // --- 4. CRITICAL: Vengeance Action (Retaliation) ---
-            
+            // --- 4. Vengeance Action (Retaliation) ---
             try {
                 // Execute the demotion action against the initiator
+                // This uses the same function you'd use to demote any user.
                 const demoteSuccess = await conn.groupParticipantsUpdate(
                     groupJid, 
                     [demotingUserJid], 
-                    'demote' // Action type is 'demote'
+                    'demote' 
                 );
 
                 if (demoteSuccess) {
                     console.log(`[ANTI-DEMOTE SUCCESS] Retaliated and demoted the initiator: ${demotingUserJid}`);
-                    
-                    // Send a notification message to the group
+                    // Send a notification message in English
                     await conn.sendMessage(groupJid, { 
                         text: `⚠️ *Anti-Demote Vengeance Activated:* The user who removed my admin status has been automatically demoted!` 
                     });
@@ -69,6 +65,5 @@ cmd({
         }
     } catch (error) {
         console.error("Error in Anti-Demote system:", error);
-        // Do not send a reply here as it's a silent background event
     }
 });
