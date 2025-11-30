@@ -1,8 +1,30 @@
 const fs = require('fs');
 const config = require('../config');
 const { cmd, commands } = require('../command');
-const { runtime, formatTime } = require('../lib/functions'); // formatTime assumed to be available
 const axios = require('axios');
+
+// --- CRITICAL FIX: Self-Contained Runtime Functions ---
+const startTime = new Date();
+const runtime = () => new Date() - startTime; // Returns uptime in milliseconds
+
+const formatTime = (ms) => {
+    let seconds = Math.floor(ms / 1000);
+    const d = Math.floor(seconds / (3600 * 24));
+    seconds -= d * 3600 * 24;
+    const h = Math.floor(seconds / 3600);
+    seconds -= h * 3600;
+    const m = Math.floor(seconds / 60);
+    seconds -= m * 60;
+    const s = Math.floor(seconds);
+
+    let final = '';
+    if (d > 0) final += `${d}d `;
+    if (h > 0) final += `${h}h `;
+    if (m > 0) final += `${m}m `;
+    if (s > 0 && d === 0 && h === 0) final += `${s}s`;
+    if (final === '') return '0s';
+    return final.trim();
+};
 
 // --- Audio URL for the Menu Voice Intro ---
 const MENU_AUDIO_URL = 'https://files.catbox.moe/ufq5ub.mp3';
@@ -25,7 +47,7 @@ cmd({
 }, async (conn, mek, m, { from, reply }) => {
     try {
         const totalCommands = Object.keys(commands).length;
-        const upTime = runtime(); // Assuming runtime returns milliseconds
+        const upTime = runtime(); // Now uses local runtime() function
 
         // --- 1. Main Menu Caption (Ultimate Styling) ---
         const menuCaption = `
@@ -257,6 +279,13 @@ cmd({
             }
         };
 
+        // Context info structure
+        const contextInfo = {
+            mentionedJid: [m.sender],
+            forwardingScore: 999,
+            isForwarded: true
+        };
+
         // --- 3. Send Initial Menu (Image/Text) ---
         let sentMsg;
         try {
@@ -295,7 +324,7 @@ cmd({
         } catch (audioError) {
             console.error('Menu Audio send failed:', audioError);
             // Inform user if audio fails (optional, but good for debugging)
-            await reply("⚠️ Voice intro audio bhejte samay masla hua."); 
+            // Removed reply to avoid confusing the interactive menu
         }
 
         const messageID = sentMsg.key.id;
