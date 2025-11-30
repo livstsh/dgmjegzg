@@ -4,57 +4,65 @@ const config = require("../config");
 const { cmd } = require("../command");
 
 cmd({
-  pattern: "ply",
-  alias: ["play9", "play10", "saniya"],
-  desc: "Download YouTube audio by title.",
+  pattern: "video3",
+  alias: ["v3", "youtube"],
+  desc: "Downloads YouTube video by title (sends thumbnail first).",
   category: "download",
-  react: "🎵",
-  filename: __filename
+  react: "🎬",
+  filename: __filename 
 }, async (conn, mek, m, { from, args, q, reply }) => {
   try {
     if (!q) {
-      return reply("❌ Please give me a song name.");
+      return reply("❌ Please provide a video title or name to search.");
     }
 
     // 1. Search video on YouTube
     const search = await yts(q);
+    // Get the first video result
     const video = search?.videos?.[0];
 
     if (!video) {
       return reply("❌ No video results found for that query.");
     }
 
-    const { url, title } = video;
+    const { url, title, image } = video; // Destructure the video details, including the thumbnail 'image' URL
 
-    // The API URL is hardcoded here.
-    const apiUrl = `https://jawad-tech.vercel.app/download/audio?url=${encodeURIComponent(url)}`;
-
-    // 2. Call your API with video URL
-    const res = await axios.get(apiUrl);
-    const audioUrl = res.data.result;
-
-    // 3. Robustly check the API response status and the resulting audio URL
-    if (!res.data.status || !audioUrl) {
-      console.error("API response error:", res.data);
-      return reply("❌ Failed to fetch audio download link from the API. The download service may be down.");
+    // 2. --- Send the YouTube Thumbnail Image first ---
+    if (image) {
+        await conn.sendMessage(from, {
+            image: { url: image }, // Use the thumbnail image URL
+            caption: `🔍 *Title:* ${title}\n🌐 *Source:* YouTube\n\n_Fetching video file, please wait..._`,
+            contextInfo: { forwardingScore: 999, isForwarded: true }
+        }, { quoted: mek });
+    } else {
+        await reply(`⏳ Found video: *${title}*. Fetching download link...`);
     }
 
-    // 4. Send audio file as a standard music file (ptt: false)
-    // IMPORTANT: Reverting to standard audio message (ptt: false) because ptt: true 
-    // consistently fails with the "audio is not available" error due to file format incompatibility.
+    // 3. Call the external API for video download link
+    const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
+    
+    const res = await axios.get(apiUrl);
+    const videoUrl = res.data.result;
+
+    // 4. Check API response
+    if (!res.data.status || !videoUrl) {
+      console.error("Video API response error:", res.data);
+      return reply("❌ Failed to fetch video download link from the API. The download service might be down.");
+    }
+
+    // 5. Send the Video file after the image
     await conn.sendMessage(from, {
-      audio: { url: audioUrl },
-      mimetype: "audio/mpeg",
-      ptt: false, // <--- Set to FALSE for reliable playback
-      fileName: `${title}.mp3`,
+      video: { url: videoUrl }, // Send the video file
+      mimetype: "video/mp4", 
+      caption: `✅ *${title}* Downloaded Successfully!\n\n_Powered by KAMRAN-MD._`,
       contextInfo: { forwardingScore: 999, isForwarded: true }
     }, { quoted: mek });
 
-    // 5. Reply with success message
-    await reply(`✅ *${title}* Downloaded Successfully and sent as an *Audio File* for reliable playback.`);
+    // 6. Reply with success message
+    await reply(`🎉 Video *${title}* has been successfully sent!`);
 
   } catch (e) {
-    console.error("play2 command error:", e.message);
-    reply("❌ An unexpected error occurred while processing the download request.");
+    console.error("video3 command error:", e.message);
+    reply("❌ An unexpected error occurred while processing the video download request.");
   }
 });
