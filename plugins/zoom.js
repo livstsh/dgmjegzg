@@ -38,16 +38,25 @@ cmd({
         await reply(`⏳ Found video: *${title}*. Fetching download link...`);
     }
 
-    // 3. Call the external API for video download link
-    const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
+    let res;
+    let videoUrl;
     
-    const res = await axios.get(apiUrl);
-    const videoUrl = res.data.result;
+    // 3. Call the external API for video download link (Error handling specific to the API call)
+    try {
+        const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
+        res = await axios.get(apiUrl);
+        videoUrl = res.data.result;
+    } catch (apiError) {
+        // Log the specific error for debugging
+        console.error("Axios API Call Failed:", apiError.message);
+        // Inform the user that the external service is likely the issue
+        return reply(`❌ The external video download service failed to respond. Status: ${apiError.response?.status || 'Connection Error'}. Please try again later.`);
+    }
 
-    // 4. Check API response
+    // 4. Check API response structure
     if (!res.data.status || !videoUrl) {
-      console.error("Video API response error:", res.data);
-      return reply("❌ Failed to fetch video download link from the API. The download service might be down.");
+      console.error("Video API response structure error:", res.data);
+      return reply("❌ The download service is online but returned an invalid video link. The service might not support this specific video.");
     }
 
     // 5. Send the Video file after the image
@@ -62,7 +71,8 @@ cmd({
     await reply(`🎉 Video *${title}* has been successfully sent!`);
 
   } catch (e) {
-    console.error("video3 command error:", e.message);
-    reply("❌ An unexpected error occurred while processing the video download request.");
+    // General error handler (for issues like send message failure, etc.)
+    console.error("video3 General command error:", e.message);
+    reply("❌ An unexpected error occurred while running the command. Please check your network connection.");
   }
 });
