@@ -17,7 +17,7 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
     try {
         let dec = `‎*╭─══════════════⊷❍*
 ‎*┋❁┋. ʙᴏᴛ ɴᴀᴍᴇ: ${config.BOT_NAME}*
-‎*┋❁┋. ᴠᴇʀꜱɪᴏɴ: 10.4.5*
+‎*┋❁┋. ᴠᴇʀꜱɪᴏɴ: 5.0.0*
 ‎*┋❁┋. ʀᴜɴᴛɪᴍᴇ: ${runtime(process.uptime())}*
 ‎*┋❁┋. ᴅᴇᴠ : ᴋᴀᴍʀᴀɴ-ᴍᴅ*     
 ‎*┋❁┋. ᴘʟᴀᴛғᴏʀᴍ: ${os.platform()}*
@@ -213,7 +213,7 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
 
         // Send audio
         await conn.sendMessage(from, {
-            audio: { url: 'https://files.catbox.moe/jldq9b.mp3' },
+            audio: { url: 'https://files.catbox.moe/ufq5ub.mp3' },
             mimetype: 'audio/mp4',
             ptt: true
         }, { quoted: mek });
