@@ -192,7 +192,8 @@ cmd(
             {
               [mediaKey]: { url: downloadUrl },
               mimetype: mimeType,
-              ptt: isAudio ? false : undefined, // Always send audio as standard file
+              // --- CRITICAL FIX: Explicitly setting ptt: false for audio to prevent corruption error ---
+              ptt: isAudio ? false : undefined, 
               fileName: `${ytdata.title}_${formatText}.${fileExtension}`,
               caption: `✅ *${ytdata.title}* Downloaded Successfully!\n*Format:* ${formatText}`,
             },
