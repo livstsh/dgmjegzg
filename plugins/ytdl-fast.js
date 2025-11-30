@@ -4,8 +4,8 @@ const config = require("../config");
 const { cmd } = require("../command");
 
 cmd({
-  pattern: "play3", // Naya pattern use kar rahe hain
-  alias: ["playaudio", "song"],
+  pattern: "play", // Naya pattern use kar rahe hain
+  alias: ["playaudio1", "song4"],
   desc: "Downloads YouTube audio by title (sends thumbnail first).",
   category: "download",
   react: "🎵",
