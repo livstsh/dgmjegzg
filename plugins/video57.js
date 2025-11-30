@@ -109,7 +109,7 @@ async function fetchVideoData(url, format, retries = 2) {
   }
 
   try {
-    const apiUrl = `https://chathuraytdl.netlify.app/ytdl?url=${encodeURIComponent(url)}&format=${format}`;
+    const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}&format=${format}`;
     console.log(`Fetching from API: ${apiUrl}`);
     const response = await axios.get(apiUrl, {
       timeout: 15000,
@@ -361,4 +361,5 @@ cmd(
     }
   }
 );
-  
+
+          
