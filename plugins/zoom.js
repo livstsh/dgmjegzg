@@ -40,28 +40,26 @@ cmd({
     let res;
     let videoUrl;
     
-    // 3. Call the new, combined 'ytdl' API endpoint
+    // 3. Call the external 'ytdl' API for video download link
     try {
-        // Updated API URL based on your new suggestion
+        // Using the new, more general ytdl endpoint
         const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
         res = await axios.get(apiUrl);
-        
-        // Assuming the new API returns results that need to be filtered (e.g., finding the best video format)
-        // I will assume the video link is directly in res.data.result for now, or the API is smart enough.
-        videoUrl = res.data.result; 
-
+        videoUrl = res.data.result;
     } catch (apiError) {
+        // Handles connection errors (e.g., API server is down or timed out)
         console.error("Axios API Call Failed:", apiError.message);
-        return reply(`❌ The external download service failed to respond. Status: ${apiError.response?.status || 'Connection Error'}. Please try again later.`);
+        return reply(`❌ The external download service failed to connect. Status: ${apiError.response?.status || 'Connection Error'}. Please try again later.`);
     }
 
     // 4. Check API response structure and validity of URL
     if (!res.data.status || typeof videoUrl !== 'string' || videoUrl.length < 10) {
       console.error("Video API response structure error:", res.data);
+      // This is the error the user previously received, indicating a bad link from the API.
       return reply("❌ The download service returned an invalid or empty video link. The service might not support this specific video.");
     }
 
-    // 5. --- Attempt to Send the Video file (Critical Block) ---
+    // 5. --- Attempt to Send the Video file ---
     try {
         await conn.sendMessage(from, {
           video: { url: videoUrl }, // Send the video file
@@ -71,10 +69,10 @@ cmd({
         }, { quoted: mek });
 
         // 6. Reply with final success message ONLY if the video send succeeded
-        await reply(`🎉 Video *${title}* has been successfully sent!`);
+        await reply(`🎉 Video *${title}* has been successfully sent! KAMRAN-MD!`);
     } catch (mediaError) {
         console.error("Video Send Failed:", mediaError.message);
-        // If sending the video fails, inform the user about the probable cause.
+        // This handles cases where the link is valid but the file is too large or not streamable by the platform.
         return reply("⚠️ Video link found, but failed to send the video. This often happens if the video file is too large or the source URL is not directly accessible by the platform's media server.");
     }
 
