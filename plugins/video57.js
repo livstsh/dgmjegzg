@@ -2,7 +2,7 @@ const { cmd } = require("../command");
 const yts = require("yt-search");
 const axios = require("axios");
 
-// NOTE: This code relies on the multi-purpose API endpoint: https://jawad-tech.vercel.app/download/ytdl
+// NOTE: This code uses two endpoints: /download/ytdl (for base data/video) and /download/audio (for audio link, as requested by user).
 
 const cache = new Map(); // Caching search results
 
@@ -18,9 +18,9 @@ function getVideoId(url) {
   return match ? match[1] : null;
 }
 
-// Function to fetch video/audio links using the /download/ytdl API
-async function fetchVideoData(url, retries = 2) {
-  const cacheKey = `data:${getVideoId(url)}`;
+// Function to fetch base data (title, thumbnail, and internal ytdl links)
+async function fetchBaseData(url, retries = 2) {
+  const cacheKey = `baseData:${getVideoId(url)}`;
   if (cache.has(cacheKey)) {
     console.log(`Using cached data for: ${url}`);
     return cache.get(cacheKey);
@@ -28,18 +28,17 @@ async function fetchVideoData(url, retries = 2) {
 
   try {
     const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
-    console.log(`Fetching from API: ${apiUrl}`);
+    console.log(`Fetching Base Data from API: ${apiUrl}`);
     
     const response = await axios.get(apiUrl, { timeout: 15000 });
     const data = response.data;
 
-    // --- CRITICAL FIX: Extracting nested links from data.result ---
     if (data.status === true && data.result) {
       const downloadData = data.result;
       
       const result = {
-        download_url_mp4: downloadData.mp4, // Video link
-        download_url_mp3: downloadData.mp3, // Audio link
+        download_url_mp4: downloadData.mp4, // Video link from /ytdl
+        download_url_mp3: downloadData.mp3, // Audio link from /ytdl (fallback)
         title: downloadData.title || "",
         thumbnail: data.info?.image || `https://i.ytimg.com/vi/${getVideoId(url)}/hqdefault.jpg`,
       };
@@ -51,11 +50,11 @@ async function fetchVideoData(url, retries = 2) {
     
     throw new Error("API status failure or result missing.");
   } catch (error) {
-    console.error(`API fetch failed: ${error.message}`);
+    console.error(`Base Data fetch failed: ${error.message}`);
     if (retries > 0) {
       console.log(`Retrying API fetch... (${retries} left)`);
       await new Promise((resolve) => setTimeout(resolve, 2000));
-      return fetchVideoData(url, retries - 1);
+      return fetchBaseData(url, retries - 1);
     }
     return null;
   }
@@ -85,7 +84,7 @@ cmd(
     pattern: "video4",
     alias: ["ytvideo4", "video6", "video5"],
     react: "🎬",
-    desc: "Download video/audio from YouTube with quality selection.",
+    desc: "Download video/audio from YouTube with simple selection (1=MP4, 2=MP3).",
     category: "ice Pakistan",
     filename: __filename,
   },
@@ -108,7 +107,7 @@ cmd(
         ytdata = searchResults[0];
       }
 
-      // Format the descriptive text for the menu
+      // Format the descriptive text for the simplified menu
       let desc = `
  🎬 KAMRAN MD DOWNLOADER 🎬
 
@@ -119,15 +118,9 @@ cmd(
 🕒 *Uploaded:* ${ytdata.ago}
 🔗 *Link:* ${ytdata.url}
 
-🔢 *Reply with a number to select quality and format:*
-1. Video Format 🎥
-   1.1 - 144p
-   1.2 - 240p
-   1.3 - 360p
-   1.4 - 720p
-   1.5 - 1080p
-2. Audio Format 🎶 
-   2.1 - MP3 (Standard)
+🔢 *Reply with a number to select format:*
+1 - MP4 (Video) 🎥
+2 - MP3 (Audio) 🎶
    
 > © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴀᴍʀᴀɴ ᴍᴅ`; 
 
@@ -155,27 +148,45 @@ cmd(
         
         try {
             
-          const validOptions = [
-            "1.1", "1.2", "1.3", "1.4", "1.5", "2.1"
-          ];
+          const validOptions = ["1", "2"]; // Only 1 or 2 are valid
           if (!validOptions.includes(selectedOption)) {
             await robin.sendMessage(from, { react: { text: "❓", key: msg.key } });
-            return reply("Kripya sahi option (jaise 1.3 ya 2.1) se reply karein."); 
+            return reply("Kripya sahi option (1 ya 2) se reply karein."); 
           }
 
           await robin.sendMessage(from, { react: { text: "⏳", key: msg.key } });
 
-          // Map selection to format 
-          const qualityMap = {
-            "1.1": "144p", "1.2": "240p", "1.3": "360p", "1.4": "720p", "1.5": "1080p", "2.1": "MP3",
-          };
-          const formatText = qualityMap[selectedOption];
-          const isAudio = selectedOption.startsWith("2");
+          // Determine media type based on selection
+          const isAudio = selectedOption === "2";
 
-          // Fetch the download URLs using the simplified function
-          const data = await fetchVideoData(ytdata.url);
+          // Fetch the download URLs using the base data function
+          const data = await fetchBaseData(ytdata.url);
           
-          let downloadUrl = isAudio ? data?.download_url_mp3 : data?.download_url_mp4;
+          let downloadUrl;
+          let formatText;
+
+          if (isAudio) {
+              formatText = "MP3 Audio";
+              // --- Audio Logic: Use the user's requested /download/audio endpoint ---
+              const audioApiUrl = `https://jawad-tech.vercel.app/download/audio?url=${encodeURIComponent(ytdata.url)}`;
+              
+              try {
+                  const audioRes = await axios.get(audioApiUrl, { timeout: 15000 });
+                  if (audioRes.data.status === true && audioRes.data.result) {
+                      downloadUrl = audioRes.data.result;
+                  } else {
+                      throw new Error("Dedicated Audio API failed to return a direct link.");
+                  }
+              } catch (audioApiError) {
+                  console.error("Dedicated Audio API Failed. Falling back to /ytdl link:", audioApiError.message);
+                  // Fallback: If dedicated API fails, use the link fetched by /ytdl
+                  downloadUrl = data?.download_url_mp3; 
+              }
+          } else {
+              formatText = "MP4 Video";
+              // Video link always comes from the /ytdl fetch done in fetchBaseData
+              downloadUrl = data?.download_url_mp4;
+          }
 
           if (!data || !downloadUrl) {
             await robin.sendMessage(from, { react: { text: "❌", key: msg.key } });
