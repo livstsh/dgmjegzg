@@ -4,19 +4,19 @@ const config = require("../config");
 const { cmd } = require("../command");
 
 cmd({
-  pattern: "play", // Naya pattern use kar rahe hain
-  alias: ["playaudio1", "song4"],
-  desc: "Downloads YouTube audio by title (sends thumbnail first).",
+  pattern: "play",
+  alias: ["play3", "play4", "sania"],
+  desc: "Downloads YouTube audio by title (Sends thumbnail first for better context).",
   category: "download",
   react: "🎵",
-  filename: __filename 
+  filename: __filename
 }, async (conn, mek, m, { from, args, q, reply }) => {
   try {
     if (!q) {
-      return reply("❌ Please provide a song title or name to search.");
+      return reply("❌ Please provide a song name.");
     }
 
-    // 1. Search video on YouTube
+    // 1. Search for the video on YouTube
     const search = await yts(q);
     const video = search?.videos?.[0];
 
@@ -25,8 +25,11 @@ cmd({
     }
 
     const { url, title, image } = video;
+    let res;
+    let downloadData;
+    let audioUrl;
 
-    // 2. --- Send the YouTube Thumbnail Image first ---
+    // 2. --- Send the YouTube Thumbnail Image first for quick feedback ---
     if (image) {
         await conn.sendMessage(from, {
             image: { url: image },
@@ -36,52 +39,46 @@ cmd({
     } else {
         await reply(`⏳ Found song: *${title}*. Fetching download link...`);
     }
-
-    let res;
-    let downloadData;
-    let audioUrl;
     
-    // 3. Call the external 'ytdl' API for audio download link
+    // 3. Call the external 'ytdl' API for the download link
     try {
-        const apiUrl = `https://jawad-tech.vercel.app/download/audio?url=${encodeURIComponent(url)}`;
+        const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
         res = await axios.get(apiUrl);
         
-        // --- Extracting the nested result object and the 'mp3' field ---
+        // --- FIX: Correctly extracting the nested 'mp3' field from the 'result' object ---
         downloadData = res.data.result;
-        audioUrl = downloadData?.mp3; // We need the specific 'mp3' field
-        
+        audioUrl = downloadData?.mp3; 
+
     } catch (apiError) {
         console.error("Axios API Call Failed:", apiError.message);
         return reply(`❌ The external download service failed to connect. Status: ${apiError.response?.status || 'Connection Error'}. Please try again later.`);
     }
 
-    // 4. Check API response structure and validity of URL
+    // 4. Check API response structure and validity of the audio URL
     if (!res.data.status || !audioUrl || typeof audioUrl !== 'string' || audioUrl.length < 10) {
-      console.error("Audio API response structure error:", res.data);
-      // The API gave a response, but the 'mp3' link was missing or invalid.
-      return reply("❌ The download service failed to generate a valid audio link for this song.");
+      console.error("Audio API structure error (Missing mp3 link):", res.data);
+      return reply("❌ The download service failed to generate a valid audio link for this song. The service might not support this specific video.");
     }
 
     // 5. --- Attempt to Send the Audio file ---
     try {
         await conn.sendMessage(from, {
-          audio: { url: audioUrl }, // Send the audio file
-          mimetype: "audio/mpeg", 
-          ptt: false, // Standard audio file for reliable playback
-          fileName: `${downloadData.title || title}.mp3`,
-          caption: `✅ *${downloadData.title || title}* Downloaded Successfully!\n\n_Powered by KAMRAN-MD._`,
+          audio: { url: audioUrl },
+          mimetype: "audio/mpeg",
+          ptt: false, // Using standard audio for reliable playback (not Voice Note)
+          fileName: `${downloadData.title || title}.mp3`, 
+          // The success message is included in the caption to avoid duplicate replies
+          caption: `✅ *${downloadData.title || title}* Downloaded Successfully!\n\n_Powered by KAMRAN-MD._`, 
           contextInfo: { forwardingScore: 999, isForwarded: true }
         }, { quoted: mek });
 
-        // No extra success reply to prevent duplicate messages.
-        
     } catch (mediaError) {
         console.error("Audio Send Failed:", mediaError.message);
         return reply("⚠️ Audio link found, but failed to send the audio. The file might be too large or the link may have expired.");
     }
 
   } catch (e) {
-    console.error("play3 General command error:", e.name, e.message);
+    console.error("play2 command General error:", e.name, e.message);
     reply("❌ A command processing error occurred during search or setup. Try a different query.");
   }
 });
