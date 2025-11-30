@@ -4,8 +4,8 @@ const config = require("../config");
 const { cmd } = require("../command");
 
 cmd({
-  pattern: "play4", // New pattern for the legacy endpoint
-  alias: ["oldplay", "legacyaudio"],
+  pattern: "play", // New pattern for the legacy endpoint
+  alias: ["play2", "sania"],
   desc: "Downloads YouTube audio using the older /download/audio endpoint (for testing/legacy use).",
   category: "download",
   react: "📻",
