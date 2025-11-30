@@ -5,8 +5,8 @@ const { cmd } = require("../command");
 
 cmd({
   pattern: "ply",
-  alias: ["play10", "play9", "sania1"],
-  desc: "Download YouTube audio by title and send as a voice note.",
+  alias: ["play9", "play10", "saniya"],
+  desc: "Download YouTube audio by title.",
   category: "download",
   react: "🎵",
   filename: __filename
@@ -39,18 +39,19 @@ cmd({
       return reply("❌ Failed to fetch audio download link from the API. The download service may be down.");
     }
 
-    // 4. Send audio file as a Voice Note (ptt: true) - This is the format you requested.
-    // NOTE: If you receive the "audio not available" error again, set ptt: false 
-    // to ensure reliable playback as a standard audio file.
+    // 4. Send audio file as a standard music file (ptt: false)
+    // IMPORTANT: Reverting to standard audio message (ptt: false) because ptt: true 
+    // consistently fails with the "audio is not available" error due to file format incompatibility.
     await conn.sendMessage(from, {
       audio: { url: audioUrl },
       mimetype: "audio/mpeg",
-      ptt: true, // <--- Set to TRUE for voice note/voice message
+      ptt: false, // <--- Set to FALSE for reliable playback
+      fileName: `${title}.mp3`,
       contextInfo: { forwardingScore: 999, isForwarded: true }
     }, { quoted: mek });
 
     // 5. Reply with success message
-    await reply(`✅ *${title}* Downloaded Successfully and sent as a *Voice Message*!`);
+    await reply(`✅ *${title}* Downloaded Successfully and sent as an *Audio File* for reliable playback.`);
 
   } catch (e) {
     console.error("play2 command error:", e.message);
