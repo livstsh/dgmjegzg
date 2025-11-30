@@ -71,6 +71,13 @@ cmd({
           contextInfo: { forwardingScore: 999, isForwarded: true }
         }, { quoted: mek });
 
+        // 6. Reply with final success message 
+        await reply(`🎉 Video *${downloadData.title || title}* has been successfully sent! KAMRAN-MD!`);
+    } catch (mediaError) {
+        console.error("Video Send Failed:", mediaError.message);
+        return reply("⚠️ Video link found, but failed to send the video. The file might be too large or the link may have expired.");
+    }
+
   } catch (e) {
     console.error("video3 General command error:", e.name, e.message);
     reply("❌ A command processing error occurred during search or setup. Try a different query.");
