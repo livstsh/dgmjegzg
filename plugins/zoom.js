@@ -4,16 +4,16 @@ const config = require("../config");
 const { cmd } = require("../command");
 
 cmd({
-  pattern: "ytdltest",
-  alias: ["apidump"],
-  desc: "Searches for a video and prints the RAW JSON response from the ytdl API for debugging.",
-  category: "utility",
-  react: "⚙️",
+  pattern: "video3",
+  alias: ["v3", "youtube"],
+  desc: "Downloads YouTube video by title (sends thumbnail first).",
+  category: "download",
+  react: "🎬",
   filename: __filename 
 }, async (conn, mek, m, { from, args, q, reply }) => {
   try {
     if (!q) {
-      return reply("❌ Please provide a video title to test.");
+      return reply("❌ Please provide a video title or name to search.");
     }
 
     // 1. Search video on YouTube
@@ -21,41 +21,65 @@ cmd({
     const video = search?.videos?.[0];
 
     if (!video) {
-      return reply("❌ No video results found.");
+      return reply("❌ No video results found for that query.");
     }
 
-    const { url, title } = video;
+    const { url, title, image } = video;
+
+    // 2. --- Send the YouTube Thumbnail Image first ---
+    if (image) {
+        await conn.sendMessage(from, {
+            image: { url: image },
+            caption: `🔍 *Title:* ${title}\n🌐 *Source:* YouTube\n\n_Fetching video file, please wait..._`,
+            contextInfo: { forwardingScore: 999, isForwarded: true }
+        }, { quoted: mek });
+    } else {
+        await reply(`⏳ Found video: *${title}*. Fetching download link...`);
+    }
+
+    let res;
+    let downloadData;
+    let videoUrl;
     
-    await reply(`🔍 *Testing API for:* ${title}\n*URL:* ${url}\n\n_Calling external API..._`);
-    
-    // 2. Call the external 'ytdl' API
+    // 3. Call the external 'ytdl' API for video download link
     try {
         const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
-        const res = await axios.get(apiUrl);
-
-        // 3. Print the RAW JSON response
-        const jsonResponse = JSON.stringify(res.data, null, 2);
-
-        await conn.sendMessage(from, {
-            text: `✅ *API Response Dump (Raw JSON)*\n\n\`\`\`json\n${jsonResponse}\n\`\`\``
-        }, { quoted: mek });
+        res = await axios.get(apiUrl);
         
-        // Check if the expected result field is present
-        if (res.data.result && typeof res.data.result === 'string') {
-             await reply("🎉 *Success Tip:* The API returned a result string! You might need to check if that URL is valid.");
-        } else {
-             await reply("⚠️ *Warning:* The 'result' field is missing or not a string. The API is not behaving as expected.");
-        }
-
-
+        // --- FIX APPLIED HERE: Extracting the nested result object ---
+        downloadData = res.data.result;
+        videoUrl = downloadData?.mp4; // We need the specific 'mp4' field
+        
     } catch (apiError) {
-        // Handles connection errors
         console.error("Axios API Call Failed:", apiError.message);
-        return reply(`❌ API Connection Failed. Status: ${apiError.response?.status || 'Connection Error'}.`);
+        return reply(`❌ The external download service failed to connect. Status: ${apiError.response?.status || 'Connection Error'}. Please try again later.`);
+    }
+
+    // 4. Check API response structure and validity of URL
+    if (!res.data.status || !videoUrl || typeof videoUrl !== 'string' || videoUrl.length < 10) {
+      console.error("Video API response structure error:", res.data);
+      // The API gave a response, but the 'mp4' link was missing or invalid.
+      return reply("❌ The download service failed to generate a valid video link for this video.");
+    }
+
+    // 5. --- Attempt to Send the Video file ---
+    try {
+        await conn.sendMessage(from, {
+          video: { url: videoUrl }, // Send the video file
+          mimetype: "video/mp4", 
+          caption: `✅ *${downloadData.title || title}* Downloaded Successfully!\n\n_Powered by KAMRAN-MD._`,
+          contextInfo: { forwardingScore: 999, isForwarded: true }
+        }, { quoted: mek });
+
+        // 6. Reply with final success message 
+        await reply(`🎉 Video *${downloadData.title || title}* has been successfully sent! KAMRAN-MD!`);
+    } catch (mediaError) {
+        console.error("Video Send Failed:", mediaError.message);
+        return reply("⚠️ Video link found, but failed to send the video. The file might be too large or the link may have expired.");
     }
 
   } catch (e) {
-    console.error("ytdltest General command error:", e.name, e.message);
-    reply("❌ A general error occurred during search or setup.");
+    console.error("video3 General command error:", e.name, e.message);
+    reply("❌ A command processing error occurred during search or setup. Try a different query.");
   }
 });
