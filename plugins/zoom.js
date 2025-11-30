@@ -4,9 +4,9 @@ const config = require("../config"); // Assuming this holds keys/settings
 const { cmd } = require("../command");
 
 cmd({
-  pattern: "ply",
-  alias: ["play9", "play10", "sania1"],
-  desc: "Download YouTube audio by title and send as a voice note.",
+  pattern: "play2",
+  alias: ["play3", "play4", "sania"],
+  desc: "Download YouTube audio by title.",
   category: "download",
   react: "🎵",
   filename: __filename
@@ -42,16 +42,18 @@ cmd({
       return reply("❌ Failed to fetch audio download link from the API. Try again later.");
     }
 
-    // 4. Send audio file as a Voice Note (ptt: true)
+    // 4. Send audio file as a standard music file (ptt: false)
+    // Reverting to standard audio message as PTT caused the "audio not available" error.
     await conn.sendMessage(from, {
       audio: { url: audioUrl },
       mimetype: "audio/mpeg",
-      ptt: true, // <--- CHANGED TO TRUE to send as a voice note
+      ptt: false, // Set to false for standard, reliable audio file playback
+      fileName: `${title}.mp3`, // Adding a file name
       contextInfo: { forwardingScore: 999, isForwarded: true }
     }, { quoted: mek });
 
     // 5. Reply with success message
-    await reply(`✅ *${title}* Downloaded Successfully and sent as a voice note!`);
+    await reply(`✅ *${title}* Downloaded Successfully and sent as an audio file.`);
 
   } catch (e) {
     console.error("play2 error:", e.message);
