@@ -4,8 +4,8 @@ const config = require("../config");
 const { cmd } = require("../command");
 
 cmd({
-  pattern: "video3",
-  alias: ["v3", "youtube"],
+  pattern: "video",
+  alias: ["ytmp4", "ytv"],
   desc: "Downloads YouTube video by title (sends thumbnail first).",
   category: "download",
   react: "🎬",
