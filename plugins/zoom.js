@@ -4,8 +4,8 @@ const config = require("../config"); // Assuming this holds keys/settings
 const { cmd } = require("../command");
 
 cmd({
-  pattern: "play2",
-  alias: ["play3", "play4", "sania"],
+  pattern: "ply",
+  alias: ["play9", "play10", "sania1"],
   desc: "Download YouTube audio by title.",
   category: "download",
   react: "🎵",
