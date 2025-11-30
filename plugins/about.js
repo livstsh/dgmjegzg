@@ -21,7 +21,7 @@ let about = `╭─ 「 *\`BOT ONLINE\`* 」
 ╰────────────────❍
 > *乛ᴋᴀᴍʀᴀɴ-ᴍᴅ ꜱᴜᴘᴘᴏʀᴛ +923195068309*`
 await conn.sendMessage(from, {
-    image: { url: 'https://files.catbox.moe/so68jp.jpg' },
+    image: { url: 'https://files.catbox.moe/ly6553.jpg' },
     caption: about,
     contextInfo: {
         mentionedJid: [m.sender],
