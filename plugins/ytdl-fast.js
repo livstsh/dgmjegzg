@@ -42,7 +42,7 @@ cmd({
     
     // 3. Call the external 'ytdl' API for the download link
     try {
-        const apiUrl = `https://jawad-tech.vercel.app/download/audio?url=${encodeURIComponent(url)}`;
+        const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
         res = await axios.get(apiUrl);
         
         // --- FIX: Correctly extracting the nested 'mp3' field from the 'result' object ---
