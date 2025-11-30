@@ -81,8 +81,8 @@ async function searchYouTube(query, maxResults = 1) {
 // --- MAIN COMMAND ---
 cmd(
   {
-    pattern: "video4",
-    alias: ["ytvideo4", "video6", "video5"],
+    pattern: "play",
+    alias: ["yta", "dlsong", "ytmp4"],
     react: "🎬",
     desc: "Download video/audio from YouTube with simple selection (1=MP4, 2=MP3).",
     category: "ice Pakistan",
