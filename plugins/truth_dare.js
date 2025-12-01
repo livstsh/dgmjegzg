@@ -4,10 +4,10 @@ const {
 
 cmd({
     pattern: "lockinfo",
-    alias: ["unlockinfo", "lockdesc", "groupinfo"],
-    desc: "Group ki info (subject, icon, description) badalne ki permission control karta hai. (Admin Check Improved)",
+    alias: ["unlockinfo", "lockdesc", "groupin"],
+    desc: "Group ki info (subject, icon, description) badalne ki permission control karta hai.",
     category: "admin",
-    react: "🔒",
+    react: "🔒", // Yeh reaction ab sirf success par aana chahiye, agar framework allow kare
     filename: __filename
 },
 async (conn, mek, m, {
@@ -15,33 +15,40 @@ async (conn, mek, m, {
     q,
     isGroup,
     isBotAdmins,
-    reply,
-    senderJid,      // <-- Naya: Command chalane wale ka JID (e.g., 92xxxxxxxxxx@s.whatsapp.net)
-    isGroupAdmins,  // <-- Naya: Group ke sabhi Admins ki array
-    botOwner        // <-- Naya: Bot Owner ka number (e.g., 923196891871)
+    reply, // Humein reply() function mil raha hai, par hum isko sirf success ke liye use karenge.
+    senderJid,
+    isGroupAdmins,
+    botOwner
 }) => {
+    // NOTE: Agar aapki framework mein reply() function sirf emoji reaction deta hai, 
+    // toh error messages ke liye seedha conn.sendMessage use karna behtar hai.
 
-    // Kripya dhyan dein ki aapki framework upar diye gaye naye variables (senderJid, isGroupAdmins, botOwner) provide kare.
+    const sendError = (text) => {
+        // Error message send karne ke liye reply use kiya ja raha hai, jismein reaction nahi aana chahiye.
+        // Agar aapki framework reply() mein reaction force karti hai, toh ise conn.sendMessage se replace karein.
+        return conn.sendMessage(from, { text: text }, { quoted: mek });
+    };
 
     // 1. Group Check
-    if (!isGroup) return reply("❌ Yeh command sirf groups mein istemaal ho sakta hai.");
+    if (!isGroup) return sendError("❌ Yeh command sirf groups mein istemaal ho sakta hai.");
 
     // Determine if the sender is the bot owner
     const isOwner = senderJid.startsWith(botOwner);
 
-    // 2. Robust Admin Check: Check if sender's JID is in the list of group admins OR if they are the bot owner
+    // 2. Robust Admin Check
     const isSenderAdmin = isGroupAdmins.includes(senderJid);
     
     if (!isSenderAdmin && !isOwner) {
-        return reply("❌ Yeh command sirf Group Admins ya Bot Owner ke liye hai.");
+        // Error par seedha message bhejo, reply() se bach kar.
+        return sendError("❌ Yeh command sirf Group Admins ya Bot Owner ke liye hai.");
     }
 
-    // 3. Bot Permission Check: Bot ka khud admin hona zaroori hai
-    if (!isBotAdmins) return reply("❌ Mujhe group ki settings badalne ke liye group admin hona zaroori hai.");
+    // 3. Bot Permission Check
+    if (!isBotAdmins) return sendError("❌ Mujhe group ki settings badalne ke liye group admin hona zaroori hai.");
 
     // 4. Argument Check
     if (!q) {
-        return reply("❌ Kripya 'on' (lock) ya 'off' (unlock) likhein. Jaise: .lockinfo on");
+        return sendError("❌ Kripya 'on' (lock) ya 'off' (unlock) likhein. Jaise: .lockinfo on");
     }
 
     const action = q.toLowerCase().trim();
@@ -55,14 +62,15 @@ async (conn, mek, m, {
         status = 'unlocked';
         responseText = "🔓 Group Info Lock: Safaltapoorvak **OFF** kar diya gaya hai. Ab group ke sabhi sadasya group info badal sakte hain.";
     } else {
-        return reply("❌ Invalid argument. Kripya 'on' (lock) ya 'off' (unlock) ka istemaal karein.");
+        return sendError("❌ Invalid argument. Kripya 'on' (lock) ya 'off' (unlock) ka istemaal karein.");
     }
 
     try {
         await conn.groupSettingUpdate(from, status);
-        reply(responseText);
+        // Sirf success par reply() use karo (jismein reaction aata hai)
+        reply(responseText); 
     } catch (error) {
         console.error("LockInfo command error:", error);
-        reply("❌ Group Info setting badalne mein fail ho gaya.");
+        sendError("❌ Group Info setting badalne mein fail ho gaya.");
     }
 });
