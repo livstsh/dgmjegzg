@@ -2,75 +2,48 @@ const {
     cmd
 } = require('../command');
 
+// Note: AFK state ko store aur check karne ke liye aapko yeh functionality 
+// apne framework ke database/state management system mein add karni padegi.
+// Is code mein main maan raha hoon ki aapke paas AFK state store karne ka mechanism hai.
+
+// Yahaan hum sirf state ko on/off karne ka code de rahe hain.
+// Actual AFK check logic (on message/mention) aapke main handler mein hogi.
+
 cmd({
-    pattern: "lockinfo",
-    alias: ["unlockinfo", "lockdesc", "groupin"],
-    desc: "Group ki info (subject, icon, description) badalne ki permission control karta hai.",
-    category: "admin",
-    react: "🔒", // Yeh reaction ab sirf success par aana chahiye, agar framework allow kare
+    pattern: "afk",
+    desc: "Apne aap ko 'Away From Keyboard' (AFK) status par set karta hai.",
+    category: "utility",
+    react: "😴",
     filename: __filename
 },
 async (conn, mek, m, {
     from,
     q,
     isGroup,
-    isBotAdmins,
-    reply, // Humein reply() function mil raha hai, par hum isko sirf success ke liye use karenge.
-    senderJid,
-    isGroupAdmins,
-    botOwner
+    reply,
+    pushname, // User ka naam
+    senderJid // User ka full JID
 }) => {
-    // NOTE: Agar aapki framework mein reply() function sirf emoji reaction deta hai, 
-    // toh error messages ke liye seedha conn.sendMessage use karna behtar hai.
-
-    const sendError = (text) => {
-        // Error message send karne ke liye reply use kiya ja raha hai, jismein reaction nahi aana chahiye.
-        // Agar aapki framework reply() mein reaction force karti hai, toh ise conn.sendMessage se replace karein.
-        return conn.sendMessage(from, { text: text }, { quoted: mek });
+    // Custom function to send message (mek se quoted)
+    const sendMessage = async (text, options = {}) => {
+        await conn.sendMessage(from, { text: text, ...options }, { quoted: mek });
     };
-
-    // 1. Group Check
-    if (!isGroup) return sendError("❌ Yeh command sirf groups mein istemaal ho sakta hai.");
-
-    // Determine if the sender is the bot owner
-    const isOwner = senderJid.startsWith(botOwner);
-
-    // 2. Robust Admin Check
-    const isSenderAdmin = isGroupAdmins.includes(senderJid);
     
-    if (!isSenderAdmin && !isOwner) {
-        // Error par seedha message bhejo, reply() se bach kar.
-        return sendError("❌ Yeh command sirf Group Admins ya Bot Owner ke liye hai.");
+    // Yahaan AFK state ko database mein save/update karne ka logic aayega.
+    // Example: await setAfkStatus(senderJid, true, q || "Koi reason nahi diya gaya");
+
+    const reason = q ? ` with reason: *${q}*` : "";
+    
+    // Response
+    sendMessage(`😴 *${pushname}* ab AFK (Away From Keyboard) ho gaye hain${reason}. Jab tak aap waapas nahi aate, aapko mention karne par yeh message dikhega.`);
+
+    // Note: Jab user koi message bhejta hai, tab aapko AFK status hatane ka logic (Un-AFK) 
+    // aur message handler mein mention check karne ka logic add karna hoga.
+    
+    // Example Un-AFK logic (Not part of this command, but for reference):
+    /* if (user.isAFK) {
+        await setAfkStatus(senderJid, false);
+        sendMessage(`👋 Welcome back, *${pushname}*! Aap ab AFK nahi hain.`);
     }
-
-    // 3. Bot Permission Check
-    if (!isBotAdmins) return sendError("❌ Mujhe group ki settings badalne ke liye group admin hona zaroori hai.");
-
-    // 4. Argument Check
-    if (!q) {
-        return sendError("❌ Kripya 'on' (lock) ya 'off' (unlock) likhein. Jaise: .lockinfo on");
-    }
-
-    const action = q.toLowerCase().trim();
-    let status;
-    let responseText;
-
-    if (action === 'on' || action === 'lock') {
-        status = 'locked'; 
-        responseText = "🔒 Group Info Lock: Safaltapoorvak **ON** kar diya gaya hai. Ab sirf admins hi group ka naam, description, ya icon badal sakte hain.";
-    } else if (action === 'off' || action === 'unlock') {
-        status = 'unlocked';
-        responseText = "🔓 Group Info Lock: Safaltapoorvak **OFF** kar diya gaya hai. Ab group ke sabhi sadasya group info badal sakte hain.";
-    } else {
-        return sendError("❌ Invalid argument. Kripya 'on' (lock) ya 'off' (unlock) ka istemaal karein.");
-    }
-
-    try {
-        await conn.groupSettingUpdate(from, status);
-        // Sirf success par reply() use karo (jismein reaction aata hai)
-        reply(responseText); 
-    } catch (error) {
-        console.error("LockInfo command error:", error);
-        sendError("❌ Group Info setting badalne mein fail ho gaya.");
-    }
+    */
 });
