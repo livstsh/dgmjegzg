@@ -5,7 +5,7 @@ const {
 cmd({
     pattern: "lockinfo",
     alias: ["unlockinfo", "lockdesc", "groupinfo"],
-    desc: "Group ka subject, icon, aur description badalne ki permission control karta hai. (Admins/Members only)",
+    desc: "Group ki info (subject, icon, description) badalne ki permission control karta hai. (Admin Check Improved)",
     category: "admin",
     react: "🔒",
     filename: __filename
@@ -16,18 +16,24 @@ async (conn, mek, m, {
     isGroup,
     isBotAdmins,
     reply,
-    isAdmin // Command chalane wale ka admin status
+    senderJid,      // <-- Naya: Command chalane wale ka JID (e.g., 92xxxxxxxxxx@s.whatsapp.net)
+    isGroupAdmins,  // <-- Naya: Group ke sabhi Admins ki array
+    botOwner        // <-- Naya: Bot Owner ka number (e.g., 923196891871)
 }) => {
-    // --- DEBUGGING LINE ADDED ---
-    console.log(`[DEBUG] Sender is Admin (isAdmin): ${isAdmin}`);
-    // ----------------------------
 
-    // 1. Group Check: Command sirf group mein chalega
+    // Kripya dhyan dein ki aapki framework upar diye gaye naye variables (senderJid, isGroupAdmins, botOwner) provide kare.
+
+    // 1. Group Check
     if (!isGroup) return reply("❌ Yeh command sirf groups mein istemaal ho sakta hai.");
 
-    // 2. Sender Permission Check: Command chalane wala admin hona chahiye
-    if (!isAdmin) {
-        return reply("❌ Yeh command sirf Group Admins ke liye hai. (Aapka Admin Status: ${isAdmin})");
+    // Determine if the sender is the bot owner
+    const isOwner = senderJid.startsWith(botOwner);
+
+    // 2. Robust Admin Check: Check if sender's JID is in the list of group admins OR if they are the bot owner
+    const isSenderAdmin = isGroupAdmins.includes(senderJid);
+    
+    if (!isSenderAdmin && !isOwner) {
+        return reply("❌ Yeh command sirf Group Admins ya Bot Owner ke liye hai.");
     }
 
     // 3. Bot Permission Check: Bot ka khud admin hona zaroori hai
@@ -43,11 +49,9 @@ async (conn, mek, m, {
     let responseText;
 
     if (action === 'on' || action === 'lock') {
-        // 'locked' ka matlab hai ki sirf admins hi group info badal sakte hain
         status = 'locked'; 
         responseText = "🔒 Group Info Lock: Safaltapoorvak **ON** kar diya gaya hai. Ab sirf admins hi group ka naam, description, ya icon badal sakte hain.";
     } else if (action === 'off' || action === 'unlock') {
-        // 'unlocked' ka matlab hai ki sabhi members group info badal sakte hain
         status = 'unlocked';
         responseText = "🔓 Group Info Lock: Safaltapoorvak **OFF** kar diya gaya hai. Ab group ke sabhi sadasya group info badal sakte hain.";
     } else {
@@ -55,8 +59,6 @@ async (conn, mek, m, {
     }
 
     try {
-        // Group info setting update karna
-        // Note: groupSettingUpdate 'locked' ya 'unlocked' status ko handle karta hai
         await conn.groupSettingUpdate(from, status);
         reply(responseText);
     } catch (error) {
