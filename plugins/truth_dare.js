@@ -52,12 +52,20 @@ async (conn, mek, m, {
             // Priority 2: Mention a user
             targetJid = m.mentionedJid[0];
         } else {
-            // Priority 3: Select a Random Player (including the sender)
+            // Priority 3: Random Selection (The failing point)
+            
+            // Get Group Participants
             const groupMetadata = await conn.groupMetadata(from);
+            
+            if (!groupMetadata || !groupMetadata.participants) {
+                 await react("❌");
+                 return reply("❌ *Data Error:* Group ke sharikdaar (participants) ki list nahi mil saki.");
+            }
+            
             const participants = groupMetadata.participants;
             const botJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'; 
             
-            // Filter: Only exclude the Bot (so the sender can also be selected randomly)
+            // Filter: Exclude the Bot
             const playableParticipants = participants.filter(p => p.id !== botJid).map(p => p.id);
 
             if (playableParticipants.length === 0) {
@@ -69,11 +77,15 @@ async (conn, mek, m, {
             targetJid = playableParticipants[randomIndex];
         }
         
-        // If target is found:
-        const targetName = await conn.getName(targetJid) || targetJid.split('@')[0];
+        // --- If targetJid is still not set (which shouldn't happen here) ---
+        if (!targetJid) {
+            await react("❌");
+            return reply("❌ Target user ki ID nahi mil saki. Kripya kisi ko tag ya reply karen.");
+        }
 
 
         // 2. Select Random Challenge Type (Truth or Dare)
+        const targetName = await conn.getName(targetJid) || targetJid.split('@')[0];
         const isTruth = Math.random() < 0.5;
         const challengeList = isTruth ? TRUTHS : DARES;
         const challengeType = isTruth ? "SACH (Truth)" : "HIMMAT (Dare)";
@@ -98,7 +110,7 @@ async (conn, mek, m, {
         await react("✅");
 
     } catch (error) {
-        console.error("Truth or Dare Error:", error);
+        console.error("Truth or Dare Command Error:", error);
         await react("❌");
         reply("❌ Truth or Dare game shuru karne mein error aaya.");
     }
