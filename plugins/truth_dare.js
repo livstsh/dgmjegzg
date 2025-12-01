@@ -8,7 +8,7 @@ const TRUTHS = [
     "Tumhari sabse zyada crush kis par thi, aur woh kaunsa group member hai?",
     "Tumne last time kab jhoot bola, aur kyun?",
     "Apne phone ki gallery mein maujood woh aakhri cheez dikhao jise tum share nahi karna chahte.",
-    "Tumhari sabse ajeeb khwahish kya hai?",
+    "Apni sabse ajeeb khwahish kya hai?",
     "Agar tumhe ek din ke liye gayab hone ka mauka mile, to tum kya karoge?"
 ];
 
@@ -26,13 +26,13 @@ const DARES = [
 cmd({
     pattern: "td",
     alias: ["truthdare", "tosach", "himmat"],
-    desc: "Assigns a Truth or Dare challenge to a random user or the replied user.",
+    desc: "Assigns a Truth or Dare challenge to the sender, or a replied/mentioned user.",
     category: "fun",
     react: "😈",
     filename: __filename
 },
 async (conn, mek, m, {
-    from, reply, react, isGroup
+    from, reply, react, isGroup, sender, pushname
 }) => {
     try {
         await react("⏳");
@@ -42,50 +42,19 @@ async (conn, mek, m, {
             return reply("❌ *Yeh command sirf group mein chalti hai.*");
         }
         
-        // 1. Determine Target User (Reply, Mention, or Random)
-        let targetJid = null;
+        // 1. Determine Target User (Reply, Mention, or Self)
+        let targetJid = sender; // Default target is the sender
         
         if (m.quoted) {
-            // Priority 1: Reply to a message
             targetJid = m.quoted.sender;
         } else if (m.mentionedJid && m.mentionedJid.length > 0) {
-            // Priority 2: Mention a user
             targetJid = m.mentionedJid[0];
-        } else {
-            // Priority 3: Random Selection (The failing point)
-            
-            // Get Group Participants
-            const groupMetadata = await conn.groupMetadata(from);
-            
-            if (!groupMetadata || !groupMetadata.participants) {
-                 await react("❌");
-                 return reply("❌ *Data Error:* Group ke sharikdaar (participants) ki list nahi mil saki.");
-            }
-            
-            const participants = groupMetadata.participants;
-            const botJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'; 
-            
-            // Filter: Exclude the Bot
-            const playableParticipants = participants.filter(p => p.id !== botJid).map(p => p.id);
-
-            if (playableParticipants.length === 0) {
-                 await react("❌");
-                 return reply("❌ Game shuru karne ke liye kam se kam 1 dusre active member (bot ko chhod kar) ka hona zaroori hai.");
-            }
-            
-            const randomIndex = Math.floor(Math.random() * playableParticipants.length);
-            targetJid = playableParticipants[randomIndex];
-        }
+        } 
         
-        // --- If targetJid is still not set (which shouldn't happen here) ---
-        if (!targetJid) {
-            await react("❌");
-            return reply("❌ Target user ki ID nahi mil saki. Kripya kisi ko tag ya reply karen.");
-        }
-
-
-        // 2. Select Random Challenge Type (Truth or Dare)
+        // 2. Get Target Name
         const targetName = await conn.getName(targetJid) || targetJid.split('@')[0];
+
+        // 3. Select Random Challenge Type (Truth or Dare)
         const isTruth = Math.random() < 0.5;
         const challengeList = isTruth ? TRUTHS : DARES;
         const challengeType = isTruth ? "SACH (Truth)" : "HIMMAT (Dare)";
@@ -93,7 +62,7 @@ async (conn, mek, m, {
         const randomChallengeIndex = Math.floor(Math.random() * challengeList.length);
         const selectedChallenge = challengeList[randomChallengeIndex];
 
-        // 3. Construct the Output Message
+        // 4. Construct the Output Message
         let responseMessage = `*😈 TRUTH OR DARE CHALLENGE!* 😈\n\n`;
         responseMessage += `*Selected Player:* @${targetJid.split('@')[0]} (${targetName})\n`;
         responseMessage += `*Challenge Type:* ${challengeType} ${isTruth ? '✅' : '🔥'}\n\n`;
@@ -101,7 +70,7 @@ async (conn, mek, m, {
         responseMessage += `_Jaldi karo! Agar nahi kiya to party deni padegi!_`;
         responseMessage += `\n\n> ⚜️ _𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐝_ *- :* *_KAMRAN MD MAX_ ᵀᴹ*`;
 
-        // Send the message with mentions
+        // 5. Send the message with mentions
         await conn.sendMessage(from, { 
             text: responseMessage,
             mentions: [targetJid] // Tag the selected participant
@@ -112,6 +81,7 @@ async (conn, mek, m, {
     } catch (error) {
         console.error("Truth or Dare Command Error:", error);
         await react("❌");
-        reply("❌ Truth or Dare game shuru karne mein error aaya.");
+        // Sending a specific error to the user for better feedback
+        reply("❌ Truth or Dare game shuru karne mein error aaya. Kripya kisi ko tag karen ya reply karen.");
     }
 });
