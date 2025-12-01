@@ -8,6 +8,7 @@ const TRUTHS = [
     "Tumhari sabse zyada crush kis par thi, aur woh kaunsa group member hai?",
     "Tumne last time kab jhoot bola, aur kyun?",
     "Apne phone ki gallery mein maujood woh aakhri cheez dikhao jise tum share nahi karna chahte.",
+    "Tumhari sabse ajeeb khwahish kya hai?",
     "Agar tumhe ek din ke liye gayab hone ka mauka mile, to tum kya karoge?"
 ];
 
@@ -16,7 +17,7 @@ const DARES = [
     "Apni aakhri 5 messages ko kisi dusre group mein forward karo (screenshot bhejo).",
     "Agli 10 minute tak sirf ulti (backward) baat karo.",
     "Apni zuban par ice cube rakho aur ek selfie group mein bhejo.",
-    "Group mein 3 messages mein sirf 'BILLA' lafz ka इस्तेमाल karo, chahe kuch bhi ho.",
+    "Group mein 3 messages mein sirf 'BILLA' lafz ka istemal karo, chahe kuch bhi ho.",
     "Apni profile picture 24 ghante ke liye kisi cartoon character ki lagao.",
     "Ek ajeeb awaaz nikalo aur uska voice note group mein bhejo.",
     "Kisi bhi group admin ko 3 line ki shairi (poetry) send karo."
@@ -25,7 +26,7 @@ const DARES = [
 cmd({
     pattern: "td",
     alias: ["truthdare", "tosach", "himmat"],
-    desc: "Analyzes the user's current mood in a funny and random way.",
+    desc: "Assigns a Truth or Dare challenge to a random user or the replied user.",
     category: "fun",
     react: "😈",
     filename: __filename
@@ -40,37 +41,39 @@ async (conn, mek, m, {
             await react("❌");
             return reply("❌ *Yeh command sirf group mein chalti hai.*");
         }
-
-        // 1. Get Group Participants
-        const groupMetadata = await conn.groupMetadata(from);
         
-        // 🚨 FIX 1: Check if participants data is available
-        if (!groupMetadata || !groupMetadata.participants) {
-             await react("❌");
-             return reply("❌ *Data Error:* Group ke sharikdaar (participants) ki list nahi mil saki. Bot ko nikal kar dobara group mein shamil karen.");
+        // 1. Determine Target User (Reply, Mention, or Random)
+        let targetJid = null;
+        
+        if (m.quoted) {
+            // Priority 1: Reply to a message
+            targetJid = m.quoted.sender;
+        } else if (m.mentionedJid && m.mentionedJid.length > 0) {
+            // Priority 2: Mention a user
+            targetJid = m.mentionedJid[0];
+        } else {
+            // Priority 3: Select a Random Player (including the sender)
+            const groupMetadata = await conn.groupMetadata(from);
+            const participants = groupMetadata.participants;
+            const botJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'; 
+            
+            // Filter: Only exclude the Bot (so the sender can also be selected randomly)
+            const playableParticipants = participants.filter(p => p.id !== botJid).map(p => p.id);
+
+            if (playableParticipants.length === 0) {
+                 await react("❌");
+                 return reply("❌ Game shuru karne ke liye kam se kam 1 dusre active member (bot ko chhod kar) ka hona zaroori hai.");
+            }
+            
+            const randomIndex = Math.floor(Math.random() * playableParticipants.length);
+            targetJid = playableParticipants[randomIndex];
         }
         
-        const participants = groupMetadata.participants;
-        
-        const botJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'; 
-        
-        // Filter out the bot and the command sender
-        const playableParticipants = participants.filter(p => 
-            p.id !== botJid && p.id !== m.sender
-        ).map(p => p.id);
-
-        if (playableParticipants.length === 0) {
-            await react("❌");
-            // 🚨 FIX 2: Give a specific reason
-            return reply("❌ Game shuru karne ke liye *kam se kam do* dusre active members ka hona zaroori hai (Bot aur aapko nikal kar).");
-        }
-
-        // 2. Select a Random Target User
-        const randomIndex = Math.floor(Math.random() * playableParticipants.length);
-        const targetJid = playableParticipants[randomIndex];
+        // If target is found:
         const targetName = await conn.getName(targetJid) || targetJid.split('@')[0];
 
-        // 3. Select Random Challenge Type (Truth or Dare)
+
+        // 2. Select Random Challenge Type (Truth or Dare)
         const isTruth = Math.random() < 0.5;
         const challengeList = isTruth ? TRUTHS : DARES;
         const challengeType = isTruth ? "SACH (Truth)" : "HIMMAT (Dare)";
@@ -78,7 +81,7 @@ async (conn, mek, m, {
         const randomChallengeIndex = Math.floor(Math.random() * challengeList.length);
         const selectedChallenge = challengeList[randomChallengeIndex];
 
-        // 4. Construct the Output Message
+        // 3. Construct the Output Message
         let responseMessage = `*😈 TRUTH OR DARE CHALLENGE!* 😈\n\n`;
         responseMessage += `*Selected Player:* @${targetJid.split('@')[0]} (${targetName})\n`;
         responseMessage += `*Challenge Type:* ${challengeType} ${isTruth ? '✅' : '🔥'}\n\n`;
