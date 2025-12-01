@@ -18,12 +18,16 @@ async (conn, mek, m, {
     reply,
     isAdmin // Command chalane wale ka admin status
 }) => {
+    // --- DEBUGGING LINE ADDED ---
+    console.log(`[DEBUG] Sender is Admin (isAdmin): ${isAdmin}`);
+    // ----------------------------
+
     // 1. Group Check: Command sirf group mein chalega
     if (!isGroup) return reply("❌ Yeh command sirf groups mein istemaal ho sakta hai.");
 
     // 2. Sender Permission Check: Command chalane wala admin hona chahiye
     if (!isAdmin) {
-        return reply("❌ Yeh command sirf Group Admins ke liye hai.");
+        return reply("❌ Yeh command sirf Group Admins ke liye hai. (Aapka Admin Status: ${isAdmin})");
     }
 
     // 3. Bot Permission Check: Bot ka khud admin hona zaroori hai
