@@ -1,75 +1,101 @@
 const axios = require("axios");
 const { cmd } = require("../command");
 
-const FACEBOOK_API_URL = "https://api.privatezia.biz.id/api/downloader/fbdownload?url=";
+const PRIMARY_API_URL = "https://api.privatezia.biz.id/api/downloader/fbdownload?url=";
+const FALLBACK_API_URL = "https://aemt.me/fbdown?url="; // Using a common public fallback API
+
+async function fetchVideo(url) {
+    let downloadUrl = null;
+    let videoTitle = null;
+    let quality = '';
+
+    // --- Attempt 1: Primary API (Privatezia) ---
+    try {
+        console.log("Attempt 1: Trying Primary API...");
+        const apiUrl = `${PRIMARY_API_URL}${encodeURIComponent(url)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+        const data = response.data;
+
+        if (data && data.status === true && data.result) {
+            const result = data.result;
+            // Prioritize HD, then SD, then generic URL
+            if (result.hd) {
+                downloadUrl = result.hd;
+                quality = 'HD (Primary)';
+            } else if (result.sd) {
+                downloadUrl = result.sd;
+                quality = 'SD (Primary)';
+            } else if (result.url) {
+                downloadUrl = result.url;
+                quality = 'Standard (Primary)';
+            }
+            videoTitle = result.title;
+            if (downloadUrl) return { downloadUrl, videoTitle, quality };
+        }
+    } catch (e) {
+        console.warn(`Primary API failed: ${e.message}`);
+    }
+
+    // --- Attempt 2: Fallback API (AEMT) ---
+    try {
+        console.log("Attempt 2: Trying Fallback API...");
+        const apiUrl = `${FALLBACK_API_URL}${encodeURIComponent(url)}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+        const data = response.data;
+
+        // Assuming fallback API structure has a simple direct download link field
+        if (data && data.status && data.url) { 
+            downloadUrl = data.url;
+            quality = 'Standard (Fallback)';
+            videoTitle = data.title || "Facebook Video"; 
+            return { downloadUrl, videoTitle, quality };
+        }
+    } catch (e) {
+        console.error(`Fallback API failed: ${e.message}`);
+    }
+
+    return null; // Both failed
+}
 
 cmd({
     pattern: "fb",
     alias: ["fbvid", "fbdl"],
-    desc: "Downloads videos from Facebook URL.", // Facebook URL se video download karta hai.
+    desc: "Downloads videos from Facebook URL with auto-quality and API fallback.", 
     category: "download",
     react: "📘",
     filename: __filename
 }, async (conn, mek, m, { from, q, reply }) => {
     try {
         if (!q) {
-            return reply("❌ Kripya Facebook video ka link dein."); // Please provide a Facebook video link.
+            return reply("❌ Kripya Facebook video ka link dein."); 
         }
 
         if (!q.includes("facebook.com") && !q.includes("fb.watch")) {
-            return reply("❌ Kripya sahi Facebook link dein."); // Please provide a valid Facebook link.
+            return reply("❌ Kripya sahi Facebook link dein."); 
         }
 
-        await reply("⏳ Facebook link mil gaya. Video download link khoja jaa raha hai, kripya intezaar karein..."); // Searching for download link, please wait...
+        await reply("⏳ Facebook link mil gaya. Video download link khoja jaa raha hai, kripya intezaar karein..."); 
 
-        // 1. API URL banao
-        const apiUrl = `${FACEBOOK_API_URL}${encodeURIComponent(q)}`;
+        // Fetch video data using the dual-API logic
+        const videoData = await fetchVideo(q);
 
-        // 2. API call karo
-        const response = await axios.get(apiUrl, { timeout: 20000 });
-        const data = response.data;
-
-        // 3. Result check karo (Assuming API returns status and result with HD/SD links)
-        if (!data || data.status !== true || !data.result) {
-            console.error("FB API response:", data);
-            return reply("❌ Video download link prapt nahi hua. Ho sakta hai link private ho ya API kaam na kar rahi ho."); // Failed to get download link. Link might be private or API is down.
+        if (!videoData) {
+            return reply("❌ Video download link prapt nahi hua. Ho sakta hai link private ho ya dono APIs kaam na kar rahi hon.");
         }
-
-        const result = data.result;
-        let downloadUrl = null;
-        let quality = '';
-
-        // Prioritize HD, then SD, then generic URL
-        if (result.hd) {
-            downloadUrl = result.hd;
-            quality = 'HD';
-        } else if (result.sd) {
-            downloadUrl = result.sd;
-            quality = 'SD';
-        } else if (result.url) { // Some APIs return a single generic 'url' field
-            downloadUrl = result.url;
-            quality = 'Standard';
-        }
-
-        if (!downloadUrl) {
-            return reply("❌ Video download karne ka koi link nahi mil paaya."); // No download link found.
-        }
-        
-        const videoTitle = result.title || "Facebook Video";
 
         // 4. Video file bhej dein
         await conn.sendMessage(from, {
-            video: { url: downloadUrl },
+            video: { url: videoData.downloadUrl },
             mimetype: "video/mp4",
-            caption: `✅ *${videoTitle}* Downloaded Successfully!\n*Quality:* ${quality}\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`
+            caption: `✅ *${videoData.videoTitle}* Downloaded Successfully!\n*Quality:* ${videoData.quality}\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`
         }, { quoted: mek });
 
         // 5. Success reaction
         await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
     } catch (e) {
-        console.error("❌ fb command error:", e.message);
-        reply("⚠️ Video download karte samay ek truti hui. Kripya link check karein."); // An error occurred while downloading. Please check the link.
+        console.error("❌ fb command error (General):", e.message);
+        reply("⚠️ Video download karte samay ek anapekshit truti hui. Kripya link check karein."); 
         await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
     }
 });
