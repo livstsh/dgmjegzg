@@ -38,52 +38,9 @@ const getGreeting = () => {
     return "🌙 Good Night";
 };
 
-
-// --- Command Data (Simplified for Final List) ---
-// Note: In a real bot, you would iterate over the 'commands' object to generate this list dynamically.
-// Here we use static groups for the requested aesthetic.
-const commandGroups = {
-    "DOWNLOADS ⬇️": [
-        "playvideo [title]", "playaudio [title]", "fb [url]", "drama [title]", "remini [reply-img]", "gsearch [query]", "lyrics [title]",
-    ],
-    "OWNER/ADMIN 🔑": [
-        "vip", "nice", "vv", "eval", "logout", "ban", "unban", "listban", "setsudo", "kickall", "promote", "demote"
-    ],
-    "UTILITIES ⚙️": [
-        "note [text]", "note list", "font [text]", "truthdare", "ping", "runtime", "alive", "repo"
-    ],
-    "AI/FUN 💡": [
-        "ai [query]", "imagine [text]", "hidetag [msg]", "tagall", "ship @u1 @u2", "rate @user", "joke"
-    ]
-};
-
-// Function to format two columns for the command list
-function formatDualColumnList() {
-    let output = '';
-    const groupKeys = Object.keys(commandGroups);
-
-    groupKeys.forEach((groupName, groupIndex) => {
-        const commands = commandGroups[groupName];
-        const half = Math.ceil(commands.length / 2);
-        
-        output += `╔═══════『 ${groupName} 』═══════╗\n`;
-        
-        for (let i = 0; i < half; i++) {
-            const leftCmd = `• ${commands[i]}`.padEnd(25);
-            const rightCmd = commands[i + half] ? `• ${commands[i + half]}` : '';
-            output += `║ ${leftCmd} ${rightCmd}\n`;
-        }
-        
-        output += `╚═══════════════════════════╝\n`;
-    });
-    
-    return output.trim();
-}
-
-
 cmd({
     pattern: "kamran6",
-    desc: "Show full command list in a clear dual-column format.",
+    desc: "Show interactive menu system with the Final Boxed Aesthetic.",
     category: "menu",
     react: "⭐",
     filename: __filename
@@ -92,25 +49,50 @@ cmd({
         const totalCommands = commands ? Object.keys(commands).length : 0; 
         const upTime = runtime(); 
 
-        // --- 1. Main Header ---
-        const headerCaption = `
-╭━━━『 *👑 KAMRAN MD BOT 👑* 』━━━╮
-┆ 🌟 *${getGreeting()}!* I am ready to serve.
-┆ 
-┆ 👨‍💻 Owner: *${config.OWNER_NAME || 'KAMRAN'}*
-┆ ⏱️ Uptime: *${formatTime(upTime) || 'Loading...'}*
-┆ 🛠️ Prefix: *[${config.PREFIX || '!'}]*
-┆ 📈 Commands: *${totalCommands}*
-╰━━━━━━━━━━━━━━━━━━━━━━━━━━━╯\n`;
+        // --- 1. Main Header (Mimics Boxed Aesthetic from screenshot) ---
+        const headerBlock = `
+*${getGreeting()}* KAMRAN MD 🤝
 
-        // --- 2. Generate Command List ---
-        const commandList = formatDualColumnList();
+*╔════ 『 🤖 BOT INFO 🤖 』 ════╗*
+*║ Owner ➡️ ${config.OWNER_NAME || 'DR KAMRAN'}⭐*
+*║ Creator ➡️ GEMPT*
+*║ BotName ➡️ KAMRAN MD BOT*
+*║ Mode ➡️ PUBLIC*
+*║ Runtime ➡️ ${formatTime(upTime) || '00:00:00'}*
+*╚═════════════════════════╝*
+`;
+        
+        // --- 2. Selection List (Mimics the clean list from the second screenshot) ---
+        const menuList = `
+*SILAHKAN PILIH MENU DI BAWAH*
 
-        // --- 3. Final Full Caption ---
-        const menuCaption = `${headerCaption}\n${commandList}\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`;
+╔════ 『 *LIST MENU* 』 ════╗
+║
+║ 📥 [1] DOWNLOADER MENU
+║ 🛠️ [2] BOT INFO / STATUS
+║ 🤝 [3] GROUP MENU
+║ 💡 [4] AI MENU
+║ 🎨 [5] STICKER & CONVERTER
+║ 🎲 [6] FUN MENU
+║ ✨ [7] REACTION MENU
+║ 📜 [8] LYRICS & SEARCH
+║ 🔑 [9] OWNER MENU
+║ 🏡 [10] ALL MENU
+║
+╚═════════════════════════╝
+`;
+        
+        const menuCaption = `${headerBlock}\n${menuList}`;
 
 
-        // --- 4. Send Initial Menu (Image/Text) ---
+        // Context info structure
+        const contextInfo = {
+            mentionedJid: [m.sender],
+            forwardingScore: 999,
+            isForwarded: true
+        };
+        
+        // --- 3. Send Initial Menu (Image/Text) ---
         let sentMsg;
         try {
             // Attempt to send image first
@@ -119,6 +101,7 @@ cmd({
                 {
                     image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/so68jp.jpg' },
                     caption: menuCaption,
+                    contextInfo: contextInfo
                 },
                 { quoted: mek }
             );
@@ -127,12 +110,12 @@ cmd({
             // Fallback to text if image fails
             sentMsg = await conn.sendMessage(
                 from,
-                { text: menuCaption },
+                { text: menuCaption, contextInfo: contextInfo },
                 { quoted: mek }
             );
         }
         
-        // --- 5. Send the Menu Audio (Voice Note) ---
+        // --- 4. Send the Menu Audio (Voice Note) ---
         try {
             await conn.sendMessage(
                 from,
@@ -140,6 +123,7 @@ cmd({
                     audio: { url: MENU_AUDIO_URL },
                     mimetype: 'audio/mp3',
                     ptt: true, // Send as Voice Note
+                    contextInfo: contextInfo
                 },
                 { quoted: mek }
             );
@@ -147,12 +131,227 @@ cmd({
             console.error('Menu Audio send failed:', audioError);
         }
 
-        // Final success reaction
-        await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
+        const messageID = sentMsg.key.id;
+
+        // --- 5. Message Handler for Replies (Interactive Logic) ---
+        // (NOTE: Sub-menu content remains the same as previous clean version)
+        const subMenuBase = `\n\n> © ${config.DESCRIPTION || 'KAMRAN MD BOT'}`;
+
+        const menuData = {
+            '1': {
+                title: "⬇️ *DOWNLOADER MENU*",
+                content: `╔═════『 DOWNLOADS ⬇️ 』═════╗
+│ 🌐 *Links*
+│ • fb [url]
+│ • mediafire [url]
+│ • instagram [url]
+│ • pinterest [url]
+│ 
+│ 🎶 *Music/Video*
+│ • play3 [song]
+│ • drama [name]
+│ • ytmp3 [url]
+│ • ytmp4 [url]
+│ • gdrive [url]
+╚══════════════════════════════╝` + subMenuBase,
+                image: true
+            },
+            '2': {
+                title: "🛠️ *BOT INFO / STATUS*",
+                content: `╔════════『 BOT STATUS 🛠️ 』════════╗
+│ 🟢 *Status:* Online
+│ ⏱️ *Uptime:* ${formatTime(upTime) || 'Loading...'}
+│ 🛠️ *Prefix:* [${config.PREFIX || '!'}]
+│ 📈 *Total Cmds:* ${totalCommands}
+│ 
+│ ℹ️ *Commands*
+│ • ping
+│ • alive
+│ • runtime
+│ • owner
+╚══════════════════════════════════╝` + subMenuBase,
+                image: false 
+            },
+            '3': {
+                title: "🤝 *GROUP MENU*",
+                content: `╔════════『 GROUP TOOLS 🤝 』════════╗
+│ 🛡️ *Management*
+│ • grouplink
+│ • kickall
+│ • add @user
+│ • remove @user
+│ • promote @user
+│ • demote @user
+│ • mute / unmute
+│ • lockgc / unlockgc
+│ 
+│ 📣 *Tagging*
+│ • hidetag [msg]
+│ • tagall
+╚══════════════════════════════════╝` + subMenuBase,
+                image: true
+            },
+            '4': {
+                title: "💡 *AI MENU*",
+                content: `╔══════════『 AI TOOLS 💡 』══════════╗
+│ 💬 *Chatbots*
+│ • ai [query]
+│ • gsearch [query]
+│ 
+│ 🎨 *Enhancer/Image Gen*
+│ • remini [reply-img]
+│ • imagine [text]
+│ 
+│ 💻 *Utility*
+│ • blackbox [query]
+╚═══════════════════════════════════╝` + subMenuBase,
+                image: true
+            },
+            '5': {
+                title: "🎨 *STICKER & CONVERTER*",
+                content: `╔════════『 CONVERTERS 🎨 』════════╗
+│ 🖼️ *Media*
+│ • sticker [img/video]
+│ • tomp3 [video]
+│ • emojimix [emoji1+emoji2]
+│ 
+│ 📝 *Text*
+│ • font [text]
+│ • tts [text]
+│ • trt [text]
+╚═══════════════════════════════════╝` + subMenuBase,
+                image: true
+            },
+            '6': {
+                title: "🎲 *FUN MENU*",
+                content: `╔════════『 FUN & GAMES 🎲 』════════╗
+│ 🎮 *Games/Interactive*
+│ • truthdare (2 steps)
+│ • shapar
+│ • rate @user
+│ • ship @u1 @u2
+│ • joke
+│ 
+│ 🤣 *Random*
+│ • flip
+│ • coinflip
+│ • roll
+│ • fact
+╚═══════════════════════════════════╝` + subMenuBase,
+                image: true
+            },
+            '7': {
+                title: "✨ *REACTION MENU*",
+                content: `╔════════『 USER REACTIONS ✨ 』════════╗
+│ 🫂 *Affection*
+│ • cuddle @user
+│ • hug @user
+│ • kiss @user
+│ • pat @user
+│ 
+│ 💥 *Action*
+│ • bully @user
+│ • bonk @user
+│ • slap @user
+│ • kill @user
+╚═══════════════════════════════════╝` + subMenuBase,
+                image: true
+            },
+            '8': {
+                title: "📜 *LYRICS & SEARCH*",
+                content: `╔════════『 SEARCH TOOLS 📜 』════════╗
+│ 🎵 *Music*
+│ • lyrics [song title]
+│ • shazam [reply-audio]
+│ 
+│ 🔍 *General Search*
+│ • define [word]
+│ • news [query]
+│ • movie [name]
+│ • weather [loc]
+╚═══════════════════════════════════╝` + subMenuBase,
+                image: true
+            },
+            '9': {
+                title: "🔑 *OWNER MENU*",
+                content: `╔════════『 OWNER CONTROLS 🔑 』════════╗
+│ ⚠️ *Restricted Control*
+│ • block @user
+│ • unblock @user
+│ • setpp [img]
+│ • restart
+│ • shutdown
+│ 
+│ ℹ️ *Info*
+│ • listcmd
+│ • allmenu
+│ • eval [code]
+╚═══════════════════════════════════╝` + subMenuBase,
+                image: true
+            },
+            '10': {
+                title: "🏡 *ALL MENU*",
+                content: "Aapke dwara maange gaye saare commands ki list. Kripya *owner* se `.allmenu` command ke liye request karein." + subMenuBase,
+                image: false
+            }
+        };
+
+
+        const handler = async (msgData) => {
+            const receivedMsg = msgData.messages[0];
+            if (!receivedMsg?.message || !receivedMsg.key?.remoteJid) return;
+
+            const isReplyToMenu = receivedMsg.message.extendedTextMessage?.contextInfo?.stanzaId === messageID;
+            
+            if (isReplyToMenu) {
+                const receivedText = receivedMsg.message.conversation?.trim() || receivedMsg.message.extendedTextMessage?.text?.trim();
+                const senderID = receivedMsg.key.remoteJid;
+                
+                // Remove listener immediately after receiving a valid reply
+                if (menuData[receivedText]) {
+                    conn.ev.off("messages.upsert", handler);
+
+                    const selectedMenu = menuData[receivedText];
+                    
+                    try {
+                        // Decide if to send image or just text for sub-menu
+                        const contentKey = selectedMenu.image ? 'image' : 'text';
+                        const contentValue = selectedMenu.image ? { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/so68jp.jpg' } : {};
+
+                        await conn.sendMessage(
+                            senderID,
+                            {
+                                ...contentValue,
+                                caption: selectedMenu.content,
+                                text: selectedMenu.content,
+                            },
+                            { quoted: receivedMsg }
+                        );
+                        await conn.sendMessage(senderID, { react: { text: '✅', key: receivedMsg.key } });
+
+                    } catch (e) {
+                        console.log('Sub-menu send error:', e);
+                        await conn.sendMessage(senderID, { text: selectedMenu.content }, { quoted: receivedMsg });
+                        await conn.sendMessage(senderID, { react: { text: '✅', key: receivedMsg.key } });
+                    }
+                } else {
+                    // Invalid Option Response
+                    await conn.sendMessage(
+                        senderID,
+                        { text: `❌ *Invalid Option!* ❌\nKripya sahi number (1-10) se reply karein.` },
+                        { quoted: receivedMsg }
+                    );
+                    await conn.sendMessage(senderID, { react: { text: '❓', key: receivedMsg.key } });
+                }
+            }
+        };
+
+        // Add listener and set timeout to automatically remove it after 5 minutes
+        conn.ev.on("messages.upsert", handler);
+        setTimeout(() => conn.ev.off("messages.upsert", handler), 300000);
 
     } catch (e) {
         console.error('Menu Command General Error:', e);
-        // Send basic error message if the entire process fails
         reply(`⚠️ *Error:* Failed to load the menu system. Please check bot status.`);
     }
 });
