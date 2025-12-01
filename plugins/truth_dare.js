@@ -1,6 +1,5 @@
 const { cmd } = require('../command');
 
-// --- Truth Questions ---
 const TRUTHS = [
     "Apni sabse sharmnak galti batao jo tumne pichle 6 mahine mein ki ho.",
     "Woh kaunsi aisi cheez hai jo tum chhipa rahe ho aur koi nahi jaanta?",
@@ -12,13 +11,12 @@ const TRUTHS = [
     "Agar tumhe ek din ke liye gayab hone ka mauka mile, to tum kya karoge?"
 ];
 
-// --- Dare Challenges ---
 const DARES = [
     "Apni agli 3 messages mein sirf emojis ka istemal karo.",
     "Apni aakhri 5 messages ko kisi dusre group mein forward karo (screenshot bhejo).",
     "Agli 10 minute tak sirf ulti (backward) baat karo.",
     "Apni zuban par ice cube rakho aur ek selfie group mein bhejo.",
-    "Group mein 3 messages mein sirf 'BILLA' lafz ka istemal karo, chahe kuch bhi ho.",
+    "Group mein 3 messages mein sirf 'BILLA' lafz ka इस्तेमाल karo, chahe kuch bhi ho.",
     "Apni profile picture 24 ghante ke liye kisi cartoon character ki lagao.",
     "Ek ajeeb awaaz nikalo aur uska voice note group mein bhejo.",
     "Kisi bhi group admin ko 3 line ki shairi (poetry) send karo."
@@ -27,7 +25,7 @@ const DARES = [
 cmd({
     pattern: "td",
     alias: ["truthdare", "tosach", "himmat"],
-    desc: "Selects a random user and assigns a Truth or Dare challenge.",
+    desc: "Analyzes the user's current mood in a funny and random way.",
     category: "fun",
     react: "😈",
     filename: __filename
@@ -45,18 +43,26 @@ async (conn, mek, m, {
 
         // 1. Get Group Participants
         const groupMetadata = await conn.groupMetadata(from);
+        
+        // 🚨 FIX 1: Check if participants data is available
+        if (!groupMetadata || !groupMetadata.participants) {
+             await react("❌");
+             return reply("❌ *Data Error:* Group ke sharikdaar (participants) ki list nahi mil saki. Bot ko nikal kar dobara group mein shamil karen.");
+        }
+        
         const participants = groupMetadata.participants;
         
         const botJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'; 
         
-        // Filter out the bot and the command sender (so they don't get picked unnecessarily)
+        // Filter out the bot and the command sender
         const playableParticipants = participants.filter(p => 
             p.id !== botJid && p.id !== m.sender
         ).map(p => p.id);
 
         if (playableParticipants.length === 0) {
             await react("❌");
-            return reply("❌ Group mein itne members nahi hain ki game khela ja sake.");
+            // 🚨 FIX 2: Give a specific reason
+            return reply("❌ Game shuru karne ke liye *kam se kam do* dusre active members ka hona zaroori hai (Bot aur aapko nikal kar).");
         }
 
         // 2. Select a Random Target User
