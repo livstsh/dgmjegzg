@@ -1,86 +1,62 @@
-const { cmd } = require('../command');
-
-const TRUTHS = [
-    "Apni sabse sharmnak galti batao jo tumne pichle 6 mahine mein ki ho.",
-    "Woh kaunsi aisi cheez hai jo tum chhipa rahe ho aur koi nahi jaanta?",
-    "Tumhari sabse buri aadat kya hai jise tum badalna chahte ho?",
-    "Agar tum kisi se shaadi karne jao, to woh woh sabse buri baat kya hogi jo tumhare bare mein pata chale?",
-    "Tumhari sabse zyada crush kis par thi, aur woh kaunsa group member hai?",
-    "Tumne last time kab jhoot bola, aur kyun?",
-    "Apne phone ki gallery mein maujood woh aakhri cheez dikhao jise tum share nahi karna chahte.",
-    "Tumhari sabse ajeeb khwahish kya hai?",
-    "Agar tumhe ek din ke liye gayab hone ka mauka mile, to tum kya karoge?"
-];
-
-const DARES = [
-    "Apni agli 3 messages mein sirf emojis ka istemal karo.",
-    "Apni aakhri 5 messages ko kisi dusre group mein forward karo (screenshot bhejo).",
-    "Agli 10 minute tak sirf ulti (backward) baat karo.",
-    "Apni zuban par ice cube rakho aur ek selfie group mein bhejo.",
-    "Group mein 3 messages mein sirf 'BILLA' lafz ka istemal karo, chahe kuch bhi ho.",
-    "Apni profile picture 24 ghante ke liye kisi cartoon character ki lagao.",
-    "Ek ajeeb awaaz nikalo aur uska voice note group mein bhejo.",
-    "Kisi bhi group admin ko 3 line ki shairi (poetry) send karo."
-];
+const {
+    cmd
+} = require('../command');
 
 cmd({
-    pattern: "td",
-    alias: ["truthdare", "tosach", "himmat"],
-    desc: "Assigns a Truth or Dare challenge to the sender, or a replied/mentioned user.",
-    category: "fun",
-    react: "😈",
+    pattern: "lockinfo",
+    alias: ["unlockinfo", "lockdesc", "groupinfo"],
+    desc: "Group ka subject, icon, aur description badalne ki permission control karta hai. (Admins/Members only)",
+    category: "admin",
+    react: "🔒",
     filename: __filename
 },
 async (conn, mek, m, {
-    from, reply, react, isGroup, sender, pushname
+    from,
+    q,
+    isGroup,
+    isBotAdmins,
+    reply,
+    isAdmin // Command chalane wale ka admin status
 }) => {
+    // 1. Group Check: Command sirf group mein chalega
+    if (!isGroup) return reply("❌ Yeh command sirf groups mein istemaal ho sakta hai.");
+
+    // 2. Sender Permission Check: Command chalane wala admin hona chahiye
+    if (!isAdmin) {
+        return reply("❌ Yeh command sirf Group Admins ke liye hai.");
+    }
+
+    // 3. Bot Permission Check: Bot ka khud admin hona zaroori hai
+    if (!isBotAdmins) return reply("❌ Mujhe group ki settings badalne ke liye group admin hona zaroori hai.");
+
+    // 4. Argument Check
+    if (!q) {
+        return reply("❌ Kripya 'on' (lock) ya 'off' (unlock) likhein. Jaise: .lockinfo on");
+    }
+
+    const action = q.toLowerCase().trim();
+    let status;
+    let responseText;
+
+    if (action === 'on' || action === 'lock') {
+        // 'locked' ka matlab hai ki sirf admins hi group info badal sakte hain
+        status = 'locked'; 
+        responseText = "🔒 Group Info Lock: Safaltapoorvak **ON** kar diya gaya hai. Ab sirf admins hi group ka naam, description, ya icon badal sakte hain.";
+    } else if (action === 'off' || action === 'unlock') {
+        // 'unlocked' ka matlab hai ki sabhi members group info badal sakte hain
+        status = 'unlocked';
+        responseText = "🔓 Group Info Lock: Safaltapoorvak **OFF** kar diya gaya hai. Ab group ke sabhi sadasya group info badal sakte hain.";
+    } else {
+        return reply("❌ Invalid argument. Kripya 'on' (lock) ya 'off' (unlock) ka istemaal karein.");
+    }
+
     try {
-        await react("⏳"); // Reaction on start
-
-        if (!isGroup) {
-            await react("❌");
-            return reply("❌ *Yeh command sirf group mein chalti hai.*");
-        }
-        
-        // 1. Determine Target User (Reply, Mention, or Self)
-        let targetJid = sender; 
-        let targetName = pushname; // Use the sender's current pushname as fallback name
-        
-        if (m.quoted) {
-            targetJid = m.quoted.sender;
-            // Name fetching is still risky, so we rely on pushname or number for simplicity
-            targetName = m.quoted.pushName || targetJid.split('@')[0];
-        } else if (m.mentionedJid && m.mentionedJid.length > 0) {
-            targetJid = m.mentionedJid[0];
-            // Name fetching is still risky, so we rely on number for simplicity
-            targetName = targetJid.split('@')[0];
-        } 
-        
-        // 2. Select Random Challenge Type (Truth or Dare)
-        const isTruth = Math.random() < 0.5;
-        const challengeList = isTruth ? TRUTHS : DARES;
-        const challengeType = isTruth ? "SACH (Truth)" : "HIMMAT (Dare)";
-        
-        const randomChallengeIndex = Math.floor(Math.random() * challengeList.length);
-        const selectedChallenge = challengeList[randomChallengeIndex];
-
-        // 3. Construct the Output Message
-        let responseMessage = `*😈 TRUTH OR DARE CHALLENGE!* 😈\n\n`;
-        responseMessage += `*Selected Player:* @${targetJid.split('@')[0]} (${targetName})\n`;
-        responseMessage += `*Challenge Type:* ${challengeType} ${isTruth ? '✅' : '🔥'}\n\n`;
-        responseMessage += `*Challenge:* \n${selectedChallenge}\n\n`;
-        responseMessage += `_Jaldi karo! Agar nahi kiya to party deni padegi!_`;
-        responseMessage += `\n\n> ⚜️ _𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐝_ *- :* *_KAMRAN MD MAX_ ᵀᴹ*`;
-
-        // 4. Send the message using the reliable REPLY function, not conn.sendMessage
-        // This is a last resort to bypass a potential send error.
-        await reply(responseMessage);
-        
-        await react("✅"); // Final success reaction
-
+        // Group info setting update karna
+        // Note: groupSettingUpdate 'locked' ya 'unlocked' status ko handle karta hai
+        await conn.groupSettingUpdate(from, status);
+        reply(responseText);
     } catch (error) {
-        console.error("Truth or Dare Command FATAL Error:", error);
-        await react("❌");
-        reply("❌ Truth or Dare game shuru karne mein aik bari ghalti (error) hui. Kripya dobara koshish karen.");
+        console.error("LockInfo command error:", error);
+        reply("❌ Group Info setting badalne mein fail ho gaya.");
     }
 });
