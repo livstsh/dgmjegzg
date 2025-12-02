@@ -1,7 +1,7 @@
 const axios = require("axios");
 const { cmd } = require("../command");
 
-const PRIMARY_API_URL = "https://api.privatezia.biz.id/api/downloader/fbdownload?url=";
+const PRIMARY_API_URL = "https://api-faa.my.id/faa/fbdownload?url=";
 const FALLBACK_API_URL = "https://aemt.me/fbdown?url="; // Using a common public fallback API
 
 async function fetchVideo(url) {
