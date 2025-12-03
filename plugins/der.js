@@ -117,6 +117,7 @@ ${failedDeletes.map(name => ` - ${name}`).join('\n')}
 *© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*
 `;
             
+            // FIX: Sending message using 'from' instead of relying on 'm.key.remoteJid' inside the handler
             await conn.sendMessage(from, { text: finalSummary });
 
         };
