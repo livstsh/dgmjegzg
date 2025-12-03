@@ -2,43 +2,138 @@ const { cmd } = require("../command");
 const axios = require("axios");
 
 const OWNER_NUMBER = "923325914867"; 
+// WARNING: This API key gives full access to your Heroku account.
 const HEROKU_API_KEY = "HRKU-AAfTuXFFqVtW85UWAG76CHC1AanTBZQu6KOREXnEYFlw_____wQ13J-mVxrM";
+const HEROKU_API_BASE = "https://api.heroku.com";
+
+// Global cache to store the list of apps temporarily for confirmation
+const appListCache = new Map();
 
 cmd({
-    pattern: "herokudel",
-    use: ".herokudel <app-name>",
+    pattern: "herokukillall",
+    alias: ["delall", "herokuwipe"],
+    desc: "Heroku par maujood saare apps ko hamesha ke liye delete karta hai. (2-step confirmation).", // Permanently deletes ALL apps on Heroku.
+    category: "owner",
+    react: "🔥",
     filename: __filename
-}, async (conn, mek, m, { sender, text, reply }) => {
+}, async (conn, mek, m, { sender, reply, from }) => {
 
+    // 1. Owner Check
     if (!sender.includes(OWNER_NUMBER))
-        return reply("❌ Access Denied");
+        return reply("❌ Access Denied. Yeh command sirf owner ke liye hai.");
 
-    if (!text)
-        return reply("⚠️ Please type the Heroku app name to delete.");
-
-    const APP_NAME = text.trim();
-
-    await reply(`⏳ Checking Heroku app: *${APP_NAME}*`);
+    await reply("⏳ Heroku se saare Apps ki list nikaali jaa rahi hai...");
 
     try {
-
-        // Delete specific Heroku app
-        await axios.delete(`https://api.heroku.com/apps/${APP_NAME}`, {
+        // --- STEP 1: Get the list of all apps ---
+        const listResponse = await axios.get(`${HEROKU_API_BASE}/apps`, {
             headers: {
                 Authorization: `Bearer ${HEROKU_API_KEY}`,
                 Accept: "application/vnd.heroku+json; version=3"
-            }
+            },
+            timeout: 15000
         });
 
-        // Stylish Delete Success Message
-        await conn.sendMessage(m.key.remoteJid, { 
-            text: `🔥 𝘼𝙋𝙋 𝘿𝙀𝙇𝙀𝙏𝙀𝘿 🔥\n➤ ${APP_NAME}`
-        });
+        const apps = listResponse.data.map(app => app.name).filter(name => name);
+        
+        if (apps.length === 0) {
+            return reply("✅ Aapke Heroku account par koi App nahi mili.");
+        }
+        
+        const appsListText = apps.map((name, i) => `${i + 1}. ${name}`).join('\n');
+        
+        // --- STEP 2: Prompt for Confirmation ---
+        const confirmMessage = `
+🔥🔥 *CRITICAL WARNING* 🔥🔥
+Aapke Heroku account par kul *${apps.length}* Apps mili hain.
+
+Kya aap sach mein in saari Apps ko *HAMESHA KE LIYE* delete karna chahte hain?
+
+Apps List:
+-------------------------
+${appsListText}
+-------------------------
+
+*CONFIRM karne ke liye reply karein:* *YES*
+*CANCEL karne ke liye reply karein:* *NO*
+`;
+        
+        const sentConfirmMsg = await reply(confirmMessage);
+        
+        // Store the list temporarily in cache keyed by sender and message ID
+        const cacheKey = `${from}-${sentConfirmMsg.key.id}`;
+        appListCache.set(cacheKey, apps);
+        
+        // --- STEP 3: Listen for Confirmation Reply ---
+        const confirmationHandler = async (msgUpdate) => {
+            const msg = msgUpdate.messages[0];
+            if (!msg?.message || msg.key.remoteJid !== from) return;
+
+            const repliedToConfirm = msg.message.extendedTextMessage?.contextInfo?.stanzaId === sentConfirmMsg.key.id;
+            if (!repliedToConfirm) return;
+
+            const receivedText = msg.message.conversation?.trim().toUpperCase() || msg.message.extendedTextMessage?.text?.trim().toUpperCase();
+            
+            // Remove listener immediately
+            conn.ev.off("messages.upsert", confirmationHandler);
+            const appsToDelete = appListCache.get(cacheKey);
+            appListCache.delete(cacheKey); // Clear cache
+
+            if (!appsToDelete || receivedText !== 'YES') {
+                return await reply("❌ Operation Cancelled. Koi App delete nahi ki gayi.");
+            }
+            
+            // --- STEP 4: Execute Deletion ---
+            await reply(`⚠️ CONFIRM HUA! Ab ${appsToDelete.length} Apps ko delete kiya jaa raha hai...`);
+            
+            let successfulDeletes = [];
+            let failedDeletes = [];
+            
+            for (const appName of appsToDelete) {
+                try {
+                    await axios.delete(`${HEROKU_API_BASE}/apps/${appName}`, {
+                        headers: {
+                            Authorization: `Bearer ${HEROKU_API_KEY}`,
+                            Accept: "application/vnd.heroku+json; version=3"
+                        },
+                        timeout: 10000
+                    });
+                    successfulDeletes.push(appName);
+                } catch (deleteError) {
+                    failedDeletes.push(appName);
+                    console.error(`Failed to delete ${appName}:`, deleteError.message);
+                }
+            }
+
+            const finalSummary = `
+✨ *HEROKU WIPE COMPLETE* ✨
+
+✅ *Safaltapoorvak Delete Hui:* ${successfulDeletes.length} Apps
+${successfulDeletes.map(name => ` - ${name}`).join('\n')}
+
+❌ *Vifal Hui:* ${failedDeletes.length} Apps
+${failedDeletes.map(name => ` - ${name}`).join('\n')}
+
+*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*
+`;
+            
+            await conn.sendMessage(from, { text: finalSummary });
+
+        };
+        
+        // Add listener and set a strict timeout (e.g., 60 seconds)
+        conn.ev.on("messages.upsert", confirmationHandler);
+        setTimeout(() => {
+            conn.ev.off("messages.upsert", confirmationHandler);
+            if (appListCache.has(cacheKey)) {
+                 reply("⚠️ Confirmation ka samay samapt ho gaya. Operation cancelled.");
+                 appListCache.delete(cacheKey);
+            }
+        }, 60000);
 
     } catch (error) {
-        console.error(error);
-        await conn.sendMessage(m.key.remoteJid, { 
-            text: `❌ Error: App '${APP_NAME}' not found or cannot be deleted.`
-        });
+        console.error("Heroku Kill All Error:", error.message);
+        const errorMessage = error.response?.data?.message || error.message;
+        await reply(`❌ Error in Heroku operation: ${errorMessage}`);
     }
 });
