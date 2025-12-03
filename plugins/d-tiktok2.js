@@ -1,121 +1,109 @@
 const { cmd } = require('../command');
-const fetch = require('node-fetch'); // Assuming node-fetch is available
-const cheerio = require('cheerio'); // Assuming cheerio is available
+const axios = require('axios');
+const config = require('../config'); 
 
-// --- Scraper Functions ---
+// --- API Endpoints ---
+const DOWNLOAD_API = "https://apis.rijalganzz.my.id/download/tiktok-v2?url="; // Using the original API provided by the user
 
-// Scraper 1: shortstatusvideos.com
-async function animeVideo() {
-    const url = 'https://shortstatusvideos.com/anime-video-status-download/';
-    try {
-        const response = await fetch(url, { timeout: 15000 });
-        const html = await response.text();
-        const $ = cheerio.load(html);
-        const videos = [];
-        
-        // Targetting links with the specific class and finding the preceding title
-        $('a.mks_button.mks_button_small.squared').each((i, el) => {
-            const href = $(el).attr('href');
-            // Try to find the title from the strong tag preceding the button's parent paragraph
-            const titleElement = $(el).closest('p').prevAll('p').find('strong').first();
-            const title = titleElement.text().trim() || `Video ${i + 1}`;
-            
-            if (href && title.length > 5) {
-                videos.push({ title, source: href });
-            }
-        });
-        
-        if (videos.length === 0) throw new Error("Source 1 se koi video nahi mila.");
+// Fallback values for missing global configuration
+const BOT_NAME = config.BOT_NAME || "KAMRAN MD BOT";
+const OWNER_NAME = config.OWNER_NAME || "DR KAMRAN";
+const SGC_LINK = config.GROUP_LINK || "https://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O"; 
 
-        // Return a random video
-        const randomIndex = Math.floor(Math.random() * videos.length);
-        return videos[randomIndex];
-    } catch (err) {
-        throw new Error(`Source 1 (shortstatusvideos) fail ho gaya: ${err.message}`);
+let handler = async (conn, mek, m, { q, reply, prefix, command, from }) => {
+  
+  if (!q) return reply(`❌ Kripya TikTok video ka URL dein!\n\n*Udaharan:*\n${prefix + command} [URL]`);
+
+  try {
+    // Determine the message to quote
+    const quotedMsg = m.quoted ? m.quoted : m;
+    
+    await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key }});
+    await reply("🔎 *TikTok* data khoja jaa raha hai..."); // Initial loading message
+
+    // 1. Fetch data from the API
+    const res = await axios.get(`${DOWNLOAD_API}${encodeURIComponent(q)}`, { timeout: 20000 });
+    const json = res.data;
+
+    if (!json?.status || !json.result?.play) {
+        throw new Error("❌ Maaf, video download link prapt nahi hua.");
     }
-}
 
-// Scraper 2: mobstatus.com
-async function animeVideo2() {
-    const url = 'https://mobstatus.com/anime-whatsapp-status-video/';
-    try {
-        const response = await fetch(url, { timeout: 15000 });
-        const html = await response.text();
-        const $ = cheerio.load(html);
-        const videos = [];
-        
-        // Targetting links with the specific class
-        $('a.mb-button.mb-style-glass.mb-size-tiny.mb-corners-pill.mb-text-style-heavy').each((i, el) => {
-            const href = $(el).attr('href');
-            // Title extraction is very broad here, using a fixed title for simplicity/reliability
-            const title = $('h1.entry-title').text().trim() || 'Anime Status Video';
-            
-            if (href) {
-                videos.push({ title, source: href });
-            }
-        });
-        
-        if (videos.length === 0) throw new Error("Source 2 se koi video nahi mila.");
+    const { result } = json;
 
-        // Return a random video
-        const randomIndex = Math.floor(Math.random() * videos.length);
-        return videos[randomIndex];
-    } catch (err) {
-        throw new Error(`Source 2 (mobstatus) fail ho gaya: ${err.message}`);
+    const videoUrl = result.play;
+    const audioUrl = result.music;
+    const title = result.title || "Video";
+    const author = result.author?.nickname || result.creator || "Unknown Author";
+    const duration = result.duration || 'N/A';
+    const likes = result.stats?.digg_count || 0;
+    const comments = result.stats?.comment_count || 0;
+    const shares = result.stats?.share_count || 0;
+    const profilePhoto = result.author?.avatar || result.cover;
+
+    // 2. Send the Video File
+    const caption = `
+🎬 *TikTok Video Downloaded*
+----------------------------------------
+📌 *Judul:* ${title}
+👤 *Pembuat:* ${author}
+⏱️ *Durasi:* ${duration} detik
+❤️ *Suka:* ${likes.toLocaleString()}
+💬 *Komentar:* ${comments.toLocaleString()}
+
+👨‍💻 *Creator Bot:* ${OWNER_NAME}`;
+
+    await conn.sendMessage(m.chat, {
+      video: { url: videoUrl },
+      caption: caption,
+      thumbnail: { url: profilePhoto || 'https://i.imgur.com/empty.png' }
+    }, { quoted: quotedMsg });
+
+    // 3. Send the Audio File (If available)
+    if (audioUrl) {
+      await conn.sendMessage(m.chat, {
+        audio: { url: audioUrl },
+        mimetype: "audio/mpeg",
+        ptt: false,
+        fileName: `${title.replace(/[^\w\s]/gi, '')}.mp3`,
+        caption: `🎵 Audio Extracted`,
+        contextInfo: {
+          externalAdReply: {
+            title: title,
+            body: author,
+            thumbnailUrl: profilePhoto,
+            sourceUrl: SGC_LINK,
+            mediaType: 1, // IMAGE/THUMBNAIL
+            renderLargerThumbnail: true
+          }
+        }
+      }, { quoted: quotedMsg });
     }
-}
 
+    await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
+  } catch (err) {
+    console.error("❌ TikTok Downloader Error:", err);
+    
+    return conn.reply(
+      m.chat,
+      `❌ Gagal mendownload TikTok: ${err.message || "Anjaan truti hui."}\n\n*Pastikan URL sahi ho.*`,
+      m
+    );
+  }
+};
+
+// Handler properties adjusted to match user's common style
 cmd({
-    pattern: "amv",
-    alias: ["animevideo"],
-    use: '.amv <1|2>',
-    react: "🍏",
-    desc: "2 alag websites se random anime video status download karta hai.", // Downloads random anime video status from 2 different sites.
-    category: "anime",
+    pattern: "tiktok",
+    alias: ["tt"],
+    help: ["tiktok <url>", "tt <url>"],
+    tags: ["downloader"],
+    command: ["tiktok", "tt"], 
+    desc: "Downloads video and audio from TikTok URL.",
+    category: "download",
+    limit: true,
     filename: __filename
-}, async (conn, mek, m, { q, reply, prefix, command, from }) => {
-    try {
-        // 1. Initial Checks
-        await conn.sendMessage(from, { react: { text: '🍏', key: m.key } });
+}, handler);
 
-        if (!q) return reply(`❌ Kripya number daalein (1 ya 2).\n\n*1 - Anime Status (Source 1)*\n*2 - Anime Status (Source 2)*\n\n*Udaharan:* ${prefix + command} 1`);
-        
-        const selection = q.trim();
-
-        await reply('⏳ Video laya jaa raha hai...');
-
-        let resl;
-        
-        // 2. Execute based on user input
-        if (selection === '1') {
-            resl = await animeVideo();
-        } else if (selection === '2') {
-            resl = await animeVideo2();
-        } else {
-            return reply('❌ Number galat hai! Kripya sirf 1 ya 2 chunein.');
-        }
-
-        // 3. Final Check and Send
-        if (!resl || !resl.source) {
-             throw new Error("Video link nikalne mein vifal rahe.");
-        }
-
-        await conn.sendMessage(
-            from, 
-            { 
-                video: { url: resl.source }, 
-                caption: `✅ *Anime Status Video*\nTitle: ${resl.title}` 
-            }, 
-            { quoted: mek }
-        );
-        
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (e) {
-        console.error("AMV Command Error:", e);
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-        await reply(`⚠️ Maaf, video laate samay truti aayi: ${e.message}`);
-    }
-});
-
+module.exports = handler;
