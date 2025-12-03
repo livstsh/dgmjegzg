@@ -1,154 +1,118 @@
 const { cmd } = require('../command');
-const axios = require('axios');
-const fs = require('fs');
+const fetch = require('node-fetch'); // Assuming node-fetch is available
+const cheerio = require('cheerio'); // Assuming cheerio is available
 
-// --- API Endpoints ---
-const SEARCH_API = 'https://theresapis.vercel.app/search/applemusic';
-const DL_API = 'https://theresapis.vercel.app/download/applemusic';
+// --- IMDb Scraper Function ---
+async function SearchIMDb(query) {
+  try {
+    const searchUrl = `https://m.imdb.com/find/?q=${encodeURIComponent(query)}&ref_=tt_nv_srb_sm`;
+    
+    // Using mobile IMDb URL for easier scraping
+    const res = await fetch(searchUrl, { timeout: 15000 });
+    const html = await res.text();
 
-// --- Global State Cache for Interactive Steps ---
-// Used to store search results temporarily for the user to select.
-const searchCache = new Map();
+    const $ = cheerio.load(html);
+    const results = [];
 
-// --- API Functions (Converted to CJS syntax) ---
+    // Targeting the main search result containers
+    $(".ipc-metadata-list-summary-item").each((i, el) => {
+      // Title
+      const title =
+        $(el).find(".ipc-metadata-list-summary-item__t").text().trim() ||
+        $(el).find("h3").text().trim();
 
-async function appleSearch(query) {
-  const res = await axios.get(SEARCH_API, { 
-      params: { query },
-      timeout: 15000 
-  });
+      // Year/Type (usually the first list item in the metadata)
+      const year = $(el)
+        .find(".ipc-metadata-list-summary-item__li")
+        .first()
+        .text()
+        .trim();
 
-  if (!res.data.status || !res.data.results || res.data.results.length === 0) {
-    throw new Error('❌ Maaf, koi natija nahi mila.');
+      // Link
+      const link =
+        "https://m.imdb.com" + $(el).find("a").first().attr("href");
+
+      // Poster/Image URL
+      const poster = $(el).find("img").attr("src") || null;
+
+      if (title && link) {
+          results.push({
+            title,
+            year,
+            link,
+            ...(poster && { poster }),
+          });
+      }
+    });
+
+    return { query, count: results.length, results };
+  } catch (err) {
+    console.error("IMDb Scraping Error:", err);
+    // Throw error so main handler can catch and inform user
+    throw new Error("IMDb website tak pahunchne mein vifal rahe ya scraping fail ho gayi."); 
   }
-
-  return res.data.results;
-}
-
-async function appleDownload(url) {
-  const res = await axios.get(DL_API, { 
-      params: { url },
-      timeout: 20000 
-  });
-
-  if (!res.data.status || !res.data.result) {
-    throw new Error('❌ Gana download karne mein vifal raha.');
-  }
-
-  return res.data.result;
 }
 
 cmd({
-    pattern: "applemusic",
-    alias: ["applesearch", "amusic"],
-    desc: "Apple Music par gaane khojta hai aur download ka option deta hai.", // Searches Apple Music and offers download option.
-    category: "download",
-    react: "🍎",
+    pattern: "imdb",
+    alias: ["movieinfo", "filmsearch"],
+    desc: "IMDb par film aur TV show ki jaankari khojta hai.", // Searches IMDb for movie and TV show information.
+    category: "search",
+    react: "🎬",
     filename: __filename
-}, async (conn, mek, m, { from, q, reply, prefix, command }) => {
+}, async (conn, mek, m, { q, reply, prefix, command }) => {
     try {
-        if (!q) return reply(`❌ Kripya gaane ka title ya artist dein!\n\n*Udaharan:*\n${prefix + command} consume`);
+        if (!q) {
+            return reply(`❌ Kripya us film ya show ka naam dein jise aap khojna chahte hain.\n\n*Udaharan:* ${prefix + command} Agak Laen`);
+        }
 
-        await m.reply('🔍 *Apple Music* par khoja ja raha hai...');
+        await reply(`⏳ *"${q}"* ke liye IMDb par khoja jaa raha hai...`);
 
-        // 1. Search for the music
-        const results = await appleSearch(q);
-        const topResults = results.slice(0, 5); // Limit to top 5 for clean menu
+        // 1. Perform the search
+        const searchData = await SearchIMDb(q);
 
-        // 2. Format the list for the user
-        const list = topResults
-            .map(
-                (v, i) =>
-                    `*${i + 1}.* ${v.title}\n` +
-                    `   👤 Artist: ${v.artist}\n` +
-                    `   🔗 Link: ${v.link}`
-            )
-            .join('\n\n');
+        if (searchData.count === 0) {
+            return reply(`🤷‍♀️ Maaf karein, *"${q}"* se sambandhit koi natija nahi mila.`);
+        }
 
-        const resultMessage = `
-🎵 *Apple Music Search Results* 🎵
+        // 2. Format the search results
+        const topResults = searchData.results.slice(0, 5); // Limit to top 5 results
 
-${list}
-
-*Kripya download karne ke liye number (1 - ${topResults.length}) se reply karein.*
+        let resultMessage = `
+🎬 *IMDb Search Results* 🎬
+*Total Natije:* ${searchData.count}
+----------------------------------------
 `;
 
-        // Store results temporarily in cache
-        const cacheKey = `${from}-${mek.key.id}`;
-        searchCache.set(cacheKey, topResults);
-
-        // 3. Send the search results and prompt for selection
-        const sentSearchMsg = await conn.sendMessage(
-            from,
-            {
-                image: { url: topResults[0].image },
-                caption: resultMessage
-            },
-            { quoted: mek }
-        );
+        topResults.forEach((item, index) => {
+            resultMessage += `\n*${index + 1}. ${item.title}* (${item.year || 'N/A'})`;
+            resultMessage += `\n   🔗 *Link:* ${item.link}`;
+            resultMessage += `\n   🖼️ *Poster:* ${item.poster ? 'Available' : 'N/A'}`;
+        });
         
+        resultMessage += `\n\n_© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN_`;
+
+        // 3. Send the image (poster of the first result, if available) and the text
+        const firstResult = topResults[0];
+
+        if (firstResult.poster) {
+            await conn.sendMessage(
+                from,
+                {
+                    image: { url: firstResult.poster },
+                    caption: resultMessage
+                },
+                { quoted: mek }
+            );
+        } else {
+             await conn.sendMessage(from, { text: resultMessage }, { quoted: mek });
+        }
+
         await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
-        // --- LISTEN FOR USER'S SELECTION (HANDLER 1) ---
-        const selectionHandler = async (msgUpdate) => {
-            const msg = msgUpdate.messages[0];
-            if (!msg?.message || msg.key.remoteJid !== from) return;
-
-            const repliedToSearch = msg.message.extendedTextMessage?.contextInfo?.stanzaId === sentSearchMsg.key.id;
-            if (!repliedToSearch) return;
-
-            const selectedIndex = parseInt(msg.message.conversation?.trim() || msg.message.extendedTextMessage?.text?.trim());
-            const cachedList = searchCache.get(cacheKey);
-            
-            if (cachedList && selectedIndex >= 1 && selectedIndex <= cachedList.length) {
-                // Valid selection found, remove listener and proceed
-                conn.ev.off("messages.upsert", selectionHandler);
-                searchCache.delete(cacheKey); // Clean cache
-
-                const selectedTrack = cachedList[selectedIndex - 1];
-
-                await conn.sendMessage(from, { react: { text: '⏳', key: msg.key } });
-                await reply(`⏳ *${selectedTrack.title}* - ${selectedTrack.artist} ka audio laaya jaa raha hai...`);
-
-                // 4. Download the audio file
-                const dl = await appleDownload(selectedTrack.link);
-
-                // 5. Send the audio file
-                await conn.sendMessage(
-                    from,
-                    {
-                        audio: { url: dl.url },
-                        mimetype: 'audio/mpeg',
-                        fileName: `${dl.name}.m4a`,
-                        caption:
-                            `🎵 *${dl.name}*\n` +
-                            `👤 *Artist:* ${dl.artist}\n` +
-                            `💿 *Album:* ${dl.album_name}\n` +
-                            `⏱ *Duration:* ${dl.duration}\n\n` +
-                            `_✅ Safaltapoorvak download hua!_`
-                    },
-                    { quoted: msg }
-                );
-                
-                await conn.sendMessage(from, { react: { text: '✅', key: msg.key } });
-
-            } else if (cachedList) {
-                await reply(`❌ Kripya sahi number (1 se ${cachedList.length}) se reply karein.`);
-            }
-        };
-
-        // Add listener and set timeout (e.g., 3 minutes)
-        conn.ev.on("messages.upsert", selectionHandler);
-        setTimeout(() => {
-            conn.ev.off("messages.upsert", selectionHandler);
-            if (searchCache.has(cacheKey)) {
-                reply("⚠️ Samay seema samapt ho gayi. Kripya dobara khojein.");
-                searchCache.delete(cacheKey);
-            }
-        }, 180000); // 3 minutes timeout
-
-    } catch (err) {
-        console.error("Apple Music Command Error:", err);
-        conn.reply(m.chat, `❌ *Apple Music* khojne mein truti aayi:\n\n${err.message || 'Unknown Error'}`, m);
+    } catch (e) {
+        console.error("IMDb Command General Error:", e.message);
+        reply(`⚠️ Search karte samay truti aayi: ${e.message}`);
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
     }
 });
