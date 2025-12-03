@@ -2,12 +2,23 @@ const { cmd } = require("../command");
 const axios = require("axios");
 
 const OWNER_NUMBER = "923325914867"; 
-// Using environment variable for security
+// Fetching API Key from config or environment for security
 const HEROKU_API_KEY = process.env.HEROKU_API_KEY || "HRKU-AAfTuXFFqVtW85UWAG76CHC1AanTBZQu6KOREXnEYFlw_____wQ13J-mVxrM"; 
 const HEROKU_API_BASE = "https://api.heroku.com";
 
 // Global cache to store the list of apps temporarily for confirmation
 const appListCache = new Map();
+
+// Helper function to handle the complex Heroku API error responses
+function getHerokuErrorMessage(error) {
+    if (error.response?.data?.message) {
+        return error.response.data.message;
+    } else if (error.response?.status === 404) {
+        return "App not found or API key has insufficient privileges.";
+    }
+    return error.message;
+}
+
 
 cmd({
     pattern: "herokukillall",
@@ -22,8 +33,8 @@ cmd({
     if (!sender.includes(OWNER_NUMBER))
         return reply("❌ Access Denied. Yeh command sirf owner ke liye hai.");
 
-    if (HEROKU_API_KEY === "YOUR_HEROKU_API_KEY_HERE" || !HEROKU_API_KEY) {
-         return reply("❌ Error: Kripya is command ko chalaane se pehle config mein HEROKU_API_KEY set karein.");
+    if (!HEROKU_API_KEY || HEROKU_API_KEY === "HRKU-AAfTuXFFqVtW85UWAG76CHC1AanTBZQu6KOREXnEYFlw_____wQ13J-mVxrM") {
+         return reply("❌ CRITICAL ERROR: Kripya apni Heroku API Key ko `config.js` ya environment variables mein set karein.");
     }
     
     await reply("⏳ Heroku se saare Apps ki list nikaali jaa rahi hai...");
@@ -64,7 +75,6 @@ ${appsListText}
         
         const sentConfirmMsg = await reply(confirmMessage);
         
-        // Store the list temporarily in cache keyed by sender and message ID
         const cacheKey = `${from}-${sentConfirmMsg.key.id}`;
         appListCache.set(cacheKey, apps);
         
@@ -73,13 +83,11 @@ ${appsListText}
             const msg = msgUpdate.messages[0];
             if (!msg?.message || msg.key.remoteJid !== from) return;
 
-            // --- CRITICAL FIX: Check reply context and extract text robustly ---
             const contextInfo = msg.message.extendedTextMessage?.contextInfo;
             const repliedToConfirm = contextInfo?.stanzaId === sentConfirmMsg.key.id;
             
             if (!repliedToConfirm) return;
 
-            // Get text from 'conversation' (plain text) or 'extendedTextMessage' (replies)
             const receivedText = (msg.message.conversation || msg.message.extendedTextMessage?.text)?.trim().toUpperCase();
             
             
@@ -109,7 +117,8 @@ ${appsListText}
                     });
                     successfulDeletes.push(appName);
                 } catch (deleteError) {
-                    failedDeletes.push(appName);
+                    const errorMsg = getHerokuErrorMessage(deleteError);
+                    failedDeletes.push(`${appName} (${errorMsg.substring(0, 30)}...)`);
                     console.error(`Failed to delete ${appName}:`, deleteError.message);
                 }
             }
@@ -126,7 +135,6 @@ ${failedDeletes.map(name => ` - ${name}`).join('\n')}
 *© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*
 `;
             
-            // Sending message using 'from' (the chat ID)
             await conn.sendMessage(from, { text: finalSummary });
 
         };
@@ -143,7 +151,7 @@ ${failedDeletes.map(name => ` - ${name}`).join('\n')}
 
     } catch (error) {
         console.error("Heroku Kill All Error:", error.message);
-        const errorMessage = error.response?.data?.message || error.message;
+        const errorMessage = getHerokuErrorMessage(error); // Use refined error getter
         await reply(`❌ Error in Heroku operation: ${errorMessage}`);
     }
 });
