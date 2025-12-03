@@ -1,33 +1,63 @@
-const config = require('../config')
-const {cmd , commands} = require('../command')
-const os = require("os")
-const {runtime} = require('../lib/functions')
+const { cmd } = require('../command');
+const fetch = require('node-fetch'); // Assuming node-fetch is available
+
 cmd({
-    pattern: "link",
-    alias: ["status","botinfo"],
-    desc: "check up time , ram usage and more",
-    category: "main",
+    pattern: "groupsearch",
+    alias: ["procurargrupo", "carigrup", "wacari"],
+    desc: "Keywords ka upyog karke WhatsApp groups khojta hai.", // Searches WhatsApp groups using keywords.
+    category: "search",
+    react: "👥",
     filename: __filename
-},
-async(conn, mek, m,{from, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumner, botNumner2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply}) => {
-try{
-let status = `
-☣️ *ᴋᴀᴍʀᴀɴ-ᴍᴅ ꜱᴜᴘᴘᴏʀᴛ LINKS* ☣️
+}, async (conn, mek, m, { q, reply, prefix, command }) => {
+    try {
+        if (!q) {
+            return reply(`❌ Kripya woh shabd ya topic dein jise aap khojna chahte hain.\n\n*Udaharan:*\n${prefix + command} cricket`); // Please provide keywords to search.
+        }
 
+        await reply(`⏳ *"${q}"* se sambandhit WhatsApp groups khoje ja rahe hain...`); // Searching WhatsApp groups...
 
-*⚘━━━━━━━╶╶╶╶━━━━━━━⚘*
+        // 1. Fetch data from the external API
+        const res = await fetch(`https://api.platform.web.id/whatsapp-groups?keywords=${encodeURIComponent(q)}`, { timeout: 20000 });
+        
+        // Check for non-200 status or failed fetch
+        if (!res.ok) {
+            throw new Error(`API se connection fail ho gaya. Status: ${res.status}`);
+        }
+        
+        const json = await res.json();
 
- *🖊️  𝒦𝒜𝑀𝑅𝒜𝒩-𝑀𝒟 𝛅ʊ̊℘ᯭ℘ᯭ๏፝֟ɼ̚†ː͢⤹ _~➙ https://chat.whatsapp.com/DpQBd7WqmP89jQnyUzJcL9?mode=wwt*
+        // 2. Check if any groups were found
+        if (!json.groups || json.groups.length === 0) {
+            await conn.sendMessage(from, { react: { text: '🤷‍♀️', key: m.key } });
+            return reply('🤷‍♀️ Maaf karein, koi group nahi mila ¯\\_(ツ)_/¯'); // No groups found.
+        }
 
-*👀  𝒦𝒜𝑀𝑅𝒜𝒩-𝑀𝒟 𝛅ʊ̊℘ᯭ℘ᯭ๏፝֟ɼ̚†ː͢⤹ ~_➙ https://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O_~*
+        // 3. Format the search results
+        const resposta = json.groups
+          .slice(0, 15) // Limit to 15 results for cleaner output
+          .map((g, i) => 
+            `*${i + 1}. ${g.Name}*\n` +
+            `🔗 *Link:* ${g.Link}\n` +
+            `📝 *Description:* ${g.Description || 'Koi description nahi'}`
+          )
+          .join('\n\n');
 
-*⚘━━━━━━━╶╶╶╶━━━━━━━⚘*
-`
-return reply(`${status}`)
+        const finalMessage = `
+👥 *WhatsApp Group Search Results* 👥
+*Total Groups Found:* ${json.groups.length} (Top 15 dikhaye ja rahe hain)
+----------------------------------------
 
-}catch(e){
-console.log(e)
-reply(`${e}`)
+${resposta}
 
-}
-})
+_© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN_`;
+
+        // 4. Send the result
+        await conn.sendMessage(from, { text: finalMessage }, { quoted: mek });
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+
+    } catch (e) {
+        console.error("Group Search Command Error:", e);
+        reply(`⚠️ Group khojte samay truti aayi: ${e.message}`); // Error occurred while searching.
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+    }
+});
