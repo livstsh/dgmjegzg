@@ -2,7 +2,7 @@ const axios = require('axios');
 const { cmd } = require('../command');
 
 const SEARCH_API = "https://apis.sandarux.sbs/api/download/sinhalasub/search?q=";
-const DOWNLOAD_API = "https://apis.sandarux.sbs/api/download/sinhalasub-dl?q=";
+const DOWNLOAD_API = "https://apis.sandarux.sbs/api/movies-info/movie?name=";
 
 cmd({
     pattern: "movie",
