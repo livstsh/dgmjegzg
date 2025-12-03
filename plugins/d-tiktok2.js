@@ -77,8 +77,8 @@ async function tiktokDl(url) {
 
 // --- MAIN COMMAND HANDLER ---
 cmd({
-    pattern: "ttcrypto",
-    alias: ["ttenc", "tiktokenc"],
+    pattern: "tt",
+    alias: ["tt2", "tiktok"],
     desc: "Encrypted API (savetik.app) se TikTok video download karta hai.", // Downloads TikTok video using encrypted API.
     category: "download",
     react: "🔐",
