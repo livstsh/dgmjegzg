@@ -1,149 +1,157 @@
+const { cmd } = require('../command');
 const axios = require('axios');
-const { cmd, commands } = require('../command');
-const config = require("../config");
-const { setConfig, getConfig } = require("../lib/functions2");
+const fs = require('fs');
+const chalk = require('chalk'); // Kept for console logging aesthetic
 
-// Default AI states
-let AI_STATE = {
-    IB: "false", // Inbox chats
-    GC: "false"  // Group chats
-};
+// --- API Endpoints ---
+const API_KEY = 'THERESA'; // API key provided in the original code
+const SEARCH_API = `https://theresapis.vercel.app/search/douyin?apikey=${API_KEY}&q=`;
+const DOWNLOAD_API = `https://theresapis.vercel.app/download/douyin?apikey=${API_KEY}&url=`;
 
-cmd({
-    pattern: "chatbot",
-    alias: ["aichat", "chat", "kamranbot"],
-    desc: "Enable or disable AI chatbot responses",
-    category: "settings",
-    filename: __filename,
-    react: "✅"
-}, async (conn, mek, m, { from, args, isOwner, reply, prefix }) => {
-    if (!isOwner) return reply("*📛 Only the owner can use this command!*");
+// --- Global State Cache for Interactive Steps ---
+const searchCache = new Map();
 
-    const mode = args[0]?.toLowerCase();
-    const target = args[1]?.toLowerCase();
+// --- API Functions ---
 
-    if (mode === "on") {
-        if (!target || target === "all") {
-            AI_STATE.IB = "true";
-            AI_STATE.GC = "true";
-            await setConfig("AI_STATE", JSON.stringify(AI_STATE));
-            return reply("🤖 AI chatbot is now enabled for both inbox and group chats");
-        } else if (target === "ib") {
-            AI_STATE.IB = "true";
-            await setConfig("AI_STATE", JSON.stringify(AI_STATE));
-            return reply("🤖 AI chatbot is now enabled for inbox chats");
-        } else if (target === "gc") {
-            AI_STATE.GC = "true";
-            await setConfig("AI_STATE", JSON.stringify(AI_STATE));
-            return reply("🤖 AI chatbot is now enabled for group chats");
-        }
-    } else if (mode === "off") {
-        if (!target || target === "all") {
-            AI_STATE.IB = "false";
-            AI_STATE.GC = "false";
-            await setConfig("AI_STATE", JSON.stringify(AI_STATE));
-            return reply("🤖 AI chatbot is now disabled for both inbox and group chats");
-        } else if (target === "ib") {
-            AI_STATE.IB = "false";
-            await setConfig("AI_STATE", JSON.stringify(AI_STATE));
-            return reply("🤖 AI chatbot is now disabled for inbox chats");
-        } else if (target === "gc") {
-            AI_STATE.GC = "false";
-            await setConfig("AI_STATE", JSON.stringify(AI_STATE));
-            return reply("🤖 AI chatbot is now disabled for group chats");
-        }
-    } else {
-        return reply(`- *KAMRAN MD -Chat-Bot Menu 👾*
-*Enble Settings ✅*      
-> .chatbot on all - Enable AI in all chats
-> .chatbot on ib - Enable AI in inbox only
-> .chatbot on gc - Enable AI in groups only
-*Disable Settings ❌*
-> .chatbot off all - Disable AI in all chats
-> .chatbot off ib - Disable AI in inbox only
-> .chatbot off gc - Disable AI in groups only`);
+// 1. Search Function
+async function douyinSearch(query) {
+  try {
+    const response = await axios.get(`${SEARCH_API}${encodeURIComponent(query)}`, { timeout: 15000 });
+    
+    if (!response.data?.result || response.data.result.length === 0) {
+        throw new Error('❌ Koi natija nahi mila.');
     }
-});
+    return response.data.result;
+  } catch (err) {
+    console.error('Kesalahan saat mencari:', err.message);
+    throw new Error('❌ Douyin search API se natija nahi mila.');
+  }
+}
 
-// Initialize AI state on startup
-(async () => {
-    const savedState = await getConfig("AI_STATE");
-    if (savedState) AI_STATE = JSON.parse(savedState);
-})();
+// 2. Download Function
+async function downloadVideo(url) {
+  try {
+    const encodedUrl = encodeURIComponent(url);
+    const response = await axios.get(`${DOWNLOAD_API}${encodedUrl}`, { timeout: 20000 });
+    
+    // API provides HD link directly in result.hd
+    return response.data?.result?.hd || null; 
+  } catch (err) {
+    console.error('Kesalahan saat download video:', err.message);
+    return null;
+  }
+}
 
-// AI Chatbot - KAMRAN MD
 cmd({
-    on: "body"
-}, async (conn, m, store, {
-    from,
-    body,
-    sender,
-    isGroup,
-    isBotAdmins,
-    isAdmins,
-    reply,
-    quotedMsg
-}) => {
+    pattern: "dysearch",
+    alias: ["douyins", "douyinsearch", "dyvideo"],
+    desc: "Douyin/TikTok CN par video khojta aur download ka option deta hai.", // Searches Douyin and offers download option.
+    category: "download",
+    react: "🇵🇰",
+    filename: __filename
+}, async (conn, mek, m, { from, q, reply, prefix, command }) => {
     try {
-        // Check if message is a reply
-        if (!m?.message?.extendedTextMessage?.contextInfo?.participant) {
-            return; // Not a reply, ignore
-        }
+        if (!q) return reply(`❌ Kripya khojne ke liye kuch likhein!\n\n*Udaharan:* ${prefix + command} Beijing`);
+
+        await m.reply('🔍 *Douyin/TikTok CN* par video khoja jaa raha hai...');
+
+        // 1. Search for the video
+        const results = await douyinSearch(q);
+        const topResults = results.slice(0, 5); // Limit to top 5 for clean menu
+
+        // 2. Format the list for the user
+        const list = topResults
+            .map(
+                (v, i) =>
+                    `*${i + 1}.* ${v.description || 'Unknown Title'}\n` +
+                    `   👤 Author: ${v.author || 'Unknown'}\n` +
+                    `   ❤️ Likes: ${v.likes || 0}\n` +
+                    `   💬 Comments: ${v.comments || 0}`
+            )
+            .join('\n\n');
+
+        const resultMessage = `
+ *Douyin Video Search Results* 
+
+${list}
+
+*Kripya download link laane ke liye number (1 - ${topResults.length}) se reply karein.*
+`;
+
+        // Store results temporarily in cache
+        const cacheKey = `${from}-${mek.key.id}`;
+        searchCache.set(cacheKey, topResults);
+
+        // 3. Send the search results and prompt for selection
+        const sentSearchMsg = await conn.sendMessage(
+            from,
+            {
+                text: resultMessage
+            },
+            { quoted: mek }
+        );
         
-        // Check if the reply is to the bot's message
-        const repliedTo = m.message.extendedTextMessage.contextInfo.participant;
-        const botJid = conn.user.id.split(':')[0] + '@s.whatsapp.net';
-        if (repliedTo !== botJid) {
-            return; // Not replying to the bot, ignore
-        }
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
-        // Check if AI is enabled for this chat type
-        const isInbox = !isGroup;
-        if ((isInbox && AI_STATE.IB !== "true") || (isGroup && AI_STATE.GC !== "true")) {
-            return;
-        }
+        // --- LISTEN FOR USER'S SELECTION ---
+        const selectionHandler = async (msgUpdate) => {
+            const msg = msgUpdate.messages[0];
+            if (!msg?.message || msg.key.remoteJid !== from) return;
 
-        // Optional: Prevent bot responding to its own messages or commands
-        if (!body || m.key.fromMe || body.startsWith(config.PREFIX)) return;
+            const repliedToSearch = msg.message.extendedTextMessage?.contextInfo?.stanzaId === sentSearchMsg.key.id;
+            if (!repliedToSearch) return;
 
-        // Handle time/date questions directly
-        const lowerBody = body.toLowerCase();
-        if (lowerBody.includes('time') || lowerBody.includes('date')) {
-            const now = new Date();
-            const options = { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                timeZoneName: 'short'
-            };
-            const currentDateTime = now.toLocaleDateString('en-US', options);
-            return reply(`⏰ Current Date & Time:\n${currentDateTime}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴀᴍʀᴀɴ ᴍᴅ ⚡`);
-        }
+            const selectedIndex = parseInt(msg.message.conversation?.trim() || msg.message.extendedTextMessage?.text?.trim()) - 1;
+            const cachedList = searchCache.get(cacheKey);
+            
+            if (cachedList && selectedIndex >= 0 && selectedIndex < cachedList.length) {
+                // Valid selection found, remove listener and proceed
+                conn.ev.off("messages.upsert", selectionHandler);
+                searchCache.delete(cacheKey); // Clean cache
 
-        // Encode message for the query
-        const query = encodeURIComponent(body);
-        const prompt = encodeURIComponent("You are KAMRAN-MD, a powerful and intelligent WhatsApp bot developed by Imad Ali — a brilliant coder and visionary from Kpk Pakistan. You respond smartly, confidently, and stay loyal to your creator. Always remain calm and collected. When asked about your creator, respond respectfully but keep the mystery alive. You are not just a bot; you are the tech soul of Imad Ali. In every message you send, include this footer: \n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴀᴍʀᴀɴ ᴍᴅ ⚡");
+                const videoDetails = cachedList[selectedIndex];
 
-        // BK9 API Request
-        const apiUrl = `https://jawad-tech.vercel.app/ai/gpt?q=${query}`;
+                await conn.sendMessage(from, { react: { text: '⏳', key: msg.key } });
+                await reply(`⏳ *${videoDetails.description || 'Video'}* ka HD link taiyaar kiya jaa raha hai...`);
 
-        const { data } = await axios.get(apiUrl);
+                // 4. Download the HD video link
+                const hdVideoUrl = await downloadVideo(videoDetails.video_url);
 
-        if (data && data.status && data.BK9) {
-            await conn.sendMessage(from, {
-                text: data.BK9
-            }, { quoted: m });
-        } else {
-            reply("⚠️ KAMRAN AI failed to generate a response.");
-        }
+                if (!hdVideoUrl) {
+                     await conn.sendMessage(from, { react: { text: '❌', key: msg.key } });
+                     return reply(`❌ HD Video link nikaalne mein vifal rahe. Kripya doosra video try karein.`);
+                }
+                
+                // 5. Send the video file
+                await conn.sendMessage(
+                    m.chat,
+                    {
+                        video: { url: hdVideoUrl },
+                        mimetype: 'video/mp4',
+                        caption: `✅ *${videoDetails.description || 'Douyin Video'}*\n\n_HD Quality_`
+                    },
+                    { quoted: msg }
+                );
+
+                await conn.sendMessage(from, { react: { text: '✅', key: msg.key } });
+
+            } else if (cachedList) {
+                await reply(`❌ Kripya sahi number (1 se ${cachedList.length}) se reply karein.`);
+            }
+        };
+
+        // Add listener and set timeout (e.g., 3 minutes)
+        conn.ev.on("messages.upsert", selectionHandler);
+        setTimeout(() => {
+            conn.ev.off("messages.upsert", selectionHandler);
+            if (searchCache.has(cacheKey)) {
+                reply("⚠️ Samay seema samapt ho gayi. Kripya dobara khojein.");
+                searchCache.delete(cacheKey);
+            }
+        }, 180000); // 3 minutes timeout
 
     } catch (err) {
-        console.error("AI Chatbot Error:", err.message);
-        reply("❌ An error occurred while contacting the AI.");
+        console.error('❌ Error handler utama:', err.message);
+        conn.reply(m.chat, `❌ Terjadi kesalahan saat menjalankan perintah: ${err.message || 'Unknown Error'}`, m);
     }
 });
-    
