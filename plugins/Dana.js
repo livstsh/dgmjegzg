@@ -1,5 +1,6 @@
 const { cmd } = require("../command");
 const axios = require("axios");
+const yts = require("yt-search"); // Added yts for fallback search
 
 // --- API Endpoints ---
 const SEARCH_API = "https://jawad-tech.vercel.app/search/youtube?q=";
@@ -20,39 +21,60 @@ function getVideoId(url) {
   return match ? match[1] : null;
 }
 
-// Function to perform the search using the specified API
-async function searchYouTube(query, retries = 2) {
+// Function to perform the search with Fallback logic
+async function searchYouTube(query) {
     const cacheKey = `search:${query}`;
     if (cache.has(cacheKey)) return cache.get(cacheKey);
 
+    let formattedVideo = null;
+    
+    // --- Attempt 1: External Search API ---
     try {
         const apiUrl = `${SEARCH_API}${encodeURIComponent(query)}`;
-        const response = await axios.get(apiUrl, { timeout: 15000 });
+        const response = await axios.get(apiUrl, { timeout: 10000 });
         const data = response.data;
 
-        // Assuming API returns an array of results in data.result
         if (data.status === true && data.result && data.result.length > 0) {
             const video = data.result[0];
-            // Format data to be consistent
-            const formattedVideo = {
+            formattedVideo = {
                 url: normalizeYouTubeUrl(video.url) || video.url,
                 title: video.title || 'Video',
                 duration: video.duration,
                 thumbnail: video.thumbnail || `https://i.ytimg.com/vi/${getVideoId(video.url)}/hqdefault.jpg`,
             };
-            cache.set(cacheKey, formattedVideo);
-            setTimeout(() => cache.delete(cacheKey), 1800000); 
-            return formattedVideo;
+        } else {
+             throw new Error("API returned no results or failed status.");
         }
-        throw new Error("API returned no results.");
     } catch (error) {
-        console.error(`Search API failed: ${error.message}`);
-        if (retries > 0) {
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-            return searchYouTube(query, retries - 1);
-        }
-        return null;
+        console.warn(`Primary Search API failed. Trying fallback (yts)...`);
     }
+    
+    // --- Attempt 2: Local yts Fallback ---
+    if (!formattedVideo) {
+        try {
+            const searchResults = await yts(query);
+            const video = searchResults.videos[0];
+            
+            if (video) {
+                formattedVideo = {
+                    url: video.url,
+                    title: video.title,
+                    duration: video.timestamp, // yts uses timestamp for duration string
+                    thumbnail: video.thumbnail,
+                };
+            }
+        } catch(e) {
+            console.error(`Local yts search failed: ${e.message}`);
+        }
+    }
+
+    if (formattedVideo) {
+        cache.set(cacheKey, formattedVideo);
+        setTimeout(() => cache.delete(cacheKey), 1800000); 
+        return formattedVideo;
+    }
+    
+    return null;
 }
 
 // Function to fetch download links based on format and selected API
@@ -87,7 +109,7 @@ async function fetchDownloadLink(url, isAudio, useAudioApi) {
 // --- MAIN COMMAND ---
 cmd(
   {
-    pattern: "songlist", // New pattern
+    pattern: "dwnld", // New pattern
     alias: ["dl", "playlist"],
     react: "⬇️",
     desc: "Interactive downloader using three APIs for 4 media format options.",
@@ -102,11 +124,11 @@ cmd(
       await robin.sendMessage(from, { react: { text: "🔍", key: mek.key } });
       await reply(`⏳ *"${q}"* ke liye YouTube Search se jaankari laayi ja rahi hai...`);
 
-      // 2. Search for video using the Search API
+      // 2. Search for video using the Search API (with Fallback)
       const videoInfo = await searchYouTube(q);
 
       if (!videoInfo) {
-          return reply("❌ Video khojne mein vifal rahe ya koi natija nahi mila.");
+          return reply("❌ Video khojne mein vifal rahe ya koi natija nahi mila. Kripya doobara prayas karein.");
       }
 
       // --- Simplified Menu for User (4 Options) ---
