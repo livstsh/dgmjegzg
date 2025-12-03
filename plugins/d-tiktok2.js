@@ -62,7 +62,7 @@ async function fetchTikTokData(url) {
 async function fetchDownloadLink(url, isAudio) {
     // This is a simplified function used only for the audio fallback check within the main handler
     const linkField = isAudio ? 'musicUrl' : 'video';
-    const apiUrl = `https://api.siputzx.my.id/api/tiktok/v2?url=${encodeURIComponent(url)}`;
+    const apiUrl = `https://jawad-tech.vercel.app/download/tiktok?url=${encodeURIComponent(url)}`;
 
     try {
         const { data } = await axios.get(apiUrl, { timeout: 15000 });
