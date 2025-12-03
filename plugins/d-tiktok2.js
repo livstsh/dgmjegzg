@@ -16,7 +16,7 @@ async (conn, mek, m, { from, args, q, reply }) => {
         
         reply("Downloading video, please wait...");
         
-        const apiUrl = `https://delirius-apiofc.vercel.app/download/tiktok?url=${q}`;
+        const apiUrl = `https://jawad-tech.vercel.app/download/tiktok?url=${q}`;
         const { data } = await axios.get(apiUrl);
         
         if (!data.status || !data.data) return reply("Failed to fetch TikTok video.");
@@ -60,7 +60,7 @@ cmd({
         await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
 
         // Fetch video from BK9 API
-        const { data } = await axios.get(`https://bk9.fun/download/tiktok2?url=${encodeURIComponent(url)}`);
+        const { data } = await axios.get(`https://jawad-tech.vercel.app/download/tiktok?url=${encodeURIComponent(url)}`);
         
         if (!data?.status || !data.BK9?.video?.noWatermark) {
             throw new Error("No video found in API response");
