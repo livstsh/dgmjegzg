@@ -3,27 +3,78 @@ const axios = require('axios');
 const fetch = require('node-fetch');
 
 // --- API Endpoints ---
-const DOWNLOAD_API = `https://api.siputzx.my.id/api/tiktok/v2?url=`;
+const PRIMARY_DOWNLOAD_API = `https://api.siputzx.my.id/api/tiktok/v2?url=`; // Primary API
+const FALLBACK_DOWNLOAD_API = `https://jawad-tech.vercel.app/download/tiktok?url=`; // Public fallback API (Note: Structure might differ)
 
 // Global State Cache for Interactive Steps
 const searchCache = new Map();
 
 // Helper function to handle fetch and error reporting
 async function fetchTikTokData(url) {
+    // --- Attempt 1: Primary API ---
     try {
         const encodedURL = encodeURIComponent(url);
-        const apiUrl = `${DOWNLOAD_API}${encodedURL}`;
-        const { data } = await axios.get(apiUrl, { timeout: 20000 });
+        const apiUrl = `${PRIMARY_DOWNLOAD_API}${encodedURL}`;
+        const { data } = await axios.get(apiUrl, { timeout: 15000 });
         
-        if (!data.success || !data.data) {
-            throw new Error(data.message || "API se TikTok data lene mein vifal rahe.");
+        if (data.success && data.data) {
+            return { 
+                source: 'Primary',
+                metadata: data.data.metadata,
+                download: data.data.download 
+            };
         }
-        return data.data;
+        throw new Error("Primary API returned invalid data structure.");
     } catch (err) {
-        console.error("TikTok Fetch Error:", err.message);
-        throw new Error("❌ TikTok data lene mein truti aayi.");
+        console.warn("Primary TikTok API failed. Trying Fallback...");
+    }
+
+    // --- Attempt 2: Fallback API ---
+    try {
+        const encodedURL = encodeURIComponent(url);
+        const apiUrl = `${FALLBACK_DOWNLOAD_API}${encodedURL}`;
+        const { data } = await axios.get(apiUrl, { timeout: 15000 });
+
+        // Assuming this fallback API returns a simplified structure with direct links
+        if (data.status && data.result) {
+            const videoLink = data.result.nowm || data.result.video;
+            const audioLink = data.result.music || data.result.audio;
+            
+            if (videoLink || audioLink) {
+                return {
+                    source: 'Fallback',
+                    metadata: { description: data.result.title || 'TikTok Video', stats: {} },
+                    download: {
+                        video: [videoLink].filter(Boolean),
+                        photo: [], // Assuming fallback doesn't handle photo slides well
+                        musicUrl: audioLink
+                    }
+                };
+            }
+        }
+        throw new Error("Fallback API failed or returned no usable link.");
+    } catch (err) {
+        throw new Error("❌ Dono APIs se TikTok data lene mein truti aayi.");
     }
 }
+
+// Helper function needed for audio fallback logic inside the handler
+async function fetchDownloadLink(url, isAudio) {
+    // This is a simplified function used only for the audio fallback check within the main handler
+    const linkField = isAudio ? 'musicUrl' : 'video';
+    const apiUrl = `https://api.siputzx.my.id/api/tiktok/v2?url=${encodeURIComponent(url)}`;
+
+    try {
+        const { data } = await axios.get(apiUrl, { timeout: 15000 });
+        if (data.success && data.data && data.data.download[linkField]) {
+            return data.data.download[linkField];
+        }
+    } catch (e) {
+        // Ignore specific error, just return null if fail
+    }
+    return null;
+}
+
 
 cmd({
     pattern: "tt",
@@ -41,8 +92,8 @@ cmd({
         await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
         await reply("⏳ TikTok data lene mein thoda waqt lag sakta hai, kripya intezaar karein...");
 
-        const data = await fetchTikTokData(q);
-        const { metadata, download } = data;
+        const data = await fetchTikTokData(q); // Now fetches using the fallback logic
+        const { metadata, download, source } = data;
         
         // Determine content type
         const isVideo = Array.isArray(download.video) && download.video.length > 0;
@@ -54,7 +105,7 @@ cmd({
         if (isVideo) {
             downloadLinks = download.video;
             contentType = 'Video';
-        } else if (isPhoto) {
+        } else if (isPhoto && download.photo[0]) { // Check if photo slide has any images
             downloadLinks = download.photo;
             contentType = 'Photo Slide';
         } else {
@@ -65,11 +116,11 @@ cmd({
 *🎬 TIKTOK DOWNLOADER*
 
 📌 *Description:* ${metadata.description || 'N/A'}
-❤️ *Likes:* ${metadata.stats.likeCount}
-💬 *Comments:* ${metadata.stats.commentCount}
+❤️ *Likes:* ${metadata.stats?.likeCount || 'N/A'}
+💬 *Comments:* ${metadata.stats?.commentCount || 'N/A'}
 🔗 *Link:* ${q}
 
-*Content:* ${contentType}
+*Content:* ${contentType} (Source: ${source})
 `;
 
         // Store links for the next step (Audio option added)
@@ -117,11 +168,11 @@ cmd({
                 await conn.sendMessage(from, { react: { text: '⏳', key: msg.key } });
                 
                 const isAudio = selection === '2';
-                let finalUrl = isAudio ? cachedData.audio : cachedData.video;
+                let finalUrl = isAudio ? cachedData.audio : cachedData.video || (cachedData.isPhoto ? cachedData.photo[0] : null);
                 
+                // Final Check and Fallback for Audio if original URL was null
                 if (!finalUrl && isAudio) {
-                    // Fallback check if direct audio link is missing
-                    finalUrl = await fetchDownloadLink(q, true); // Hypothetical API call for audio extraction
+                    finalUrl = await fetchDownloadLink(q, true); // Use simpler fetcher as a last resort
                 }
 
                 if (!finalUrl) {
@@ -138,16 +189,18 @@ cmd({
                         caption: `✅ *Audio Extracted*\nTitle: ${metadata.description}`,
                     }, { quoted: msg });
                 } else if (cachedData.isPhoto) {
-                    // Send all photos in the slide (Not feasible in simple setup, send first image or video only)
+                    // Send the first photo in the slide
                     await conn.sendMessage(from, {
                         image: { url: finalUrl }, 
-                        caption: `✅ *Photo Slide* (First Image)\nTitle: ${metadata.description}`
+                        caption: `✅ *Photo Slide* (First Image)\nTitle: ${metadata.description}`,
+                        fileName: `${metadata.description || 'tiktok'}.jpg`,
                     }, { quoted: msg });
                 } else {
                     await conn.sendMessage(from, {
                         video: { url: finalUrl },
                         mimetype: 'video/mp4',
                         caption: `✅ *Video Downloaded*\nTitle: ${metadata.description}`,
+                        fileName: `${metadata.description || 'tiktok'}.mp4`,
                     }, { quoted: msg });
                 }
                 
