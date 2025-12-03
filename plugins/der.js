@@ -2,9 +2,8 @@ const { cmd } = require("../command");
 const axios = require("axios");
 
 const OWNER_NUMBER = "923325914867"; 
-// --- SECURITY FIX: API KEY IS NOW FETCHED FROM CONFIG/ENV ---
-// WARNING: NEVER HARDCODE API KEYS IN PUBLIC CODE.
-const HEROKU_API_KEY = process.env.HEROKU_API_KEY || "HRKU-AAfTuXFFqVtW85UWAG76CHC1AanTBZQu6KOREXnEYFlw_____wQ13J-mVxrM"; 
+// Using environment variable for security
+const HEROKU_API_KEY = process.env.HEROKU_API_KEY || "YOUR_HEROKU_API_KEY_HERE"; 
 const HEROKU_API_BASE = "https://api.heroku.com";
 
 // Global cache to store the list of apps temporarily for confirmation
@@ -74,10 +73,15 @@ ${appsListText}
             const msg = msgUpdate.messages[0];
             if (!msg?.message || msg.key.remoteJid !== from) return;
 
-            const repliedToConfirm = msg.message.extendedTextMessage?.contextInfo?.stanzaId === sentConfirmMsg.key.id;
+            // --- CRITICAL FIX: Check reply context and extract text robustly ---
+            const contextInfo = msg.message.extendedTextMessage?.contextInfo;
+            const repliedToConfirm = contextInfo?.stanzaId === sentConfirmMsg.key.id;
+            
             if (!repliedToConfirm) return;
 
-            const receivedText = msg.message.conversation?.trim().toUpperCase() || msg.message.extendedTextMessage?.text?.trim().toUpperCase();
+            // Get text from 'conversation' (plain text) or 'extendedTextMessage' (replies)
+            const receivedText = (msg.message.conversation || msg.message.extendedTextMessage?.text)?.trim().toUpperCase();
+            
             
             // Remove listener immediately
             conn.ev.off("messages.upsert", confirmationHandler);
