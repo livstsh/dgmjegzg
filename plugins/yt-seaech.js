@@ -1,9 +1,8 @@
 const { cmd } = require('../command');
 const yts = require('yt-search');
-const axios = require('axios'); // Used for download APIs
+const axios = require('axios');
 
 // --- API Endpoints (from previous context) ---
-// Note: Only the download APIs are needed here, as yts handles search.
 const VIDEO_API = "https://jawad-tech.vercel.app/download/ytdl?url=";
 const AUDIO_API = "https://jawad-tech.vercel.app/download/audio?url=";
 
@@ -21,15 +20,15 @@ async function fetchDownloadLink(url, isAudio) {
         
         if (data.status === true) {
             if (isAudio && apiToUse === AUDIO_API && data.result) {
-                // Direct link from /download/audio
+                // Direct link from /download/audio (used for options 1 & 3)
                 downloadUrl = data.result;
             } else if (data.result?.[linkField]) {
-                // Nested link from /download/ytdl
+                // Nested link from /download/ytdl (used for video and audio fallback)
                 downloadUrl = data.result[linkField];
             }
         }
     } catch (error) {
-        console.error(`Download API failed: ${error.message}`);
+        console.error(`Download API failed for ${isAudio ? 'audio' : 'video'}: ${error.message}`);
     }
     return downloadUrl;
 }
@@ -54,6 +53,7 @@ try{
     
     let searchResults;
     try {
+        // Using local yts library for reliable search
         searchResults = await yts(q);
     } catch(e) {
         console.error("YouTube search error:", e);
@@ -91,11 +91,12 @@ try{
     
     await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
 
-    // --- STEP 2: LISTEN FOR VIDEO SELECTION ---
+    // --- STEP 2: LISTEN FOR VIDEO SELECTION (HANDLER 1) ---
     const selectionHandler = async (msgUpdate) => {
         const msg = msgUpdate.messages[0];
         if (!msg?.message || msg.key.remoteJid !== from) return;
 
+        // Check if the received message is a reply to the search results
         const repliedToSearch = msg.message.extendedTextMessage?.contextInfo?.stanzaId === sentSearchMsg.key.id;
         if (!repliedToSearch) return;
 
@@ -108,7 +109,7 @@ try{
             
             const selectedVideo = cachedResults[selectedIndex - 1];
             
-            // --- STEP 3: PROMPT FOR AUDIO/VIDEO FORMAT ---
+            // --- STEP 3: PROMPT FOR AUDIO/VIDEO FORMAT (HANDLER 2 SETUP) ---
             const formatPrompt = `
 *Video Select Ho Gaya!*
 🎞️ *Title:* ${selectedVideo.title}
@@ -121,13 +122,15 @@ try{
 `;
             
             await conn.sendMessage(from, { react: { text: '▶️', key: msg.key } });
-            const sentPromptMsg = await reply(formatPrompt);
+            // Send the prompt and capture its ID for the next handler
+            const sentPromptMsg = await reply(formatPrompt); 
             
-            // --- STEP 4: LISTEN FOR FORMAT SELECTION ---
+            // --- STEP 4: LISTEN FOR FORMAT SELECTION (HANDLER 2) ---
             const formatHandler = async (fMsgUpdate) => {
                 const fMsg = fMsgUpdate.messages[0];
                 if (!fMsg?.message || fMsg.key.remoteJid !== from) return;
                 
+                // Check if the received message is a reply to the format prompt
                 const repliedToPrompt = fMsg.message.extendedTextMessage?.contextInfo?.stanzaId === sentPromptMsg.key.id;
                 if (!repliedToPrompt) return;
 
@@ -168,6 +171,7 @@ try{
 
 
                 } else {
+                    // Invalid selection, keep listener on
                     await reply("❌ Kripya sirf 1 ya 2 se reply karein.");
                 }
             };
@@ -183,6 +187,7 @@ try{
             }, 120000); // 2 minutes timeout
 
         } else if (cachedResults) {
+            // Invalid number reply for step 1
             await reply(`❌ Kripya sahi number (1 se ${cachedResults.length}) se reply karein.`);
         }
     };
