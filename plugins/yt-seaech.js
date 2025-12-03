@@ -1,12 +1,48 @@
 const { cmd } = require('../command');
-const yts = require('yt-search'); // Only keeping yt-search for simplicity
+const yts = require('yt-search');
+const axios = require('axios'); // Used for download APIs
+
+// --- API Endpoints (from previous context) ---
+// Note: Only the download APIs are needed here, as yts handles search.
+const VIDEO_API = "https://jawad-tech.vercel.app/download/ytdl?url=";
+const AUDIO_API = "https://jawad-tech.vercel.app/download/audio?url=";
+
+
+// Function to fetch download links
+async function fetchDownloadLink(url, isAudio) {
+    let downloadUrl = null;
+    let apiToUse = isAudio ? AUDIO_API : VIDEO_API;
+    let linkField = isAudio ? 'mp3' : 'mp4';
+
+    try {
+        const apiUrl = `${apiToUse}${encodeURIComponent(url)}`;
+        const response = await axios.get(apiUrl, { timeout: 20000 });
+        const data = response.data;
+        
+        if (data.status === true) {
+            if (isAudio && apiToUse === AUDIO_API && data.result) {
+                // Direct link from /download/audio
+                downloadUrl = data.result;
+            } else if (data.result?.[linkField]) {
+                // Nested link from /download/ytdl
+                downloadUrl = data.result[linkField];
+            }
+        }
+    } catch (error) {
+        console.error(`Download API failed: ${error.message}`);
+    }
+    return downloadUrl;
+}
+
+// Global variable to temporarily store search results and map index to video data
+const searchCache = new Map();
 
 cmd({
     pattern: "yts",
     alias: ["ytsearch"],
     use: '.yts [query]',
     react: "🔎",
-    desc: "YouTube par keyword se videos khojta hai aur unki list deta hai.", // Searches videos on YouTube by keyword and lists them.
+    desc: "YouTube par khojta hai aur interactive download option deta hai.", // Searches YouTube and gives interactive download option.
     category: "search",
     filename: __filename
 },
@@ -18,15 +54,14 @@ try{
     
     let searchResults;
     try {
-        // Use yt-search library to get results
         searchResults = await yts(q);
     } catch(e) {
         console.error("YouTube search error:", e);
         return await reply('❌ YouTube search karte samay truti aayi!'); 
     }
     
-    // Filter out videos and limit to top 10 results
-    const videos = searchResults.videos.slice(0, 10);
+    // Filter videos, limit to top 5 for cleaner menu
+    const videos = searchResults.videos.slice(0, 5);
 
     if (videos.length === 0) {
         return await reply(`🤷‍♀️ *"${q}"* ke liye koi video natija nahi mila.`);
@@ -34,18 +69,134 @@ try{
 
     let resultMessage = '📺 *YouTube Search Results* 📺\n\n';
     
+    // Store results in the cache for later retrieval
+    const currentResults = [];
+    
     // Format the results
     videos.map((video, index) => {
         resultMessage += `*${index + 1}. ${video.title.trim()}*\n`;
-        resultMessage += `   🔗 Link: ${video.url}\n`;
         resultMessage += `   ⏱️ Duration: ${video.timestamp}\n`;
-        resultMessage += `   👁️ Views: ${video.views}\n`;
-        resultMessage += `   👤 Channel: ${video.author.name}\n\n`;
+        resultMessage += `   👁️ Views: ${video.views}\n\n`;
+        currentResults.push({ index: index + 1, title: video.title, url: video.url, thumbnail: video.thumbnail });
     });
     
-    resultMessage += `\n_© ᴘᴏᴡᴇʀᴇᴅ ʙʏ KAMRAN MD_`;
+    resultMessage += `\n*Kripya download karne ke liye number (1-${videos.length}) se reply karein.*`;
+    
+    // Store the results temporarily in cache, keyed by the sender's ID and message ID
+    const cacheKey = `${from}-${mek.key.id}`;
+    searchCache.set(cacheKey, currentResults);
+    
+    // Send the search results and prompt for selection
+    const sentSearchMsg = await conn.sendMessage(from , { text: resultMessage }, { quoted: mek } );
+    
+    await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
 
-    await conn.sendMessage(from , { text: resultMessage }, { quoted: mek } );
+    // --- STEP 2: LISTEN FOR VIDEO SELECTION ---
+    const selectionHandler = async (msgUpdate) => {
+        const msg = msgUpdate.messages[0];
+        if (!msg?.message || msg.key.remoteJid !== from) return;
+
+        const repliedToSearch = msg.message.extendedTextMessage?.contextInfo?.stanzaId === sentSearchMsg.key.id;
+        if (!repliedToSearch) return;
+
+        const selectedIndex = parseInt(msg.message.conversation?.trim() || msg.message.extendedTextMessage?.text?.trim());
+        const cachedResults = searchCache.get(cacheKey);
+
+        if (cachedResults && selectedIndex >= 1 && selectedIndex <= cachedResults.length) {
+            // Found a valid video selection, remove the first listener
+            conn.ev.off("messages.upsert", selectionHandler);
+            
+            const selectedVideo = cachedResults[selectedIndex - 1];
+            
+            // --- STEP 3: PROMPT FOR AUDIO/VIDEO FORMAT ---
+            const formatPrompt = `
+*Video Select Ho Gaya!*
+🎞️ *Title:* ${selectedVideo.title}
+
+*Aapko kis format mein chahiye?*
+1 - MP3 (Audio) 🎧
+2 - MP4 (Video) 🎥
+
+*Kripya 1 ya 2 se reply karein.*
+`;
+            
+            await conn.sendMessage(from, { react: { text: '▶️', key: msg.key } });
+            const sentPromptMsg = await reply(formatPrompt);
+            
+            // --- STEP 4: LISTEN FOR FORMAT SELECTION ---
+            const formatHandler = async (fMsgUpdate) => {
+                const fMsg = fMsgUpdate.messages[0];
+                if (!fMsg?.message || fMsg.key.remoteJid !== from) return;
+                
+                const repliedToPrompt = fMsg.message.extendedTextMessage?.contextInfo?.stanzaId === sentPromptMsg.key.id;
+                if (!repliedToPrompt) return;
+
+                const formatSelection = fMsg.message.conversation?.trim() || fMsg.message.extendedTextMessage?.text?.trim();
+
+                if (formatSelection === '1' || formatSelection === '2') {
+                    // Final valid selection, remove the second listener and clean cache
+                    conn.ev.off("messages.upsert", formatHandler);
+                    searchCache.delete(cacheKey);
+                    
+                    const isAudio = formatSelection === '1';
+                    const mediaType = isAudio ? 'Audio' : 'Video';
+                    
+                    await conn.sendMessage(from, { react: { text: '⏳', key: fMsg.key } });
+                    await reply(`⏳ *${selectedVideo.title}* ka ${mediaType} link laaya ja raha hai...`);
+
+                    // 5. FETCH AND SEND DOWNLOAD LINK
+                    const downloadUrl = await fetchDownloadLink(selectedVideo.url, isAudio);
+
+                    if (!downloadUrl) {
+                        await conn.sendMessage(from, { react: { text: '❌', key: fMsg.key } });
+                        return await reply(`❌ Download link nahi mil paaya. Kripya doosra video try karein.`);
+                    }
+                    
+                    const mediaKey = isAudio ? 'audio' : 'video';
+                    const mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
+                    const fileExtension = isAudio ? 'mp3' : 'mp4';
+                    
+                    await conn.sendMessage(from, {
+                      [mediaKey]: { url: downloadUrl },
+                      mimetype: mimeType,
+                      ptt: mediaKey === 'audio' ? false : undefined, 
+                      fileName: `${selectedVideo.title}.${fileExtension}`,
+                      caption: `✅ *${selectedVideo.title}* Downloaded Successfully!\n*Format:* ${mediaType}`,
+                    }, { quoted: fMsg });
+                    
+                    await conn.sendMessage(from, { react: { text: '✅', key: fMsg.key } });
+
+
+                } else {
+                    await reply("❌ Kripya sirf 1 ya 2 se reply karein.");
+                }
+            };
+            
+            // Add listener for format selection and set timeout (e.g., 2 minutes)
+            conn.ev.on("messages.upsert", formatHandler);
+            setTimeout(() => {
+                conn.ev.off("messages.upsert", formatHandler);
+                if (searchCache.has(cacheKey)) {
+                    reply("⚠️ Samay seema samapt ho gayi. Kripya dobara khojein.");
+                    searchCache.delete(cacheKey);
+                }
+            }, 120000); // 2 minutes timeout
+
+        } else if (cachedResults) {
+            await reply(`❌ Kripya sahi number (1 se ${cachedResults.length}) se reply karein.`);
+        }
+    };
+    
+    // Add listener for video selection and set timeout (e.g., 2 minutes)
+    conn.ev.on("messages.upsert", selectionHandler);
+    setTimeout(() => {
+        conn.ev.off("messages.upsert", selectionHandler);
+        if (searchCache.has(cacheKey)) {
+            reply("⚠️ Samay seema samapt ho gayi. Kripya dobara khojein.");
+            searchCache.delete(cacheKey);
+        }
+    }, 120000); // 2 minutes timeout
+
 
 } catch (e) {
     console.error("YTS Command General Error:", e);
