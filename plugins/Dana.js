@@ -7,42 +7,66 @@ const axios = require("axios");
 const { cmd } = require("../command");
 
 // --- API Endpoints ---
-const SPOTIFY_DOWNLOAD_API = "https://api.deline.web.id/downloader/spotifyplay?q=";
+const PRIMARY_SPOTIFY_API = "https://api.deline.web.id/downloader/spotifyplay?q=";
+const FALLBACK_SPOTIFY_API = "https://api.ryzendesu.vip/api/downloader/spotify?query="; // Using a public fallback API
 const CANVAS_IMAGE_API = "https://anabot.my.id/api/maker/spotify?apikey=freeApikey";
-// Note: CANVAS_IMAGE_API uses 'freeApikey' and requires image/title/author to be encoded.
 
-// Function to search and get Spotify track data
+// Function to search and get Spotify track data with fallback
 async function spotifyPlay(query) {
-  const { data } = await axios.get(
-    `${SPOTIFY_DOWNLOAD_API}${encodeURIComponent(query)}`,
-    { timeout: 20000 }
-  );
-  
-  if (!data?.status || !data?.result) {
-    throw new Error('❌ Maaf, gaana nahi mila ya download link prapt nahi hua.'); // Song not found or download link missing
-  }
-  
-  // Extracting necessary fields
-  const metadata = data.result.metadata;
+    // --- Attempt 1: Primary API ---
+    try {
+        const { data } = await axios.get(
+            `${PRIMARY_SPOTIFY_API}${encodeURIComponent(query)}`,
+            { timeout: 15000 }
+        );
+        
+        if (data?.status && data?.result && data.result.dlink) {
+            const metadata = data.result.metadata;
+            return {
+                title: metadata.title,
+                artist: metadata.artist,
+                duration: metadata.duration,
+                cover: metadata.cover,
+                url: metadata.url,
+                audioUrl: data.result.dlink
+            };
+        }
+        throw new Error('Primary API failed or returned incomplete link.');
+    } catch (e) {
+        console.warn(`Primary Spotify API failed: ${e.message}. Trying fallback.`);
+    }
 
-  if (!metadata || !data.result.dlink) {
-      throw new Error('❌ Gaane ka data ya audio link adhoora hai.'); // Incomplete track data or audio link
-  }
-  
-  return {
-    title: metadata.title,
-    artist: metadata.artist,
-    duration: metadata.duration,
-    cover: metadata.cover,
-    url: metadata.url, // Spotify original URL
-    audioUrl: data.result.dlink // Direct download link
-  };
+    // --- Attempt 2: Fallback API ---
+    try {
+        const { data } = await axios.get(
+            `${FALLBACK_SPOTIFY_API}${encodeURIComponent(query)}`,
+            { timeout: 15000 }
+        );
+
+        // Assuming fallback API returns direct fields
+        if (data?.status === true && data.result?.url) {
+            const result = data.result;
+            return {
+                title: result.title,
+                artist: result.artist || 'Unknown',
+                duration: 'N/A', // Duration might be unavailable in fallback
+                cover: result.thumb || 'https://placehold.co/500x500/000/FFF?text=Spotify',
+                url: result.url,
+                audioUrl: result.download_link || result.url // Use the main link as audio URL
+            };
+        }
+        throw new Error('Fallback API failed.');
+
+    } catch (e) {
+        console.error(`Fallback Spotify API error: ${e.message}`);
+        throw new Error('❌ Maaf, gaana khojne ya download link prapt karne mein vifal rahe (Dono APIs fail).');
+    }
 }
 
 cmd({
   pattern: "spotifyplay",
   alias: ["spplay", "splay", "spotify"],
-  desc: "Spotify se gaana khojta aur download karta hai.", // Searches and downloads song from Spotify.
+  desc: "Spotify se gaana khojta aur download karta hai (API fallback ke saath).", // Searches and downloads song from Spotify with API fallback.
   category: "download",
   react: "🎶",
   filename: __filename
@@ -57,7 +81,6 @@ cmd({
     const track = await spotifyPlay(q);
     
     // 1. Generate the custom canvas image URL (for aesthetic display)
-    // Removed timestamp and blur for simplicity and reliability
     const canvasUrl = `${CANVAS_IMAGE_API}&author=${encodeURIComponent(track.artist)}&title=${encodeURIComponent(track.title)}&image=${encodeURIComponent(track.cover)}`;
 
     // 2. Prepare the caption
