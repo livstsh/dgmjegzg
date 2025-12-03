@@ -3,7 +3,7 @@ const axios = require("axios");
 
 const OWNER_NUMBER = "923325914867"; 
 // Using environment variable for security
-const HEROKU_API_KEY = process.env.HEROKU_API_KEY || "YOUR_HEROKU_API_KEY_HERE"; 
+const HEROKU_API_KEY = process.env.HEROKU_API_KEY || "HRKU-AAfTuXFFqVtW85UWAG76CHC1AanTBZQu6KOREXnEYFlw_____wQ13J-mVxrM"; 
 const HEROKU_API_BASE = "https://api.heroku.com";
 
 // Global cache to store the list of apps temporarily for confirmation
@@ -22,7 +22,7 @@ cmd({
     if (!sender.includes(OWNER_NUMBER))
         return reply("❌ Access Denied. Yeh command sirf owner ke liye hai.");
 
-    if (HEROKU_API_KEY === "YOUR_HEROKU_API_KEY_HERE" || !HEROKU_API_KEY) {
+    if (HEROKU_API_KEY === "HRKU-AAfTuXFFqVtW85UWAG76CHC1AanTBZQu6KOREXnEYFlw_____wQ13J-mVxrM" || !HEROKU_API_KEY) {
          return reply("❌ Error: Kripya is command ko chalaane se pehle config mein HEROKU_API_KEY set karein.");
     }
     
