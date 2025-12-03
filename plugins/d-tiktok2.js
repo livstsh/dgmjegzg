@@ -1,227 +1,121 @@
 const { cmd } = require('../command');
-const axios = require('axios');
-const fetch = require('node-fetch');
+const fetch = require('node-fetch'); // Assuming node-fetch is available
+const cheerio = require('cheerio'); // Assuming cheerio is available
 
-// --- API Endpoints ---
-const PRIMARY_DOWNLOAD_API = `https://api.siputzx.my.id/api/tiktok/v2?url=`; // Primary API
-const FALLBACK_DOWNLOAD_API = `https://api.deline.web.id/downloader/tiktok?url=`; // Public fallback API (Note: Structure might differ)
+// --- Scraper Functions ---
 
-// Global State Cache for Interactive Steps
-const searchCache = new Map();
-
-// Helper function to handle fetch and error reporting
-async function fetchTikTokData(url) {
-    // --- Attempt 1: Primary API ---
+// Scraper 1: shortstatusvideos.com
+async function animeVideo() {
+    const url = 'https://shortstatusvideos.com/anime-video-status-download/';
     try {
-        const encodedURL = encodeURIComponent(url);
-        const apiUrl = `${PRIMARY_DOWNLOAD_API}${encodedURL}`;
-        const { data } = await axios.get(apiUrl, { timeout: 15000 });
+        const response = await fetch(url, { timeout: 15000 });
+        const html = await response.text();
+        const $ = cheerio.load(html);
+        const videos = [];
         
-        if (data.success && data.data) {
-            return { 
-                source: 'Primary',
-                metadata: data.data.metadata,
-                download: data.data.download 
-            };
-        }
-        throw new Error("Primary API returned invalid data structure.");
-    } catch (err) {
-        console.warn("Primary TikTok API failed. Trying Fallback...");
-    }
-
-    // --- Attempt 2: Fallback API ---
-    try {
-        const encodedURL = encodeURIComponent(url);
-        const apiUrl = `${FALLBACK_DOWNLOAD_API}${encodedURL}`;
-        const { data } = await axios.get(apiUrl, { timeout: 15000 });
-
-        // Assuming this fallback API returns a simplified structure with direct links
-        if (data.status && data.result) {
-            const videoLink = data.result.nowm || data.result.video;
-            const audioLink = data.result.music || data.result.audio;
+        // Targetting links with the specific class and finding the preceding title
+        $('a.mks_button.mks_button_small.squared').each((i, el) => {
+            const href = $(el).attr('href');
+            // Try to find the title from the strong tag preceding the button's parent paragraph
+            const titleElement = $(el).closest('p').prevAll('p').find('strong').first();
+            const title = titleElement.text().trim() || `Video ${i + 1}`;
             
-            if (videoLink || audioLink) {
-                return {
-                    source: 'Fallback',
-                    metadata: { description: data.result.title || 'TikTok Video', stats: {} },
-                    download: {
-                        video: [videoLink].filter(Boolean),
-                        photo: [], // Assuming fallback doesn't handle photo slides well
-                        musicUrl: audioLink
-                    }
-                };
+            if (href && title.length > 5) {
+                videos.push({ title, source: href });
             }
-        }
-        throw new Error("Fallback API failed or returned no usable link.");
+        });
+        
+        if (videos.length === 0) throw new Error("Source 1 se koi video nahi mila.");
+
+        // Return a random video
+        const randomIndex = Math.floor(Math.random() * videos.length);
+        return videos[randomIndex];
     } catch (err) {
-        throw new Error("❌ Dono APIs se TikTok data lene mein truti aayi.");
+        throw new Error(`Source 1 (shortstatusvideos) fail ho gaya: ${err.message}`);
     }
 }
 
-// Helper function needed for audio fallback logic inside the handler
-async function fetchDownloadLink(url, isAudio) {
-    // This is a simplified function used only for the audio fallback check within the main handler
-    const linkField = isAudio ? 'musicUrl' : 'video';
-    const apiUrl = `https://api.siputzx.my.id/api/tiktok/v2?url=${encodeURIComponent(url)}`;
-
+// Scraper 2: mobstatus.com
+async function animeVideo2() {
+    const url = 'https://mobstatus.com/anime-whatsapp-status-video/';
     try {
-        const { data } = await axios.get(apiUrl, { timeout: 15000 });
-        if (data.success && data.data && data.data.download[linkField]) {
-            return data.data.download[linkField];
-        }
-    } catch (e) {
-        // Ignore specific error, just return null if fail
+        const response = await fetch(url, { timeout: 15000 });
+        const html = await response.text();
+        const $ = cheerio.load(html);
+        const videos = [];
+        
+        // Targetting links with the specific class
+        $('a.mb-button.mb-style-glass.mb-size-tiny.mb-corners-pill.mb-text-style-heavy').each((i, el) => {
+            const href = $(el).attr('href');
+            // Title extraction is very broad here, using a fixed title for simplicity/reliability
+            const title = $('h1.entry-title').text().trim() || 'Anime Status Video';
+            
+            if (href) {
+                videos.push({ title, source: href });
+            }
+        });
+        
+        if (videos.length === 0) throw new Error("Source 2 se koi video nahi mila.");
+
+        // Return a random video
+        const randomIndex = Math.floor(Math.random() * videos.length);
+        return videos[randomIndex];
+    } catch (err) {
+        throw new Error(`Source 2 (mobstatus) fail ho gaya: ${err.message}`);
     }
-    return null;
 }
 
 
 cmd({
-    pattern: "tt",
-    alias: ["t", "tiktokdl"],
-    desc: "TikTok link se video ya photo slide download karta hai.", // Downloads video or photo slides from TikTok link.
-    category: "download",
-    react: "📱",
+    pattern: "amv",
+    alias: ["animevideo"],
+    use: '.amv <1|2>',
+    react: "🍏",
+    desc: "2 alag websites se random anime video status download karta hai.", // Downloads random anime video status from 2 different sites.
+    category: "anime",
     filename: __filename
 }, async (conn, mek, m, { q, reply, prefix, command, from }) => {
     try {
-        if (!q || !/tiktok\.com/.test(q)) {
-            return reply(`❌ Kripya sahi TikTok link dein!\n\n*Udaharan:* ${prefix + command} [TikTok Link]`);
-        }
+        // 1. Initial Checks
+        await conn.sendMessage(from, { react: { text: '🍏', key: m.key } });
 
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-        await reply("⏳ TikTok data lene mein thoda waqt lag sakta hai, kripya intezaar karein...");
+        if (!q) return reply(`❌ Kripya number daalein (1 ya 2).\n\n*1 - Anime Status (Source 1)*\n*2 - Anime Status (Source 2)*\n\n*Udaharan:* ${prefix + command} 1`);
+        
+        const selection = q.trim();
 
-        const data = await fetchTikTokData(q); // Now fetches using the fallback logic
-        const { metadata, download, source } = data;
+        await reply('⏳ Video laya jaa raha hai...');
+
+        let resl;
         
-        // Determine content type
-        const isVideo = Array.isArray(download.video) && download.video.length > 0;
-        const isPhoto = Array.isArray(download.photo) && download.photo.length > 0;
-        
-        let downloadLinks = [];
-        let contentType = 'Unknown';
-        
-        if (isVideo) {
-            downloadLinks = download.video;
-            contentType = 'Video';
-        } else if (isPhoto && download.photo[0]) { // Check if photo slide has any images
-            downloadLinks = download.photo;
-            contentType = 'Photo Slide';
+        // 2. Execute based on user input
+        if (selection === '1') {
+            resl = await animeVideo();
+        } else if (selection === '2') {
+            resl = await animeVideo2();
         } else {
-            return reply("❌ Is link par na video mila aur na photo slide.");
+            return reply('❌ Number galat hai! Kripya sirf 1 ya 2 chunein.');
         }
 
-        const info = `
-*🎬 TIKTOK DOWNLOADER*
+        // 3. Final Check and Send
+        if (!resl || !resl.source) {
+             throw new Error("Video link nikalne mein vifal rahe.");
+        }
 
-📌 *Description:* ${metadata.description || 'N/A'}
-❤️ *Likes:* ${metadata.stats?.likeCount || 'N/A'}
-💬 *Comments:* ${metadata.stats?.commentCount || 'N/A'}
-🔗 *Link:* ${q}
-
-*Content:* ${contentType} (Source: ${source})
-`;
-
-        // Store links for the next step (Audio option added)
-        const currentLinks = {
-            video: downloadLinks[0] || null, // Best video link
-            photo: isPhoto ? downloadLinks : null,
-            audio: download.musicUrl || download.audio || null,
-            isPhoto: isPhoto
-        };
-        
-        const options = `
-*Kripya format select karein:*
-1 - Download ${contentType} ⬇️
-2 - Download Audio (MP3) 🎵
-
-*Kripya 1 ya 2 se reply karein.*
-`;
-
-        // Store the result temporarily
-        const cacheKey = `${from}-${mek.key.id}`;
-        searchCache.set(cacheKey, currentLinks);
-
-        // Send confirmation and options
-        const sentMenuMsg = await conn.sendMessage(from, {
-            text: info + options
-        }, { quoted: mek });
+        await conn.sendMessage(
+            from, 
+            { 
+                video: { url: resl.source }, 
+                caption: `✅ *Anime Status Video*\nTitle: ${resl.title}` 
+            }, 
+            { quoted: mek }
+        );
         
         await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
-        // --- LISTEN FOR SELECTION ---
-        const selectionHandler = async (msgUpdate) => {
-            const msg = msgUpdate.messages[0];
-            if (!msg?.message || msg.key.remoteJid !== from) return;
-
-            const repliedToMenu = msg.message.extendedTextMessage?.contextInfo?.stanzaId === sentMenuMsg.key.id;
-            if (!repliedToMenu) return;
-
-            const selection = msg.message.conversation?.trim() || msg.message.extendedTextMessage?.text?.trim();
-            const cachedData = searchCache.get(cacheKey);
-
-            if (cachedData && (selection === '1' || selection === '2')) {
-                conn.ev.off("messages.upsert", selectionHandler);
-                searchCache.delete(cacheKey);
-
-                await conn.sendMessage(from, { react: { text: '⏳', key: msg.key } });
-                
-                const isAudio = selection === '2';
-                let finalUrl = isAudio ? cachedData.audio : cachedData.video || (cachedData.isPhoto ? cachedData.photo[0] : null);
-                
-                // Final Check and Fallback for Audio if original URL was null
-                if (!finalUrl && isAudio) {
-                    finalUrl = await fetchDownloadLink(q, true); // Use simpler fetcher as a last resort
-                }
-
-                if (!finalUrl) {
-                    await conn.sendMessage(from, { react: { text: '❌', key: msg.key } });
-                    return await reply(`❌ ${isAudio ? 'Audio' : 'Video'} link uplabdh nahi hai.`);
-                }
-                
-                // Send Media based on selection
-                if (isAudio) {
-                    await conn.sendMessage(from, {
-                        audio: { url: finalUrl },
-                        mimetype: 'audio/mpeg',
-                        fileName: `${metadata.description || 'tiktok'}.mp3`,
-                        caption: `✅ *Audio Extracted*\nTitle: ${metadata.description}`,
-                    }, { quoted: msg });
-                } else if (cachedData.isPhoto) {
-                    // Send the first photo in the slide
-                    await conn.sendMessage(from, {
-                        image: { url: finalUrl }, 
-                        caption: `✅ *Photo Slide* (First Image)\nTitle: ${metadata.description}`,
-                        fileName: `${metadata.description || 'tiktok'}.jpg`,
-                    }, { quoted: msg });
-                } else {
-                    await conn.sendMessage(from, {
-                        video: { url: finalUrl },
-                        mimetype: 'video/mp4',
-                        caption: `✅ *Video Downloaded*\nTitle: ${metadata.description}`,
-                        fileName: `${metadata.description || 'tiktok'}.mp4`,
-                    }, { quoted: msg });
-                }
-                
-                await conn.sendMessage(from, { react: { text: '✅', key: msg.key } });
-
-            } else if (cachedData) {
-                 await reply("❌ Kripya sirf 1 ya 2 se reply karein.");
-            }
-        };
-
-        conn.ev.on("messages.upsert", selectionHandler);
-        setTimeout(() => {
-            conn.ev.off("messages.upsert", selectionHandler);
-            if (searchCache.has(cacheKey)) {
-                reply("⚠️ Samay seema samapt. Kripya dobara link dein.");
-                searchCache.delete(cacheKey);
-            }
-        }, 180000); // 3 minutes timeout
-
     } catch (e) {
-        console.error("❌ TT Command General Error:", e);
-        reply(`⚠️ Terjadi kesalahan saat memproses TikTok: ${e.message}`);
+        console.error("AMV Command Error:", e);
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+        await reply(`⚠️ Maaf, video laate samay truti aayi: ${e.message}`);
     }
 });
+
