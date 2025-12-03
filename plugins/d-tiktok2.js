@@ -2,11 +2,12 @@ const { cmd } = require('../command');
 const axios = require('axios');
 const config = require('../config'); 
 
-// --- API Endpoints (Triple Fallback) ---
+// --- API Endpoints (Quadruple Fallback for maximum reliability) ---
 const APIS = {
     PRIMARY: "https://apis.rijalganzz.my.id/download/tiktok-v2?url=",
-    FALLBACK_A: "https://jawad-tech.vercel.app/download/tiktok?url=", // New API 1
-    FALLBACK_B: "https://jawad-tech.vercel.app/download/ttdl?url=" // New API 2
+    FALLBACK_A: "https://jawad-tech.vercel.app/download/tiktok?url=", 
+    FALLBACK_B: "https://jawad-tech.vercel.app/download/ttdl?url=",
+    FALLBACK_C: "https://api.deline.web.id/downloader/tiktok?url=" // New, reliable fallback
 };
 
 // Fallback values for missing global configuration
@@ -15,23 +16,27 @@ const SGC_LINK = config.GROUP_LINK || "https://whatsapp.com/channel/0029VbAhxYY9
 
 // Function to fetch TikTok data with multi-API fallback
 async function fetchTikTokData(url) {
+    // List of APIs to try sequentially
     const endpoints = [
-        { name: 'Primary', url: APIS.PRIMARY },
-        { name: 'Fallback A', url: APIS.FALLBACK_A },
-        { name: 'Fallback B', url: APIS.FALLBACK_B }
+        { name: 'Primary (RijalGanzz)', url: APIS.PRIMARY },
+        { name: 'Fallback A (JawadTech)', url: APIS.FALLBACK_A },
+        { name: 'Fallback B (JawadTech ttdl)', url: APIS.FALLBACK_B },
+        { name: 'Fallback C (Deline Web)', url: APIS.FALLBACK_C } // Added new reliable endpoint
     ];
 
     for (const { name, url: baseUrl } of endpoints) {
         try {
             const encodedURL = encodeURIComponent(url);
             const apiUrl = `${baseUrl}${encodedURL}`;
-            const { data } = await axios.get(apiUrl, { timeout: 20000 });
+            // Increased timeout to 30 seconds for slow TikTok processing
+            const { data } = await axios.get(apiUrl, { timeout: 30000 }); 
 
             if (data?.status || data?.success || data?.result?.play || data?.data) {
                 // Determine structure based on typical API responses
                 const result = data.result || data.data || data;
                 
-                let videoLink = result.play || result.video || result.hdplay || result.hd;
+                // Prioritize finding a video link and audio link
+                let videoLink = result.play || result.video || result.hdplay || result.hd || result.link_nowm;
                 let audioLink = result.music || result.audio || result.musicUrl;
 
                 // Ensure the extracted link is usable
@@ -49,6 +54,7 @@ async function fetchTikTokData(url) {
             }
         } catch (err) {
             console.warn(`TikTok Fetch Error (${name}): ${err.message}`);
+            // Continue to the next API in the list
         }
     }
     
@@ -143,4 +149,4 @@ cmd({
     filename: __filename
 }, handler);
 
-module.exports = handler;module.exports = handler;
+module.exports = handler;
