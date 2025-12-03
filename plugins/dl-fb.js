@@ -54,7 +54,7 @@ async function fetchVideo(url) {
 
 cmd({
     pattern: "facedl",
-    alias: ["fb2", "facebookdl"],
+    alias: ["fb", "facebookdl"],
     desc: "Facebook URL se video download karta hai (Dual API Fallback).", // Downloads video from Facebook URL (Dual API Fallback).
     category: "download",
     react: "📘",
