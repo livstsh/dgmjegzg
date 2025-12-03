@@ -30,7 +30,7 @@ cmd({
 }, async (conn, mek, m, { sender, reply, from }) => {
 
     // 1. Owner Check
-    if (!sender.includes(OWNER_NUMBER))
+    if (!sender.includes923325914867))
         return reply("❌ Access Denied. Yeh command sirf owner ke liye hai.");
 
     if (!HEROKU_API_KEY || HEROKU_API_KEY === "HRKU-AAfTuXFFqVtW85UWAG76CHC1AanTBZQu6KOREXnEYFlw_____wQ13J-mVxrM") {
