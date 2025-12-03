@@ -1,92 +1,100 @@
 const { cmd } = require("../command");
 const axios = require('axios');
-const cheerio = require('cheerio'); // Assuming cheerio is available in the environment
+const cheerio = require('cheerio'); // Assuming cheerio is available
+const FormData = require('form-data'); // Assuming form-data is available
+const Buffer = require('buffer').Buffer;
 
-// --- Snack Video Downloader Core Function (Scraping) ---
-async function snackDownload(url) {
-  try {
-    // API uses form data submission to imitate a browser action
-    const payload = new URLSearchParams({
-      id: url,
-      locale: "en",
-      // These are necessary headers/fields for the site to process the request
-      "ic-request": "true",
-      "ic-element-id": "main_page_form",
-      "ic-id": "1",
-      "ic-target-id": "active_container",
-      "ic-trigger-id": "main_page_form",
-      "ic-current-url": "/",
-      "ic-select-from-response": "#id1",
-      method: "POST",
-    });
+// --- Custom Hash Function (Replaced btoa with Buffer) ---
+function hash(e, t) {
+    const btoa = (str) => Buffer.from(str).toString('base64');
+    return btoa(e) + (e.length + 1e3) + btoa(t);
+};
 
-    const { data } = await axios.post(
-      "https://getsnackvideo.com/results",
-      payload.toString(),
-      {
-        headers: {
-          "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-          "user-agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36",
-          "x-requested-with": "XMLHttpRequest",
-        },
-        timeout: 20000 // Extended timeout for scraping
-      }
-    );
-
-    if (!data) throw new Error("Scraping ke dauran data prapt nahi hua.");
-
-    // Load the returned HTML content
-    const $ = cheerio.load(data);
-
-    // Find the download link without watermark
-    const download = $(".download_link.without_watermark").attr("href");
-    
-    // Attempt to extract title/description from the scraped page (Optional)
-    const title = $("p.infotext").first().text().trim() || 'Snack Video';
-
-    if (!download) throw new Error("Download link nikalne mein vifal rahe.");
-
-    return {
-      title,
-      download,
-    };
-  } catch (err) {
-    console.error("Snack Download Error:", err.message);
-    throw new Error("❌ Video link laane mein vifal rahe. Link ya server check karein.");
-  }
-}
-
-cmd({
-    pattern: "snackdl",
-    alias: ["snack", "snackvideo"],
-    desc: "Snack Video se video download karta hai (Bina Watermark).", // Downloads Snack Video without Watermark.
-    category: "download",
-    react: "🍿",
-    filename: __filename
-}, async (conn, mek, m, { from, q, reply, prefix, command }) => {
+// --- Scraper Core Function ---
+async function anydown(url) {
     try {
-        if (!q || (!q.includes("snackvideo.com") && !q.includes("kwaiapp.com"))) {
-            return reply(`❌ Kripya sahi Snack Video link dein.\n\n*Udaharan:* ${prefix + command} [Link Hian]`);
+        if (!url.includes('http')) throw new Error('❌ Kripya sahi URL dein.');
+        
+        // 1. GET initial page to extract CSRF Token
+        const { data: h } = await axios.get('https://anydownloader.com/en', { timeout: 15000 });
+        const $ = cheerio.load(h);
+        
+        const token = $('input[name="token"]').attr('value');
+        if (!token) throw new Error('Token nahi mil paya. Website block ho sakti hai.');
+        
+        // 2. Prepare POST data (using FormData/URLSearchParams equivalent)
+        const postData = new URLSearchParams();
+        postData.set('url', url);
+        postData.set('token', token);
+        postData.set('hash', hash(url, 'api'));
+        
+        // 3. POST request to download API
+        const { data } = await axios.post('https://anydownloader.com/wp-json/api/download/', postData.toString(), {
+            headers: {
+                'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                origin: 'https://anydownloader.com',
+                referer: 'https://anydownloader.com/',
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.86 Mobile Safari/537.36'
+            },
+            timeout: 25000
+        });
+        
+        // 4. Return data
+        if (data.status !== true || !data.media) throw new Error(data.message || 'Video link nahi mila.');
+        
+        return data;
+    } catch (error) {
+        throw new Error(error.message);
+    }
+};
+
+
+// --- MAIN COMMAND HANDLER ---
+cmd({
+    pattern: "anydown",
+    alias: ["universal"],
+    desc: "Kisi bhi platform (TikTok, Insta, etc.) se video download karta hai.", // Downloads video from any supported platform.
+    category: "download",
+    react: "🌐",
+    filename: __filename
+}, async (conn, mek, m, { q, reply, prefix, command, from }) => {
+    try {
+        if (!q) {
+            return reply(`❌ Kripya video ka URL dein.\n\n*Udaharan:* ${prefix + command} [TikTok/Instagram Link]`);
+        }
+        
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+        await reply("⏳ Video link khoja jaa raha hai (Scraping website)...");
+
+        // 1. Perform the scrape
+        const result = await anydown(q);
+        const media = result.media;
+        
+        if (!media || media.length === 0) {
+            return reply("❌ Video link nahi mil paya. Ho sakta hai link private ho.");
         }
 
-        await reply("⏳ Snack Video link mil gaya. Video taiyar kiya jaa raha hai...");
+        // 2. Select the best quality video link (usually the first one)
+        const bestVideo = media.find(item => item.type === 'video');
+        
+        if (!bestVideo || !bestVideo.url) {
+            return reply("❌ Video link nahi mila. Sirf audio ya image uplabdh ho sakta hai.");
+        }
+        
+        const videoTitle = result.title || 'Universal Video Download';
 
-        // 1. Perform the download process
-        const videoData = await snackDownload(q);
-
-        // 2. Send the video file
+        // 3. Send the video
         await conn.sendMessage(from, {
-            video: { url: videoData.download },
-            mimetype: "video/mp4",
-            caption: `✅ *${videoData.title}* Downloaded Successfully!\n(Bina Watermark)\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`
+            video: { url: bestVideo.url },
+            mimetype: 'video/mp4',
+            caption: `✅ *${videoTitle}* Downloaded Successfully!\n*Source:* AnyDownloader (Scraped)`
         }, { quoted: mek });
-
+        
         await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
     } catch (e) {
-        console.error("❌ SnackDL command error:", e.message);
-        reply(`⚠️ Video download karte samay ek truti hui: ${e.message}`);
+        console.error("AnyDown Command Error:", e.message);
+        reply(`⚠️ Video download karte samay truti aayi: ${e.message}`);
         await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
     }
 });
