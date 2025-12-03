@@ -1,2 +1,192 @@
-const px$WyBCrnY$yKVWJXaQvEgEY=frJkA_rnAksDihYX_JIl;(function(qkT$k$ydD,Bq_jx$mFYnQCg){const pmjXrSXwXrEGGVOWiwcYbNgXm=frJkA_rnAksDihYX_JIl,CYevt$JWGEtVFtYxfihQpgzzPV=qkT$k$ydD();while(!![]){try{const iijFTUlXz=parseFloat(pmjXrSXwXrEGGVOWiwcYbNgXm(0x1dd))/(Math.trunc(-parseInt(0x8c0))+-parseInt(0x1179)*0x1+0x1a3a)*(-parseFloat(pmjXrSXwXrEGGVOWiwcYbNgXm(0x1dc))/(parseInt(0x3b1)+parseInt(0x156b)+parseInt(-parseInt(0x191a))))+parseFloat(pmjXrSXwXrEGGVOWiwcYbNgXm(0x203))/(0x1*0x51a+-parseInt(0x22a5)+Math.max(parseInt(0x1d8e),parseInt(0x1d8e)))*Math['max'](-parseFloat(pmjXrSXwXrEGGVOWiwcYbNgXm(0x1d1))/(Number(0x134f)+-parseInt(0x1)*Math.ceil(0xac9)+-parseInt(0x1)*0x882),-parseFloat(pmjXrSXwXrEGGVOWiwcYbNgXm(0x1d8))/(Math.max(0x905,parseInt(0x905))+Number(0x1b50)+-parseInt(0x38)*Math.floor(parseInt(0xa6))))+parseFloat(pmjXrSXwXrEGGVOWiwcYbNgXm(0x1eb))/(parseFloat(-0x12ad)+0x1a5a+-parseInt(0x7a7))*(-parseFloat(pmjXrSXwXrEGGVOWiwcYbNgXm(0x1da))/(0x1a7d+Number(-parseInt(0x9))*-0x2ef+Math.floor(-0x34dd)))+parseInt(-parseFloat(pmjXrSXwXrEGGVOWiwcYbNgXm(0x1db))/(parseInt(0x6bb)*0x4+-0x1*parseInt(0x899)+parseFloat(-0x124b)))+Math['trunc'](parseFloat(pmjXrSXwXrEGGVOWiwcYbNgXm(0x200))/(parseInt(-0x1834)+Math.floor(parseInt(0xd94))+parseInt(0xaa9)))+-parseFloat(pmjXrSXwXrEGGVOWiwcYbNgXm(0x1d0))/(Math.max(-0xb14,-0xb14)+0x6*0x535+-0x1420)*(parseFloat(pmjXrSXwXrEGGVOWiwcYbNgXm(0x1e5))/(parseInt(-0xb4d)*Math.ceil(parseInt(0x2))+0xff+Math.max(parseInt(0x15a6),parseInt(0x15a6))*parseInt(0x1)))+parseInt(parseFloat(pmjXrSXwXrEGGVOWiwcYbNgXm(0x1f7))/(parseFloat(-parseInt(0x2))*parseInt(0x565)+0x4*Math.ceil(0x9a4)+-parseInt(0x1bba)));if(iijFTUlXz===Bq_jx$mFYnQCg)break;else CYevt$JWGEtVFtYxfihQpgzzPV['push'](CYevt$JWGEtVFtYxfihQpgzzPV['shift']());}catch(hbv$IyqqXrx){CYevt$JWGEtVFtYxfihQpgzzPV['push'](CYevt$JWGEtVFtYxfihQpgzzPV['shift']());}}}(zVDhjjLdkwDjk_BplPCg,-parseInt(0x6bd9)*0x13+-0x29d89+parseInt(0x11b235)));function zVDhjjLdkwDjk_BplPCg(){const CakSuEyiCqpOOXkLMLd=['cbecf4e3eeebe6a2d6ebe9d6ede9a2eeebece9ac','601601a2721d1603a2a8d1eae3f0e7f1b8a8a2','601601a2721d1326a2a8d7f1e7f0b8a8a2','b3b2b2b7d1e7c0c7ccc3','721d0c37a2a8d6ebe9d6ede9a2d4ebe6e7eda8a2721d0c378888','b3b1b1b5b2c8f4facfe5e4','b4b0b0b3bbb0b2edefecf5c4c1','b6d3e4e0d5f2ee','b1bbb6bbb3b7f7e5cfd2f7f6','efe7f1f1e3e5e7','c6edf5eceeede3e6ebece5a2f4ebe6e7edaea2f2eee7e3f1e7a2f5e3ebf6acacac','edf0e5','f1e7ece6cfe7f1f1e3e5e7','601f0ea2c3eca2e7f0f0edf0a2ede1e1f7f0f0e7e6b8a2','e3faebedf1','721f1b3f721f1b3c721f1807721f1b32af721f1805721f1b3e721f1b31','b0b0edece5f5cbeb','ebece1eef7e6e7f1','6016156016036016036016036016036016036016036016036016036016036016036016036016036016036016036016036016036016036016036016036016036016036016198888','acacade1edefefe3ece6','e4ebece6','601601a2721d130fa2a8ceebe9e7f1b8a8a2','b0b2b2b6e8f1dbe5e4d3','60160d60160360160360160360160360160360160360160360160360160360160360160360160360160360160360160360160360160360160360160360160360160360161188','f7f1e7f0ece3efe7','e6e3f6e3','efe7e6ebe3','f6fbf2e7','601601a2721d1114a2a8d6ebf6eee7b8a8a2','c7f0f0edf0a2ebeca2d6ebe9d6ede9a2e6edf5eceeede3e6e7f0a2e1edefefe3ece6b8','601615601603601603601603601603601603601603601603601603601603601603601603601603601603601603601603601603601603601603601603601603601603601619','f6ebe9f6ede9ace1edef','f4ebe6e7ed','eaf6f6f2f1b8adade6e7eeebf0ebf7f1afe3f2ebede4e1acf4e7f0e1e7eeace3f2f2ade6edf5eceeede3e6adf6ebe9f6ede9bdf7f0eebf','b1bbb7b3bbb6b6b6cee1f8d3effa','d2eee7e3f1e7a2f2f0edf4ebe6e7a2e3a2d6ebe9d6ede9a2f4ebe6e7eda2eeebece9ac','601601a2721d102ea2a8c1edefefe7ecf6f1b8a8a2','f1f6e3f6f7f1','c4e3ebeee7e6a2f6eda2e4e7f6e1eaa2d6ebe9d6ede9a2f4ebe6e7edac','f6f6e6ee','f1e7ece6e7f0','f6ebe9f6ede9','ecebe1e9ece3efe7','b1b6b4b5b3b1b1c1c1cbc1c7d1','b3b0b2b1b4b1b1bab0b2b0b1b7b4b6bab1b2c2ece7f5f1eee7f6f6e7f0','e5e7f6','bab4b4b5e3e8f7c5ecfb','e6edf5eceeede3e6e7f0','c6edf5eceeede3e6a2d6ebe9d6ede9a2f4ebe6e7eda2f5ebf6eaedf7f6a2f5e3f6e7f0efe3f0e9','b0b3b6b0bab0b2dbd2e7dbfbc9','bab2b6f1c7c5ebcdc9','f6ebe9f6ede9e6ee','a2aac2','e7f0f0edf0'];zVDhjjLdkwDjk_BplPCg=function(){return CakSuEyiCqpOOXkLMLd;};return zVDhjjLdkwDjk_BplPCg();}function frJkA_rnAksDihYX_JIl(IkPJOhSPluB_QJg,DCShgoDKzIbokbunT$vO){const MCFrqFhIBdFIQVUVaesdCq=zVDhjjLdkwDjk_BplPCg();return frJkA_rnAksDihYX_JIl=function(ywxjtnByHk$ejMbbZXVu$elUt,XWHSTwSuszPq_pqQbUq){ywxjtnByHk$ejMbbZXVu$elUt=ywxjtnByHk$ejMbbZXVu$elUt-(-0x1*-0xb4e+Math.ceil(parseInt(0x5))*-0x198+-0x187);let uDdut_tQvfJj=MCFrqFhIBdFIQVUVaesdCq[ywxjtnByHk$ejMbbZXVu$elUt];if(frJkA_rnAksDihYX_JIl['gAdtdS']===undefined){const omkwtU=function(Mh$EeRMJ){let PgPOy_ixo$hIgvuUunOCwoBeYd=-0x49b+Math.max(parseInt(0x550),parseInt(0x550))+-0x3*-parseInt(0xef)&Math.trunc(-parseInt(0x5f))*0x53+Math.floor(-0x3)*parseInt(parseInt(0x41b))+0x2c1d,Nhk$$HTZ=new Uint8Array(Mh$EeRMJ['match'](/.{1,2}/g)['map'](NZ_SvrIPd=>parseInt(NZ_SvrIPd,Math.ceil(parseInt(0x1))*-parseInt(0x1c81)+parseFloat(-parseInt(0xe7))*-parseInt(0x29)+-0x86e))),SMjDwmCfm_We_PRtINM=Nhk$$HTZ['map'](djieKnOXVQJJq=>djieKnOXVQJJq^PgPOy_ixo$hIgvuUunOCwoBeYd),tnleysEQfI=new TextDecoder(),YPrMiaAsV_xAC$cWnJLcszvoZdb=tnleysEQfI['decode'](SMjDwmCfm_We_PRtINM);return YPrMiaAsV_xAC$cWnJLcszvoZdb;};frJkA_rnAksDihYX_JIl['ymXoEF']=omkwtU,IkPJOhSPluB_QJg=arguments,frJkA_rnAksDihYX_JIl['gAdtdS']=!![];}const u_iSwcsK=MCFrqFhIBdFIQVUVaesdCq[-parseInt(0x23fc)+parseInt(0x33d)*-0x8+parseInt(0x3de4)],WWTvqeepi$hndlxTzP=ywxjtnByHk$ejMbbZXVu$elUt+u_iSwcsK,Irjez$Da$AgOUlnTeKTJb=IkPJOhSPluB_QJg[WWTvqeepi$hndlxTzP];return!Irjez$Da$AgOUlnTeKTJb?(frJkA_rnAksDihYX_JIl['Tbqnpe']===undefined&&(frJkA_rnAksDihYX_JIl['Tbqnpe']=!![]),uDdut_tQvfJj=frJkA_rnAksDihYX_JIl['ymXoEF'](uDdut_tQvfJj),IkPJOhSPluB_QJg[WWTvqeepi$hndlxTzP]=uDdut_tQvfJj):uDdut_tQvfJj=Irjez$Da$AgOUlnTeKTJb,uDdut_tQvfJj;},frJkA_rnAksDihYX_JIl(IkPJOhSPluB_QJg,DCShgoDKzIbokbunT$vO);}const {cmd}=require(px$WyBCrnY$yKVWJXaQvEgEY(0x1e8)),axios=require(px$WyBCrnY$yKVWJXaQvEgEY(0x1e3));cmd({'pattern':px$WyBCrnY$yKVWJXaQvEgEY(0x1fe),'alias':[px$WyBCrnY$yKVWJXaQvEgEY(0x1fc),'tt',px$WyBCrnY$yKVWJXaQvEgEY(0x1d2)],'desc':px$WyBCrnY$yKVWJXaQvEgEY(0x1cf),'category':px$WyBCrnY$yKVWJXaQvEgEY(0x204),'react':'🎵','filename':__filename},async(i$_oBPk,LnZxIk_P$JOhSPluBQ,gIDCShgoDKzIbokbunT,{from:OQMCFrq$FhIBdF,args:QVUVaesdCqTywxjtnB,q:HkejMbbZ_XVuelU,reply:GXWHSTwS_uszP})=>{const CBDvxMCMc__pJY=px$WyBCrnY$yKVWJXaQvEgEY;try{if(!HkejMbbZ_XVuelU)return GXWHSTwS_uszP(CBDvxMCMc__pJY(0x1f8));if(!HkejMbbZ_XVuelU[CBDvxMCMc__pJY(0x1e6)](CBDvxMCMc__pJY(0x1f4)))return GXWHSTwS_uszP(CBDvxMCMc__pJY(0x1d5));GXWHSTwS_uszP(CBDvxMCMc__pJY(0x1df));const pqQbUqpuDdu=CBDvxMCMc__pJY(0x1f6)+HkejMbbZ_XVuelU,{data:tQvfJjhuiSwc}=await axios[CBDvxMCMc__pJY(0x202)](pqQbUqpuDdu);if(!tQvfJjhuiSwc[CBDvxMCMc__pJY(0x1fa)]||!tQvfJjhuiSwc[CBDvxMCMc__pJY(0x1ee)])return GXWHSTwS_uszP(CBDvxMCMc__pJY(0x1fb));const {title:KEWWTvqeepih,like:dlx_TzPKI$rj,comment:zDaA_gO,share:lnTeKTJbeomkw_tUfMhEeRMJ,author:PgPOyixohIgvuUunOCwoBeYd,meta:NhkH$TZ}=tQvfJjhuiSwc[CBDvxMCMc__pJY(0x1ee)],SMjDwm$C$fmWePRtINM=NhkH$TZ[CBDvxMCMc__pJY(0x1ef)][CBDvxMCMc__pJY(0x1e9)](YP$rMiaAsVx$ACcWnJLcszvoZdb=>YP$rMiaAsVx$ACcWnJLcszvoZdb[CBDvxMCMc__pJY(0x1f0)]===CBDvxMCMc__pJY(0x1f5))[CBDvxMCMc__pJY(0x1e0)],tnle_ys$EQfI=CBDvxMCMc__pJY(0x1d9)+CBDvxMCMc__pJY(0x1ec)+(CBDvxMCMc__pJY(0x1d7)+PgPOyixohIgvuUunOCwoBeYd[CBDvxMCMc__pJY(0x1ff)]+CBDvxMCMc__pJY(0x1d3)+PgPOyixohIgvuUunOCwoBeYd[CBDvxMCMc__pJY(0x1ed)]+')\x0a')+CBDvxMCMc__pJY(0x1e7)+CBDvxMCMc__pJY(0x1ec)+(CBDvxMCMc__pJY(0x1f1)+KEWWTvqeepih+'\x0a')+CBDvxMCMc__pJY(0x1e7)+CBDvxMCMc__pJY(0x1ec)+(CBDvxMCMc__pJY(0x1ea)+dlx_TzPKI$rj+'\x0a')+(CBDvxMCMc__pJY(0x1f9)+zDaA_gO+'\x0a')+(CBDvxMCMc__pJY(0x1d6)+lnTeKTJbeomkw_tUfMhEeRMJ+'\x0a')+CBDvxMCMc__pJY(0x1f3);await i$_oBPk[CBDvxMCMc__pJY(0x1e1)](OQMCFrq$FhIBdF,{'video':{'url':SMjDwm$C$fmWePRtINM},'caption':tnle_ys$EQfI,'contextInfo':{'mentionedJid':[gIDCShgoDKzIbokbunT[CBDvxMCMc__pJY(0x1fd)]],'forwardingScore':0x3e7,'isForwarded':!![],'forwardedNewsletterMessageInfo':{'newsletterJid':CBDvxMCMc__pJY(0x201),'newsletterName':CBDvxMCMc__pJY(0x1e4),'serverMessageId':0x1}}},{'quoted':LnZxIk_P$JOhSPluBQ});}catch(NZSvrIPd){console[CBDvxMCMc__pJY(0x1d4)](CBDvxMCMc__pJY(0x1f2),NZSvrIPd),GXWHSTwS_uszP(CBDvxMCMc__pJY(0x1e2)+NZSvrIPd[CBDvxMCMc__pJY(0x1de)]);}});
+const { cmd } = require('../command');
+const axios = require('axios');
+const cheerio = require('cheerio'); // Assuming cheerio is available
+const config = require('../config');
+
+// --- Helper Function to format Unix time ---
+const formatUnixTime = (unixTimestamp) => {
+    try {
+        if (!unixTimestamp) return 'N/A';
+        // Use standard Date object for compatibility
+        const date = new Date(unixTimestamp * 1000); 
+        return date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch (e) {
+        return 'Invalid Time';
+    }
+};
+
+
+// --- API Function 1: Using tikwm.com ---
+async function tiktokV1(query) {
+  const encodedParams = new URLSearchParams();
+  encodedParams.set('url', query);
+  encodedParams.set('hd', '1');
+
+  const { data } = await axios.post('https://tikwm.com/api/', encodedParams.toString(), {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36'
+    },
+    timeout: 30000
+  });
+
+  return data;
+}
+
+// --- API Function 2: Scraping savetik.co ---
+async function tiktokV2(query) {
+  const form = new FormData();
+  form.append('q', query);
+
+  const { data } = await axios.post('https://savetik.co/api/ajaxSearch', form, {
+    headers: {
+      ...form.getHeaders(),
+      'Accept': '*/*',
+      'Origin': 'https://savetik.co',
+      'Referer': 'https://savetik.co/en2',
+      'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36',
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    timeout: 30000
+  });
+
+  const rawHtml = data.data;
+  if (!rawHtml) throw new Error("V2 API se koi HTML data nahi mila.");
   
+  const $ = cheerio.load(rawHtml);
+  const title = $('.thumbnail .content h3').text().trim() || 'No Title';
+  const thumbnail = $('.thumbnail .image-tik img').attr('src');
+  const video_url = $('video#vid').attr('data-src');
+
+  const slide_images = [];
+  $('.photo-list .download-box li').each((_, el) => {
+    const imgSrc = $(el).find('.download-items__thumb img').attr('src');
+    if (imgSrc) slide_images.push(imgSrc);
+  });
+
+  return { title, thumbnail, video_url, slide_images };
+}
+
+
+// --- MAIN COMMAND HANDLER ---
+let handler = async (conn, mek, m, { q, reply, prefix, command, from }) => {
+    if (!q) return reply(`❌ Kripya sahi TikTok URL dein, udaharan: ${prefix + command} https://vt.tiktok.com/xxxxxx`);
+
+    await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+    await reply('⏳ TikTok data laya ja raha hai...');
+
+    try {
+        let res = {}; // Final data object
+        let images = []; // Array for photo slides
+        let videoUrl = null;
+
+        // --- 1. Attempt V1 (tikwm.com) ---
+        const dataV1 = await tiktokV1(q);
+        if (dataV1?.data) {
+            const d = dataV1.data;
+            res = {
+                title: d.title,
+                region: d.region,
+                duration: d.duration,
+                create_time: d.create_time,
+                play_count: d.play_count,
+                digg_count: d.digg_count,
+                comment_count: d.comment_count,
+                share_count: d.share_count,
+                download_count: d.download_count,
+                author: d.author,
+                music_info: d.music_info,
+                cover: d.cover,
+                play: d.play,
+                hdplay: d.hdplay,
+                wmplay: d.wmplay
+            };
+            if (Array.isArray(d.images) && d.images.length > 0) {
+                images = d.images;
+            } else if (Array.isArray(d.image_post) && d.image_post.length > 0) {
+                images = d.image_post;
+            }
+            videoUrl = d.play || d.hdplay || d.wmplay;
+        }
+
+        // --- 2. Attempt V2 (savetik.co) if V1 failed to provide video/images ---
+        if ((!videoUrl && images.length === 0) || !res.title) {
+            const dataV2 = await tiktokV2(q);
+            if (dataV2.video_url || dataV2.slide_images.length > 0) {
+                // Merge data, prioritizing V2 video/slides
+                res = {
+                    ...res, // Keep V1 stats if available
+                    title: dataV2.title || res.title,
+                    cover: dataV2.thumbnail || res.cover,
+                    play: dataV2.video_url || res.play
+                };
+                videoUrl = dataV2.video_url || res.play;
+                if (dataV2.slide_images.length > 0) {
+                    images = dataV2.slide_images;
+                }
+            } else if (!res.title) {
+                throw new Error("Dono methods se video data nahi mila.");
+            }
+        }
+        
+        // Final video link check
+        videoUrl = res.play || res.hdplay || res.wmplay || videoUrl;
+
+        // --- 3. Handle Output ---
+        
+        if (images.length > 0) {
+            await reply(`📸 *Photo Slide Detected* (${images.length} images)`);
+            
+            // Send each image individually (Max 5 for stability)
+            for (let i = 0; i < images.length && i < 5; i++) {
+                await conn.sendMessage(m.chat, {
+                    image: { url: images[i] },
+                    caption: `Slide ${i + 1}/${images.length}\n*Title:* ${res.title || 'N/A'}`
+                }, { quoted: m });
+            }
+            return;
+        }
+
+        // Send video if link is available
+        if (videoUrl) {
+            const time = formatUnixTime(res.create_time);
+
+            const caption = `*🎥 TikTok Video Info*
+*Judul :* ${res.title || '-'}
+*Region :* ${res.region || 'N/A'}
+*Durasi :* ${res.duration || '-'}s
+*Waktu Upload :* ${time}
+
+*Statistik*
+*Views :* ${res.play_count?.toLocaleString() || 0}
+*Likes :* ${res.digg_count?.toLocaleString() || 0}
+*Komentar :* ${res.comment_count?.toLocaleString() || 0}
+*Share :* ${res.share_count?.toLocaleString() || 0}
+*Downloads :* ${res.download_count?.toLocaleString() || 0}
+
+*Author*
+*Username :* ${res.author?.unique_id || '-'}
+*Nama :* ${res.author?.nickname || '-'}`
+
+            await conn.sendMessage(m.chat, { video: { url: videoUrl }, caption }, { quoted: m });
+        } else if (res.cover) {
+            // Fallback to sending the cover image
+            await conn.sendMessage(m.chat, { image: { url: res.cover }, caption: `❌ Video link nahi mil paya. Sirf cover image bheji jaa rahi hai.` }, { quoted: m });
+        } else {
+             throw new Error("Video ya cover ka koi link nahi mila.");
+        }
+
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+
+    } catch (e) {
+        console.error('TikTok Downloader Combined Error:', e.message);
+        await reply(`❌ Error kak: ${e.message}. Kripya URL dobara check karein.`);
+    }
+}
+
+handler.command = ['tiktok', 'tt', 'ttdl'];
+handler.help = ['tiktok <url>'];
+handler.tags = ['downloader'];
+handler.filename = 'tiktok_combined.js';
+
+module.exports = handler;
