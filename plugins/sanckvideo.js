@@ -1,100 +1,130 @@
-const { cmd } = require("../command");
+const { cmd } = require('../command');
 const axios = require('axios');
-const cheerio = require('cheerio'); // Assuming cheerio is available
-const FormData = require('form-data'); // Assuming form-data is available
 const Buffer = require('buffer').Buffer;
 
-// --- Custom Hash Function (Replaced btoa with Buffer) ---
-function hash(e, t) {
-    const btoa = (str) => Buffer.from(str).toString('base64');
-    return btoa(e) + (e.length + 1e3) + btoa(t);
-};
+// --- API Endpoint ---
+const DOCSBOT_API = 'https://docsbot.ai/api/tools/image-prompter';
 
-// --- Scraper Core Function ---
-async function anydown(url) {
+// --- MAIN AI Function (Simplified for compatibility) ---
+async function docsbot(imageBuffer, { type = 'ocr', vibe = 'informative' } = {}) {
+    const typeMap = {
+        'ocr': 'text',
+        'toprompt': 'prompt',
+        'todesc': 'description',
+        'tocaption': 'caption',
+    };
+    
+    // Validate inputs
+    const typeValue = typeMap[type];
+    if (!typeValue) throw new Error(`Invalid type: ${type}`);
+    if (!Buffer.isBuffer(imageBuffer)) throw new Error('Image buffer is required');
+    
+    // Base64 encode the image
+    const base64Image = imageBuffer.toString('base64');
+    
+    const payload = {
+        image: base64Image, 
+        type: typeValue,
+        // Only include vibe if type is 'tocaption'
+        ...(type === 'tocaption' && { vibe })
+    };
+
     try {
-        if (!url.includes('http')) throw new Error('❌ Kripya sahi URL dein.');
+        const response = await axios.post(
+            DOCSBOT_API,
+            payload, {
+                headers: {
+                    'content-type': 'application/json',
+                    // Using a static User-Agent as 'user-agents' module is unavailable
+                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' 
+                },
+                timeout: 30000
+            }
+        );
         
-        // 1. GET initial page to extract CSRF Token
-        const { data: h } = await axios.get('https://anydownloader.com/en', { timeout: 15000 });
-        const $ = cheerio.load(h);
-        
-        const token = $('input[name="token"]').attr('value');
-        if (!token) throw new Error('Token nahi mil paya. Website block ho sakti hai.');
-        
-        // 2. Prepare POST data (using FormData/URLSearchParams equivalent)
-        const postData = new URLSearchParams();
-        postData.set('url', url);
-        postData.set('token', token);
-        postData.set('hash', hash(url, 'api'));
-        
-        // 3. POST request to download API
-        const { data } = await axios.post('https://anydownloader.com/wp-json/api/download/', postData.toString(), {
-            headers: {
-                'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                origin: 'https://anydownloader.com',
-                referer: 'https://anydownloader.com/',
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.86 Mobile Safari/537.36'
-            },
-            timeout: 25000
-        });
-        
-        // 4. Return data
-        if (data.status !== true || !data.media) throw new Error(data.message || 'Video link nahi mila.');
-        
-        return data;
-    } catch (error) {
-        throw new Error(error.message);
+        // Docsbot API returns the result string directly in data.text
+        return response.data?.text || response.data?.result || "AI se koi natija nahi mila.";
+
+    } catch (err) {
+        const errorMessage = err.response?.data ? Buffer.from(err.response.data).toString('utf8') : err.message;
+        console.error("Docsbot API Error:", errorMessage);
+        throw new Error(`AI se process fail ho gaya: ${errorMessage.substring(0, 50)}...`);
     }
-};
+}
 
 
 // --- MAIN COMMAND HANDLER ---
-cmd({
-    pattern: "anydown",
-    alias: ["universal"],
-    desc: "Kisi bhi platform (TikTok, Insta, etc.) se video download karta hai.", // Downloads video from any supported platform.
-    category: "download",
-    react: "🌐",
-    filename: __filename
-}, async (conn, mek, m, { q, reply, prefix, command, from }) => {
+let handler = async (conn, mek, m, { q, reply, usedPrefix, command }) => {
+    
+    const quoted = m.quoted ? m.quoted : m;
+    let mime = (quoted.msg || quoted).mimetype || '';
+    
+    // Extract sub-command and optional vibe
+    const args = q.split('|').map(s => s.trim());
+    const subCommand = args[0]?.toLowerCase();
+    const vibe = args[1]?.toLowerCase(); // Optional vibe for 'caption' mode
+
+    const helpMessage = `*🖼️ Image AI Recognition Tool*
+
+*⚠️ Upayog:* Kripya photo ko reply karein ya photo ke saath command use karein:
+
+1.  *.imgai ocr* - Photo se *Text* (OCR) nikaalein.
+2.  *.imgai prompt* - Is photo ke liye *AI Prompt* banaayein.
+3.  *.imgai caption | [mood]* - Is photo ke liye *Caption* banaayein.
+4.  *.imgai desc* - Is photo ka *Description* (Vivaran) dein.
+
+*Udaharan:*
+• ${usedPrefix}imgai ocr (Reply photo se)
+• ${usedPrefix}imgai caption | funny
+`;
+
+    if (!subCommand || !['ocr', 'prompt', 'caption', 'desc'].includes(subCommand)) {
+        return reply(helpMessage);
+    }
+    
+    if (!/image/.test(mime)) {
+        return reply(`❌ Kripya photo ko reply karein. ${helpMessage}`);
+    }
+
+    await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+    await reply(`⏳ *${subCommand.toUpperCase()}* analysis shuru ho raha hai...`);
+
     try {
-        if (!q) {
-            return reply(`❌ Kripya video ka URL dein.\n\n*Udaharan:* ${prefix + command} [TikTok/Instagram Link]`);
-        }
+        // 1. Download the image buffer
+        const imageBuffer = await conn.downloadMediaMessage(quoted);
         
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-        await reply("⏳ Video link khoja jaa raha hai (Scraping website)...");
+        // 2. Map sub-command to API type
+        const apiType = subCommand === 'prompt' ? 'toprompt' : subCommand === 'desc' ? 'todesc' : subCommand === 'ocr' ? 'ocr' : 'tocaption';
+        
+        // 3. Process with AI
+        const resultText = await docsbot(imageBuffer, { type: apiType, vibe });
+        
+        // 4. Format and Send Result
+        const finalMessage = `
+*✨ AI Result (${apiType.toUpperCase()})*
+--------------------------------
+${resultText}
+--------------------------------
+_© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN_
+`;
 
-        // 1. Perform the scrape
-        const result = await anydown(q);
-        const media = result.media;
-        
-        if (!media || media.length === 0) {
-            return reply("❌ Video link nahi mil paya. Ho sakta hai link private ho.");
-        }
-
-        // 2. Select the best quality video link (usually the first one)
-        const bestVideo = media.find(item => item.type === 'video');
-        
-        if (!bestVideo || !bestVideo.url) {
-            return reply("❌ Video link nahi mila. Sirf audio ya image uplabdh ho sakta hai.");
-        }
-        
-        const videoTitle = result.title || 'Universal Video Download';
-
-        // 3. Send the video
-        await conn.sendMessage(from, {
-            video: { url: bestVideo.url },
-            mimetype: 'video/mp4',
-            caption: `✅ *${videoTitle}* Downloaded Successfully!\n*Source:* AnyDownloader (Scraped)`
-        }, { quoted: mek });
-        
+        await reply(finalMessage);
         await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
     } catch (e) {
-        console.error("AnyDown Command Error:", e.message);
-        reply(`⚠️ Video download karte samay truti aayi: ${e.message}`);
+        console.error("Image AI Command Error:", e);
         await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+        await reply(`⚠️ AI process fail ho gaya: ${e.message}`);
     }
-});
+};
+
+cmd({
+    pattern: "imgai",
+    alias: ["ocr", "imgdesc"],
+    desc: "Photo se text, prompt, ya description nikalta hai.",
+    category: "ai",
+    react: "👁️",
+    filename: __filename
+}, handler);
+
+module.exports = handler;
