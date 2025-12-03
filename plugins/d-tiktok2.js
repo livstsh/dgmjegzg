@@ -1,128 +1,152 @@
-const axios = require("axios");
-const { cmd } = require("../command");
+const { cmd } = require('../command');
+const axios = require('axios');
+const config = require('../config'); 
 
-cmd({
-    pattern: "tiktok",
-    alias: ["ttdl", "tt", "tiktokdl"],
-    desc: "Download TikTok video without watermark",
-    category: "downloader",
-    react: "🎵",
-    filename: __filename
-},
-async (conn, mek, m, { from, args, q, reply }) => {
-    try {
-        if (!q) return reply("Please provide a TikTok video link.");
-        if (!q.includes("tiktok.com")) return reply("Invalid TikTok link.");
-        
-        reply("Downloading video, please wait...");
-        
-        const apiUrl = `https://jawad-tech.vercel.app/download/tiktok?url=${q}`;
-        const { data } = await axios.get(apiUrl);
-        
-        if (!data.status || !data.data) return reply("Failed to fetch TikTok video.");
-        
-        const { title, like, comment, share, author, meta } = data.data;
-        const videoUrl = meta.media.find(v => v.type === "video").org;
-        
-        const caption = `🎵 *TikTok Video* 🎵\n\n` +
-                        `👤 *User:* ${author.nickname} (@${author.username})\n` +
-                        `📖 *Title:* ${title}\n` +
-                        `👍 *Likes:* ${like}\n💬 *Comments:* ${comment}\n🔁 *Shares:* ${share}`;
-        
-        await conn.sendMessage(from, {
-            video: { url: videoUrl },
-            caption: caption,
-            contextInfo: { mentionedJid: [m.sender] }
-        }, { quoted: mek });
-        
-    } catch (e) {
-        console.error("Error in TikTok downloader command:", e);
-        reply(`An error occurred: ${e.message}`);
-    }
-});
+// --- API Endpoints (Quadruple Fallback for maximum reliability) ---
+// This system ensures that if one JawadTech endpoint fails, it tries the next, and finally external APIs.
+const APIS = {
+    PRIMARY: "https://apis.rijalganzz.my.id/download/tiktok-v2?url=",
+    FALLBACK_A: "https://jawad-tech.vercel.app/download/tiktok?url=", // One of your provided URLs
+    FALLBACK_B: "https://jawad-tech.vercel.app/download/ttdl?url=", // Another of your provided URLs
+    FALLBACK_C: "https://api.deline.web.id/downloader/tiktok?url=" // External reliable fallback
+};
 
-cmd({
-    pattern: "tt2",
-    alias: ["ttdl2", "ttv2", "tiktok2"],
-    desc: "Download TikTok video without watermark",
-    category: "downloader",
-    react: "⬇️",
-    filename: __filename
-}, async (conn, mek, m, { from, reply, args, q }) => {
-    try {
-        // Validate input
-        const url = q || m.quoted?.text;
-        if (!url || !url.includes("tiktok.com")) {
-            return reply("❌ Please provide/reply to a TikTok link");
-        }
+// Fallback values for missing global configuration
+const OWNER_NAME = config.OWNER_NAME || "DR KAMRAN";
+const SGC_LINK = config.GROUP_LINK || "https://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O"; 
 
-        // Show processing reaction
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+// Function to fetch TikTok data with multi-API fallback
+async function fetchTikTokData(url) {
+    const endpoints = [
+        { name: 'Primary (RijalGanzz)', url: APIS.PRIMARY },
+        { name: 'Fallback A (JawadTech/tiktok)', url: APIS.FALLBACK_A },
+        { name: 'Fallback B (JawadTech/ttdl)', url: APIS.FALLBACK_B },
+        { name: 'Fallback C (Deline Web)', url: APIS.FALLBACK_C }
+    ];
 
-        // Fetch video from BK9 API
-        const { data } = await axios.get(`https://jawad-tech.vercel.app/download/tiktok?url=${encodeURIComponent(url)}`);
-        
-        if (!data?.status || !data.BK9?.video?.noWatermark) {
-            throw new Error("No video found in API response");
-        }
+    for (const { name, url: baseUrl } of endpoints) {
+        try {
+            const encodedURL = encodeURIComponent(url);
+            const apiUrl = `${baseUrl}${encodedURL}`;
+            // Increased timeout to 30 seconds for slow TikTok processing
+            const { data } = await axios.get(apiUrl, { timeout: 30000 }); 
 
-        // Send video with minimal caption
-        await conn.sendMessage(from, {
-            video: { url: data.BK9.video.noWatermark },
-            caption: `- *Powered By DR KAMRAN 💜*`
-        }, { quoted: mek });
-
-        // Success reaction
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (error) {
-        console.error('TT2 Error:', error);
-        reply("❌ Download failed. Invalid link or API error");
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-    }
-});
+            if (data?.status || data?.success || data?.result?.play || data?.data) {
+                // Determine structure based on typical API responses
+                const result = data.result || data.data || data;
                 
-cmd({
-  pattern: "tt3",
-  alias: ["tiktok3", "ttdl3"],
-  react: "📥",
-  desc: "Download TikTok video (API v4)",
-  category: "download",
-  use: ".tt4 <TikTok URL>",
-  filename: __filename
-}, async (conn, mek, m, { from, reply, args }) => {
+                // Prioritize finding a video link and audio link
+                let videoLink = result.play || result.video || result.hdplay || result.hd || result.link_nowm || result.noWatermark;
+                let audioLink = result.music || result.audio || result.musicUrl;
+
+                // Ensure the extracted link is usable
+                if (videoLink || audioLink) {
+                    return {
+                        source: name,
+                        title: result.title || result.description || "TikTok Video",
+                        author: result.author?.nickname || result.creator || "Unknown Author",
+                        videoUrl: Array.isArray(videoLink) ? videoLink[0] : videoLink,
+                        audioUrl: audioLink,
+                        stats: result.stats || {},
+                        cover: result.cover || result.profilePhoto
+                    };
+                }
+            }
+        } catch (err) {
+            console.warn(`TikTok Fetch Error (${name}): ${err.message}`);
+            // Continue to the next API in the list
+        }
+    }
+    
+    throw new Error("❌ Sabhi APIs se TikTok data lene mein truti aayi.");
+}
+
+let handler = async (conn, mek, m, { q, reply, prefix, command, from }) => {
+  
+  if (!q) return reply(`❌ Kripya TikTok video ka URL dein!\n\n*Udaharan:*\n${prefix + command} [URL]`);
+
   try {
-    const url = args[0];
-    if (!url || !url.includes("tiktok.com")) {
-      return reply("❌ Please provide a valid TikTok video URL.\n\nExample:\n.tt4 https://vt.tiktok.com/...");
+    const quotedMsg = m.quoted ? m.quoted : m;
+    
+    await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key }});
+    await reply("🔎 *TikTok* data khoja ja raha hai (Multiple APIs)...");
+
+    // 1. Fetch data using multi-API logic
+    const result = await fetchTikTokData(q);
+
+    const { title, author, videoUrl, audioUrl, stats, cover, source } = result;
+
+    // 2. Send the Video File (Primary content)
+    if (videoUrl) {
+        const caption = `
+🎬 *TikTok Video Downloaded* (Source: ${source})
+----------------------------------------
+📌 *Judul:* ${title}
+👤 *Pembuat:* ${author}
+❤️ *Suka:* ${stats.digg_count?.toLocaleString() || 'N/A'}
+💬 *Komentar:* ${stats.comment_count?.toLocaleString() || 'N/A'}
+
+👨‍💻 *Creator Bot:* ${OWNER_NAME}`;
+
+        await conn.sendMessage(m.chat, {
+          video: { url: videoUrl },
+          caption: caption,
+          thumbnail: { url: cover || 'https://i.imgur.com/empty.png' }
+        }, { quoted: quotedMsg });
+    } else {
+        // If no video URL is found, we might only have audio info
+        await reply(`⚠️ Video link nahi mila, sirf audio nikaal rahe hain.`);
     }
 
-    await conn.sendMessage(from, { react: { text: "⏳", key: m.key } });
-
-    const apiUrl = `https://jawad-tech.vercel.app/download/tiktok?url=${encodeURIComponent(url)}`;
-    const { data } = await axios.get(apiUrl);
-
-    if (!data.status || !data.result || !data.result.length) {
-      return reply("❌ Video not found or unavailable.");
+    // 3. Send the Audio File (If available)
+    if (audioUrl) {
+      await conn.sendMessage(m.chat, {
+        audio: { url: audioUrl },
+        mimetype: "audio/mpeg",
+        ptt: false,
+        fileName: `${title.replace(/[^\w\s]/gi, '')}.mp3`,
+        caption: `🎵 Audio Extracted`,
+        contextInfo: {
+          externalAdReply: {
+            title: title,
+            body: author,
+            thumbnailUrl: cover,
+            sourceUrl: SGC_LINK,
+            mediaType: 1, // IMAGE/THUMBNAIL
+            renderLargerThumbnail: true
+          }
+        }
+      }, { quoted: quotedMsg });
+    }
+    
+    if (!videoUrl && !audioUrl) {
+        throw new Error("Koi bhi download link nahi mil paaya (Video/Audio).");
     }
 
-    const video = data.result[0]; // First available video link
-    const meta = data.metadata || {};
-    const author = meta.author || "Unknown";
-    const caption = meta.caption ? meta.caption.slice(0, 300) + "..." : "No caption provided.";
-
-    await conn.sendMessage(from, {
-      video: { url: video },
-      caption: `🎬 *TikTok Downloader*\n👤 *Author:* ${author}\n💬 *Caption:* ${caption}\n\n> Powered By DR KAMRAN 💜`
-    }, { quoted: mek });
-
-    await conn.sendMessage(from, { react: { text: "✅", key: m.key } });
+    await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
   } catch (err) {
-    console.error("TT4 Error:", err);
-    reply("❌ Failed to download TikTok video. Please try again later.");
-    await conn.sendMessage(from, { react: { text: "❌", key: m.key } });
+    console.error("❌ TikTok Downloader Error:", err);
+    
+    return conn.reply(
+      m.chat,
+      `❌ Gagal mendownload TikTok: ${err.message}\n\n_Kripya URL check karein ya thodi der baad koshish karein._`,
+      m
+    );
   }
-});
+};
 
-      
+// Handler properties adjusted to merge all aliases into one strong command
+cmd({
+    pattern: "tiktok",
+    alias: ["tt", "ttdl", "tiktokdl", "tt2", "tt3"],
+    help: ["tiktok <url>", "tt <url>"],
+    tags: ["downloader"],
+    command: ["tiktok", "tt", "ttdl", "tt2", "tt3", "tiktokdl"], 
+    desc: "Downloads video and audio from TikTok URL (Multi-API Fallback).",
+    category: "download",
+    limit: true,
+    filename: __filename
+}, handler);
+
+module.exports = handler;
