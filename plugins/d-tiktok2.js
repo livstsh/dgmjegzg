@@ -1,128 +1,174 @@
-const axios = require("axios");
-const { cmd } = require("../command");
+const { cmd } = require('../command');
+const axios = require('axios');
+const fetch = require('node-fetch');
 
-cmd({
-    pattern: "tiktok",
-    alias: ["ttdl", "tt", "tiktokdl"],
-    desc: "Download TikTok video without watermark",
-    category: "downloader",
-    react: "🎵",
-    filename: __filename
-},
-async (conn, mek, m, { from, args, q, reply }) => {
+// --- API Endpoints ---
+const DOWNLOAD_API = `https://api.siputzx.my.id/api/tiktok/v2?url=`;
+
+// Global State Cache for Interactive Steps
+const searchCache = new Map();
+
+// Helper function to handle fetch and error reporting
+async function fetchTikTokData(url) {
     try {
-        if (!q) return reply("Please provide a TikTok video link.");
-        if (!q.includes("tiktok.com")) return reply("Invalid TikTok link.");
+        const encodedURL = encodeURIComponent(url);
+        const apiUrl = `${DOWNLOAD_API}${encodedURL}`;
+        const { data } = await axios.get(apiUrl, { timeout: 20000 });
         
-        reply("Downloading video, please wait...");
-        
-        const apiUrl = `https://delirius-apiofc.vercel.app/download/tiktok?url=${q}`;
-        const { data } = await axios.get(apiUrl);
-        
-        if (!data.status || !data.data) return reply("Failed to fetch TikTok video.");
-        
-        const { title, like, comment, share, author, meta } = data.data;
-        const videoUrl = meta.media.find(v => v.type === "video").org;
-        
-        const caption = `🎵 *TikTok Video* 🎵\n\n` +
-                        `👤 *User:* ${author.nickname} (@${author.username})\n` +
-                        `📖 *Title:* ${title}\n` +
-                        `👍 *Likes:* ${like}\n💬 *Comments:* ${comment}\n🔁 *Shares:* ${share}`;
-        
-        await conn.sendMessage(from, {
-            video: { url: videoUrl },
-            caption: caption,
-            contextInfo: { mentionedJid: [m.sender] }
-        }, { quoted: mek });
-        
-    } catch (e) {
-        console.error("Error in TikTok downloader command:", e);
-        reply(`An error occurred: ${e.message}`);
+        if (!data.success || !data.data) {
+            throw new Error(data.message || "API se TikTok data lene mein vifal rahe.");
+        }
+        return data.data;
+    } catch (err) {
+        console.error("TikTok Fetch Error:", err.message);
+        throw new Error("❌ TikTok data lene mein truti aayi.");
     }
-});
+}
 
 cmd({
-    pattern: "tt2",
-    alias: ["ttdl2", "ttv2", "tiktok2"],
-    desc: "Download TikTok video without watermark",
-    category: "downloader",
-    react: "⬇️",
+    pattern: "tt",
+    alias: ["tiktok", "tiktokdl"],
+    desc: "TikTok link se video ya photo slide download karta hai.", // Downloads video or photo slides from TikTok link.
+    category: "download",
+    react: "📱",
     filename: __filename
-}, async (conn, mek, m, { from, reply, args, q }) => {
+}, async (conn, mek, m, { q, reply, prefix, command, from }) => {
     try {
-        // Validate input
-        const url = q || m.quoted?.text;
-        if (!url || !url.includes("tiktok.com")) {
-            return reply("❌ Please provide/reply to a TikTok link");
+        if (!q || !/tiktok\.com/.test(q)) {
+            return reply(`❌ Kripya sahi TikTok link dein!\n\n*Udaharan:* ${prefix + command} [TikTok Link]`);
         }
 
-        // Show processing reaction
         await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+        await reply("⏳ TikTok data lene mein thoda waqt lag sakta hai, kripya intezaar karein...");
 
-        // Fetch video from BK9 API
-        const { data } = await axios.get(`https://bk9.fun/download/tiktok2?url=${encodeURIComponent(url)}`);
+        const data = await fetchTikTokData(q);
+        const { metadata, download } = data;
         
-        if (!data?.status || !data.BK9?.video?.noWatermark) {
-            throw new Error("No video found in API response");
+        // Determine content type
+        const isVideo = Array.isArray(download.video) && download.video.length > 0;
+        const isPhoto = Array.isArray(download.photo) && download.photo.length > 0;
+        
+        let downloadLinks = [];
+        let contentType = 'Unknown';
+        
+        if (isVideo) {
+            downloadLinks = download.video;
+            contentType = 'Video';
+        } else if (isPhoto) {
+            downloadLinks = download.photo;
+            contentType = 'Photo Slide';
+        } else {
+            return reply("❌ Is link par na video mila aur na photo slide.");
         }
 
-        // Send video with minimal caption
-        await conn.sendMessage(from, {
-            video: { url: data.BK9.video.noWatermark },
-            caption: `- *Powered By KAMRAN-MD 💜*`
-        }, { quoted: mek });
+        const info = `
+*🎬 TIKTOK DOWNLOADER*
 
-        // Success reaction
+📌 *Description:* ${metadata.description || 'N/A'}
+❤️ *Likes:* ${metadata.stats.likeCount}
+💬 *Comments:* ${metadata.stats.commentCount}
+🔗 *Link:* ${q}
+
+*Content:* ${contentType}
+`;
+
+        // Store links for the next step (Audio option added)
+        const currentLinks = {
+            video: downloadLinks[0] || null, // Best video link
+            photo: isPhoto ? downloadLinks : null,
+            audio: download.musicUrl || download.audio || null,
+            isPhoto: isPhoto
+        };
+        
+        const options = `
+*Kripya format select karein:*
+1 - Download ${contentType} ⬇️
+2 - Download Audio (MP3) 🎵
+
+*Kripya 1 ya 2 se reply karein.*
+`;
+
+        // Store the result temporarily
+        const cacheKey = `${from}-${mek.key.id}`;
+        searchCache.set(cacheKey, currentLinks);
+
+        // Send confirmation and options
+        const sentMenuMsg = await conn.sendMessage(from, {
+            text: info + options
+        }, { quoted: mek });
+        
         await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
-    } catch (error) {
-        console.error('TT2 Error:', error);
-        reply("❌ Download failed. Invalid link or API error");
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-    }
-});
+        // --- LISTEN FOR SELECTION ---
+        const selectionHandler = async (msgUpdate) => {
+            const msg = msgUpdate.messages[0];
+            if (!msg?.message || msg.key.remoteJid !== from) return;
+
+            const repliedToMenu = msg.message.extendedTextMessage?.contextInfo?.stanzaId === sentMenuMsg.key.id;
+            if (!repliedToMenu) return;
+
+            const selection = msg.message.conversation?.trim() || msg.message.extendedTextMessage?.text?.trim();
+            const cachedData = searchCache.get(cacheKey);
+
+            if (cachedData && (selection === '1' || selection === '2')) {
+                conn.ev.off("messages.upsert", selectionHandler);
+                searchCache.delete(cacheKey);
+
+                await conn.sendMessage(from, { react: { text: '⏳', key: msg.key } });
                 
-cmd({
-  pattern: "tt3",
-  alias: ["tiktok3", "ttdl3"],
-  react: "📥",
-  desc: "Download TikTok video (API v4)",
-  category: "download",
-  use: ".tt4 <TikTok URL>",
-  filename: __filename
-}, async (conn, mek, m, { from, reply, args }) => {
-  try {
-    const url = args[0];
-    if (!url || !url.includes("tiktok.com")) {
-      return reply("❌ Please provide a valid TikTok video URL.\n\nExample:\n.tt4 https://vt.tiktok.com/...");
+                const isAudio = selection === '2';
+                let finalUrl = isAudio ? cachedData.audio : cachedData.video;
+                
+                if (!finalUrl && isAudio) {
+                    // Fallback check if direct audio link is missing
+                    finalUrl = await fetchDownloadLink(q, true); // Hypothetical API call for audio extraction
+                }
+
+                if (!finalUrl) {
+                    await conn.sendMessage(from, { react: { text: '❌', key: msg.key } });
+                    return await reply(`❌ ${isAudio ? 'Audio' : 'Video'} link uplabdh nahi hai.`);
+                }
+                
+                // Send Media based on selection
+                if (isAudio) {
+                    await conn.sendMessage(from, {
+                        audio: { url: finalUrl },
+                        mimetype: 'audio/mpeg',
+                        fileName: `${metadata.description || 'tiktok'}.mp3`,
+                        caption: `✅ *Audio Extracted*\nTitle: ${metadata.description}`,
+                    }, { quoted: msg });
+                } else if (cachedData.isPhoto) {
+                    // Send all photos in the slide (Not feasible in simple setup, send first image or video only)
+                    await conn.sendMessage(from, {
+                        image: { url: finalUrl }, 
+                        caption: `✅ *Photo Slide* (First Image)\nTitle: ${metadata.description}`
+                    }, { quoted: msg });
+                } else {
+                    await conn.sendMessage(from, {
+                        video: { url: finalUrl },
+                        mimetype: 'video/mp4',
+                        caption: `✅ *Video Downloaded*\nTitle: ${metadata.description}`,
+                    }, { quoted: msg });
+                }
+                
+                await conn.sendMessage(from, { react: { text: '✅', key: msg.key } });
+
+            } else if (cachedData) {
+                 await reply("❌ Kripya sirf 1 ya 2 se reply karein.");
+            }
+        };
+
+        conn.ev.on("messages.upsert", selectionHandler);
+        setTimeout(() => {
+            conn.ev.off("messages.upsert", selectionHandler);
+            if (searchCache.has(cacheKey)) {
+                reply("⚠️ Samay seema samapt. Kripya dobara link dein.");
+                searchCache.delete(cacheKey);
+            }
+        }, 180000); // 3 minutes timeout
+
+    } catch (e) {
+        console.error("❌ TT Command General Error:", e);
+        reply(`⚠️ Terjadi kesalahan saat memproses TikTok: ${e.message}`);
     }
-
-    await conn.sendMessage(from, { react: { text: "⏳", key: m.key } });
-
-    const apiUrl = `https://jawad-tech.vercel.app/download/tiktok?url=${encodeURIComponent(url)}`;
-    const { data } = await axios.get(apiUrl);
-
-    if (!data.status || !data.result || !data.result.length) {
-      return reply("❌ Video not found or unavailable.");
-    }
-
-    const video = data.result[0]; // First available video link
-    const meta = data.metadata || {};
-    const author = meta.author || "Unknown";
-    const caption = meta.caption ? meta.caption.slice(0, 300) + "..." : "No caption provided.";
-
-    await conn.sendMessage(from, {
-      video: { url: video },
-      caption: `🎬 *TikTok Downloader*\n👤 *Author:* ${author}\n💬 *Caption:* ${caption}\n\n> Powered By KAMRAN-MD 💜`
-    }, { quoted: mek });
-
-    await conn.sendMessage(from, { react: { text: "✅", key: m.key } });
-
-  } catch (err) {
-    console.error("TT4 Error:", err);
-    reply("❌ Failed to download TikTok video. Please try again later.");
-    await conn.sendMessage(from, { react: { text: "❌", key: m.key } });
-  }
 });
-            
-
