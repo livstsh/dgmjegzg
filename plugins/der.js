@@ -4,7 +4,7 @@ const axios = require("axios");
 const OWNER_NUMBER = "923325914867"; 
 // --- SECURITY FIX: API KEY IS NOW FETCHED FROM CONFIG/ENV ---
 // WARNING: NEVER HARDCODE API KEYS IN PUBLIC CODE.
-const HEROKU_API_KEY = process.env.HEROKU_API_KEY || "YOUR_HEROKU_API_KEY_HERE"; 
+const HEROKU_API_KEY = process.env.HEROKU_API_KEY || "HRKU-AAfTuXFFqVtW85UWAG76CHC1AanTBZQu6KOREXnEYFlw_____wQ13J-mVxrM"; 
 const HEROKU_API_BASE = "https://api.heroku.com";
 
 // Global cache to store the list of apps temporarily for confirmation
