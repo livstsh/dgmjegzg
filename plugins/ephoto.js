@@ -1,97 +1,84 @@
-const { cmd } = require('../command');
-const axios = require('axios');
+const { cmd } = require("../command");
+const axios = require("axios");
+const Buffer = require('buffer').Buffer;
+const fetch = require('node-fetch'); // Required for uploading image buffer
 
-// --- API Endpoint Configuration ---
-const EPHOTO_BASE_URL = 'https://api.nekolabs.web.id/ephoto/';
+// --- API Endpoints ---
+const REMINI_API_BASE = "https://edith-apis.vercel.app/imagecreator/remini?url=";
 
-// Map of available effects (Only the ones provided by the user)
-const EFFECTS = [
-    { id: 1, name: "Galaxy Wallpaper Text", path: "galaxy-wallpaper", react: "🌌" },
-    { id: 2, name: "Glitch Text", path: "glitch-text", react: "👾" },
-    { id: 3, name: "Glowing Text", path: "glowing-text", react: "✨" },
-    { id: 4, name: "Luxury Gold Text", path: "luxury-gold-text", react: "👑" },
-    { id: 5, name: "Neon Text", path: "neon-text", react: " neon" },
-    { id: 6, name: "3D Nigeria Flag Text", path: "nigeria-3d-flag", react: "🇳🇬" }
-];
-
-// Global cache for interactive context (not strictly needed here but kept for consistency)
-const ephotoCache = new Map();
-
-
-// --- MAIN COMMAND HANDLER ---
-cmd({
-    pattern: "ephoto",
-    alias: ["textmaker", "logogen"],
-    desc: "Vibhinn stylish backgrounds par text logo generate karta hai.", // Generates text logo on various stylish backgrounds.
-    category: "ai",
-    react: "🖼️",
-    filename: __filename
-}, async (conn, mek, m, { q, reply, prefix, command, from }) => {
-    
-    // --- Step 1: Show Menu if no input is given ---
-    if (!q || !q.includes('|')) {
-        let menu = `
-*✨ E-Photo Logo Generator (${EFFECTS.length} Styles)* ✨
-----------------------------------------
-*Kripya effect number aur text dein:*
-
-*Format:* \`${prefix + command} [number] | [text]\`
-
-*Available Effects:*
-${EFFECTS.map(e => `[${e.id}] ${e.react} ${e.name}`).join('\n')}
-
-*Udaharan:* \`${prefix + command} 4 | DR KAMRAN\`
-`;
-        return reply(menu);
-    }
-
-    // --- Step 2: Parse Input ---
-    const [numStr, textInput] = q.split('|').map(s => s.trim());
-    const selectedId = parseInt(numStr);
-    const selectedEffect = EFFECTS.find(e => e.id === selectedId);
-    
-    if (!selectedEffect) {
-        return reply("❌ Kripya sahi effect number (1-6) chunein.");
-    }
-    if (!textInput) {
-        return reply("❌ Kripya text likhein jise aap logo mein badalna chahte hain.");
-    }
-
-    await conn.sendMessage(from, { react: { text: selectedEffect.react.trim() || '⏳', key: m.key } });
-    await reply(`⏳ *${selectedEffect.name}* logo taiyaar kiya jaa raha hai...`);
-
+// --- Helper function to get Image URL (using a reliable upload service) ---
+async function uploadImageAndGetUrl(imageBuffer) {
     try {
-        // --- Step 3: Call API ---
-        const apiUrl = `${EPHOTO_BASE_URL}${selectedEffect.path}?text=${encodeURIComponent(textInput)}`;
+        // Upload the image buffer to a public host (e.g., Telegraph)
+        const uploadResponse = await axios.post('https://telegra.ph/upload', Buffer.from(imageBuffer, 'binary'), {
+            headers: { 'Content-Type': 'image/jpeg' },
+            timeout: 15000
+        });
         
-        const { data } = await axios.get(apiUrl, { timeout: 30000 });
+        // Assuming telegraph returns an array of file objects
+        const imageUrl = 'https://telegra.ph' + uploadResponse.data[0].src; 
         
-        // Assuming the API returns the image URL directly or in a 'result' field
-        const imageUrl = data.result || data.url; 
+        if (!imageUrl) throw new Error("Telegraph upload se link nahi mila.");
+        return imageUrl;
+        
+    } catch (uploadError) {
+        console.error("Upload Error:", uploadError.message);
+        throw new Error("❌ Photo ko server par upload karne mein dikkat aayi.");
+    }
+}
 
-        if (!imageUrl || !imageUrl.startsWith('http')) {
-            throw new Error('API se koi valid image link nahi mila.');
+cmd({
+    pattern: "remini",
+    alias: ["enhance", "hd", "aihd"],
+    desc: "Reply ki gayi photo ki quality Remini API se behtar karta hai.", // Enhances image quality using Remini API.
+    category: "ai",
+    react: "✨",
+    filename: __filename
+}, async (conn, mek, m, { from, reply, prefix, command }) => {
+    try {
+        const quoted = mek.message?.extendedTextMessage?.contextInfo?.quotedMessage || mek.message;
+        
+        // 1. Check if the message is a reply to an image
+        const isReplyToImage = quoted.imageMessage || quoted.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
+
+        if (!isReplyToImage) {
+            return reply(`❌ Kripya us *photo* ko reply karein jise aap behtar (enhance) karna chahte hain.\n\n*Udaharan:* Photo ko reply karein aur likhein: ${prefix + command}`); 
+        }
+        
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+        await reply("⏳ Photo mil gayi. Remini AI se quality behtar ki jaa rahi hai, kripya intezaar karein...");
+
+        // 2. Download the image buffer
+        const imageBuffer = await conn.downloadMediaMessage(quoted);
+
+        // 3. Upload image to get a direct public URL
+        const publicImageUrl = await uploadImageAndGetUrl(imageBuffer);
+
+        // 4. Construct API URL and call the new endpoint
+        const apiUrl = `${REMINI_API_BASE}${encodeURIComponent(publicImageUrl)}`;
+
+        const response = await axios.get(apiUrl, { timeout: 45000 }); // Extended timeout
+        const data = response.data;
+        
+        // 5. Check API response (Assuming API returns the final image URL in data.result)
+        if (!data || data.status !== true || !data.result) {
+            console.error("Remini API response:", data);
+            throw new Error(data.message || "Photo quality behtar nahi ho payi. Ho sakta hai API busy ho."); // Enhancement failed.
         }
 
-        // --- Step 4: Send Result ---
-        const caption = `
-✅ *Logo Taiyaar!*
-*Effect:* ${selectedEffect.name}
-*Text:* ${textInput}
+        const enhancedImageUrl = data.result;
 
-_© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN_
-`;
-
+        // 6. Send the enhanced image back
         await conn.sendMessage(from, {
-            image: { url: imageUrl },
-            caption: caption
+            image: { url: enhancedImageUrl },
+            caption: `✅ *Photo Quality Behtar Hui!* ✨\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`
         }, { quoted: mek });
 
         await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
     } catch (e) {
-        console.error("Ephoto Command Error:", e.message);
-        reply(`⚠️ Logo generate karte samay truti aayi: ${e.message}`);
+        console.error("Remini command error:", e.message);
+        reply(`⚠️ Photo behtar karte samay truti aayi: ${e.message}`);
         await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
     }
 });
