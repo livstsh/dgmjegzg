@@ -1,196 +1,175 @@
 const { cmd } = require('../command');
-const { promises } = require('fs');
-const { join } = require('path');
 const os = require('os');
-const fetch = require('node-fetch');
-const fs = require('fs');
-const config = require('../config');
+const { performance } = require('perf_hooks');
+const { exec } = require('child_process');
+const { promisify } = require('util');
 
-// --- CRITICAL FIX: Self-Contained Runtime Functions ---
-const startTime = new Date();
-const runtime = () => new Date() - startTime; 
+// --- CRITICAL FIX: Self-Contained Utility Functions ---
 
+// 1. Format Bytes
+const format = (bytes, decimals = 2) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
+
+// 2. Format Uptime (ClockString)
 function clockString(ms) {
-  let d = Math.floor(ms / 86400000);
-  let h = Math.floor(ms / 3600000) % 24;
-  let m = Math.floor(ms / 60000) % 60;
-  let s = Math.floor(ms / 1000) % 60;
+    if (isNaN(ms) || ms < 0) return "N/A";
+    const d = Math.floor(ms / 86400000);
+    const h = Math.floor(ms / 3600000) % 24;
+    const m = Math.floor(ms / 60000) % 60;
+    const s = Math.floor(ms / 1000) % 60;
+
+    const parts = [];
+    if (d > 0) parts.push(`${d} Days`);
+    if (h > 0) parts.push(`${h} Hours`);
+    if (m > 0) parts.push(`${m} Minutes`);
+    if (s > 0 && parts.length < 2) parts.push(`${s} Seconds`);
+
+    return parts.join(', ');
+}
+
+// 3. Simple Progress Bar
+const progressBar = (percentage, length = 15) => {
+    const filledLength = Math.round(length * (percentage / 100));
+    const emptyLength = length - filledLength;
+    const filled = "█".repeat(filledLength);
+    const empty = "░".repeat(emptyLength);
+    return `${filled}${empty} ${percentage.toFixed(1)}%`;
+};
+
+// 4. Design Elements (Simplified)
+const designElements = {
+  header: "╭────────────────────────────────────╮",
+  footer: "╰────────────────────────────────────╯",
+  diamond: "♦",
+  star: "★",
+  good: "🟢",
+  bullet: "•",
+};
+
+const execAsync = promisify(exec);
+
+
+// --- MAIN COMMAND HANDLER ---
+const handler = async (conn, mek, m, { reply, from }) => {
   
-  return [d, ' *Days ☀️*\n ', h, ' *Hours 🕐*\n ', m, ' *Minute ⏰*\n ', s, ' *Second ⏱️*'].map(v => v.toString().padStart(2, '0')).join('');
-}
+  const loadingMsg = await conn.reply(
+    m.chat,
+    `${designElements.star} *SYSTEM MONITOR LOADING* ${designElements.star}\nPlease wait...`
+  );
 
-function ucapan() {
-  const hour = new Date().getHours();
-  if (hour >= 4 && hour < 10) return "Pagi Lord 🌄";
-  if (hour >= 10 && hour < 15) return "Siang Lord ☀️";
-  if (hour >= 15 && hour < 18) return "Sore Lord 🌇";
-  if (hour >= 18 || hour < 4) return "Malam Lord 🌙";
-  return "Hai Kak";
-}
-// --- END LOCAL FUNCTIONS ---
+  const startTime = performance.now();
 
-// --- STYLING TAGS ---
-const llim = 'Ⓛ'; // Limit Tag
-const lprem = 'Ⓟ'; // Premium Tag
-const readMore = String.fromCharCode(8206).repeat(4001); // Read more functionality
+  try {
+    // --- 1. CORE BOT INFO & PING ---
+    const responseTime = Math.round(performance.now() - startTime);
+    const uptimeSec = os.uptime();
+    const muptime = clockString(uptimeSec * 1000); 
 
-// --- 1. Authentic Menu Structure ---
-const defaultMenu = {
-  before: `
-╭─────═[ INFO USER ]═─────⋆
-│╭───────────────···
-┴│☂︎ *Name:* %name
-⬡│☂︎ *Tag:* %tag
-⬡│☂︎ *Premium:* %prems
-⬡│☂︎ *Limit:* %limit
-┬│☂︎ *Total Xp:* %totalexp
-│╰────────────────···
-┠─────═[ TODAY ]═─────⋆
-│╭────────────────···
-┴│    *${ucapan()} %name!*
-⬡│☂︎ *Tanggal:* %week %date
-┬│☂︎ *Waktu:* %time
-│╰────────────────···
-┠─────═[ INFO BOT ]═─────⋆
-│╭────────────────···
-┴│☂︎ *Nama Bot:* %me
-⬡│☂︎ *Mode:* %mode
-⬡│☂︎ *Prefix:* [ *%_p* ]
-⬡│☂︎ *Platform:* %platform
-⬡│☂︎ *Uptime:* %muptime
-┬│☂︎ *Database:* %rtotalreg dari %totalreg
-│╰────────────────···
-╰──────────═┅═──────────
-
-⃝▣──「 *INFO CMD* 」───⬣
-│ *Ⓟ* = Premium
-│ *Ⓛ* = Limit
-▣────────────⬣
-%readmore
-`.trimStart(),
-  header: '⃝▣──「 %category 」───⬣',
-  body: '│○ %cmd %isPremium %islimit',
-  footer: '▣────────────⬣\n',
-  after: ``,
-}
+    const chats = Object.entries(conn.chats || {}).filter(([id, data]) => id && data.isChats);
+    const groupsIn = chats.filter(([id]) => id.endsWith("@g.us"));
+    const privateChats = chats.length - groupsIn.length;
+    
+    // --- 2. CPU USAGE (Calculated based on times) ---
+    // NOTE: This only works if the bot has been running long enough to compare usage.
+    const cpus = os.cpus();
+    const cpuModel = cpus[0].model.trim();
+    
+    // Simple estimation of load average (which Node.js provides directly)
+    const loadAvg = os.loadavg(); 
+    
+    // --- 3. MEMORY USAGE ---
+    const totalMemory = os.totalmem();
+    const freeMemory = os.freemem();
+    const usedMemory = totalMemory - freeMemory;
+    const memPercentage = (usedMemory / totalMemory) * 100;
+    
+    // --- 4. NODEJS USAGE ---
+    const usedMemoryProcess = process.memoryUsage();
+    const memoryUsageFormatted = Object.keys(usedMemoryProcess)
+      .map((key) => {
+        return `${key.padEnd(12, " ")}: ${format(usedMemoryProcess[key])}`;
+      })
+      .join("\n");
 
 
-let handler = async (conn, mek, m, { usedPrefix: _p, args, command, reply }) => {
-    
-    // --- 2. GATHER CORE INFO ---
-    const totalCommands = 352; 
-    const limit = 50; 
-    const totalexp = 5000; 
-    const totalreg = 500;
-    const rtotalreg = 200;
-    const premiumTime = 1; // SIMULATED
-    
-    const name = await conn.getName(m.sender);
-    const time = new Date().toLocaleTimeString('id', { hour: 'numeric', minute: 'numeric', second: 'numeric' });
-    const platform = os.platform();
-    const date = new Date().toLocaleDateString('id', { day: 'numeric', month: 'long', year: 'numeric' });
-    const week = new Date().toLocaleDateString('id', { weekday: 'long' });
-    
-    const _muptime = runtime(); 
-    const muptime = clockString(_muptime);
-    
-    const mode = global.opts?.['self'] ? 'Private' : 'Publik';
-    const prems = `${premiumTime > 0 ? 'Premium': 'Free'}`; // Displaying Premium status
-    const tag = `@${m.sender.split('@')[0]}`;
-    
-    // --- 3. DUMMY COMMANDS (To demonstrate P and L tags) ---
-    let tags = {
-      'downloader': 'Downloader',
-      'premium': 'Premium', 
-      'owner': 'Owner',
-      'main': 'Main',
-    }
-    let help = [ 
-        { help: ['tiktok <url>'], tags: ['downloader'], limit: true, premium: false },
-        { help: ['ytmp3 <url>'], tags: ['downloader'], limit: true, premium: false },
-        { help: ['buypremium'], tags: ['premium'], limit: false, premium: false }, 
-        { help: ['kick @user'], tags: ['group'], limit: true, premium: false },
-        { help: ['restart'], tags: ['owner'], limit: false, premium: true },
-        { help: ['ping'], tags: ['main'], limit: false, premium: false },
-    ];
-    let groups = {};
-    for (let tag in tags) {
-      groups[tag] = help.filter(menu => menu.tags && menu.tags.includes(tag));
-    }
-    
-    // --- 4. APPLY MENU TEMPLATE (Filling the placeholders) ---
-    
-    let _text = [
-      defaultMenu.before,
-      ...Object.keys(tags).map(tag => {
-        return defaultMenu.header.replace(/%category/g, tags[tag]) + '\n' + [
-          ...groups[tag].map(menu => {
-            return menu.help.map(help => {
-              // Apply P and L tags dynamically
-              return defaultMenu.body.replace(/%cmd/g, '%_p' + help)
-                .replace(/%islimit/g, menu.limit ? llim : '')
-                .replace(/%isPremium/g, menu.premium ? lprem : '')
-                .trim()
-            }).join('\n')
-          }),
-          defaultMenu.footer
-        ].join('\n')
-      }),
-      defaultMenu.after
-    ].join('\n')
-    
-    let text = _text; 
-    
-    let replace = {
-      '%': '%',
-      muptime: muptime,
-      me: conn.getName(conn.user.jid),
-      totalexp: totalexp,
-      limit: limit,
-      totalreg: totalreg,
-      rtotalreg: rtotalreg,
-      tag: tag,
-      name: name,
-      prems: prems,
-      platform: platform,
-      mode: mode, 
-      _p: _p || '.', 
-      date: date,
-      week: week, 
-      time: time,
-      readmore: readMore
-    }
-    
-    // Final text compilation
-    text = text.replace(new RegExp(`%(${Object.keys(replace).sort((a, b) => b.length - a.length).join`|`})`, 'g'), (_, name) => '' + replace[name])
-    
-    // --- 5. PREMIUM BUTTON HINT (Mimicking a button for Premium feature) ---
-    const premiumHint = `
-╭━━━━━━━━━━━━━━━━━━╮
-│ 🌟 *PREMIUM FEATURES*
-│ TYPE *.buypremium* TO ACTIVATE
-╰━━━━━━━━━━━━━━━━━━╯
+    // --- 5. TIME AND DATE (Simplified) ---
+    const date = new Date();
+    const timeString = date.toLocaleTimeString("en-US");
+    const dateString = date.toLocaleDateString("en-US");
+
+
+    // --- 6. CONSTRUCT FINAL MESSAGE ---
+    const responseMsg = `
+${designElements.header}
+${designElements.star} *SYSTEM MONITOR DASHBOARD* ${designElements.star}
+${designElements.footer}
+
+${designElements.diamond} *PERFORMANCE*
+${designElements.good} *Response Time:* ${responseTime}ms
+${designElements.good} *Uptime:* ${muptime}
+
+${designElements.diamond} *CHAT STATISTICS*
+${designElements.bullet} *Groups:* ${groupsIn.length}
+${designElements.bullet} *Private:* ${privateChats}
+${designElements.bullet} *Total:* ${chats.length}
+
+${designElements.header}
+
+${designElements.diamond} *SYSTEM RESOURCES*
+
+${designElements.good} *RAM Usage (Host):*
+${progressBar(memPercentage)}
+*Used:* ${format(usedMemory)} | *Free:* ${format(freeMemory)} | *Total:* ${format(totalMemory)}
+
+${designElements.good} *CPU Info:*
+*Model:* ${cpuModel}
+*Load Avg:* ${loadAvg.map(n => n.toFixed(2)).join(' | ')}
+*Cores:* ${cpus.length}
+
+${designElements.header}
+
+${designElements.diamond} *SYSTEM INFORMATION*
+${designElements.bullet} *Platform:* ${os.platform()}
+${designElements.bullet} *Hostname:* ${os.hostname()}
+${designElements.bullet} *OS Release:* ${os.release()}
+${designElements.bullet} *Time:* ${dateString} ${timeString}
+
+${designElements.diamond} *NODEJS MEMORY USAGE*
+\`\`\`
+${memoryUsageFormatted}
+\`\`\`
+
+${designElements.header}
+${designElements.star} *SYSTEM MONITOR COMPLETE* ${designElements.star}
+${designElements.footer}
 `;
-    
-    // --- 6. SEND FINAL MESSAGE (Most Stable Method) ---
-    
-    // Final response: Text Message + Premium Button Hint
-    const finalMessage = text.trim() + '\n\n' + premiumHint;
-    
-    // Final reliable send method: Pure text message
-    await conn.sendMessage(m.chat, { react: { text: '⭐', key: m.key } }); // Send initial react again
-    return conn.reply(m.chat, finalMessage);
-}
 
-// --- COMMAND WRAPPER ---
+    // Remove loading message and send final response
+    await conn.sendMessage(m.chat, { delete: loadingMsg.key });
+    return conn.reply(m.chat, responseMsg, m);
+    
+  } catch (error) {
+    console.error("System Monitor Handler Error:", error);
+    // Attempt to delete loading message if still exists
+    try { await conn.sendMessage(m.chat, { delete: loadingMsg.key }); } catch {} 
+    return conn.reply(m.chat, `❌ *Monitor Failed:* ${error.message}. Kripya dobara prayas karein.`);
+  }
+};
+
+// --- Command Wrapper ---
 cmd({
-    pattern: "menu9", // <--- Pattern is correctly set
-    alias: ['allmenu9', 'help9', '?'],
-    desc: "Show the interactive menu system.",
-    category: "main",
-    react: "⭐",
-    filename: __filename,
-    command: /^(menu|allmenu|help|\?)$/i // The regex is now redundant but kept for completeness
+    pattern: "sysinfo2",
+    alias: ["ping8", "speed7", "info6", "monitor", "status4"],
+    desc: "Displays advanced server information (Ping, RAM, CPU).",
+    category: "info",
+    react: "💻",
+    filename: __filename
 }, handler);
 
 module.exports = handler;
