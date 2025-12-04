@@ -10,8 +10,8 @@ const OWNER_NAME = config.OWNER_NAME || "DR KAMRAN";
 
 
 cmd({
-    pattern: "ping",
-    alias: ["speed", "pong", "ping2"],
+    pattern: "ping7",
+    alias: ["speed6", "pong3", "ping2"],
     desc: "Bot ki pratikriya samay (ping) ko check karta hai aur premium status dikhata hai.", // Checks bot response time and shows premium status.
     category: "main",
     react: "⚡",
