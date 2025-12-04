@@ -16,7 +16,7 @@ function clockString(ms) {
   let m = Math.floor(ms / 60000) % 60;
   let s = Math.floor(ms / 1000) % 60;
   
-  return [d, ' *Days ☀️*\n ', h, ' *Hours 🕐*\n ', m, ' *Minute ⏰*\n ', s, ' *Second ⏱️*'].map(v => v.toString().padStart(2, '0')).join('');
+  return [d, ' *Days ☀️*\n ', h, ' *Hours 🕐*\n ', m, ' *Minute ⏰*\n ', s, ' *Second ⏱️*'].map(v => v.toString().padStart(2, 0)).join('');
 }
 
 function ucapan() {
@@ -33,8 +33,8 @@ function ucapan() {
 const MENU_AUDIO_URL = 'https://files.catbox.moe/ufq5ub.mp3';
 
 // --- STYLING TAGS ---
-const llim = 'Ⓛ';
-const lprem = 'Ⓟ';
+const llim = 'Ⓛ'; // Limit Tag
+const lprem = 'Ⓟ'; // Premium Tag
 const readMore = String.fromCharCode(8206).repeat(4001); // Read more functionality
 
 // --- 1. Authentic Menu Structure (Restored from your code with clean Unicode) ---
@@ -80,13 +80,13 @@ const defaultMenu = {
 
 let handler = async (conn, mek, m, { usedPrefix: _p, args, command, reply }) => {
     
-    // --- 2. GATHER CORE INFO (Using dummy data for missing database features) ---
+    // --- 2. GATHER CORE INFO (Simulated Premium Status for demonstration) ---
     const totalCommands = 352; 
-    const limit = 50; // Dummy limit
-    const totalexp = 5000; // Dummy exp
+    const limit = 50; 
+    const totalexp = 5000; 
     const totalreg = 500;
     const rtotalreg = 200;
-    const premiumTime = 0; // Set to 0 for Free
+    const premiumTime = 1; // SIMULATED: Setting premium time > 0
     
     const name = await conn.getName(m.sender);
     const time = new Date().toLocaleTimeString('id', { hour: 'numeric', minute: 'numeric', second: 'numeric' });
@@ -98,20 +98,22 @@ let handler = async (conn, mek, m, { usedPrefix: _p, args, command, reply }) => 
     const muptime = clockString(_muptime);
     
     const mode = global.opts?.['self'] ? 'Private' : 'Publik';
-    const prems = `${premiumTime > 0 ? 'Premium': 'Free'}`;
+    const prems = `${premiumTime > 0 ? 'Premium': 'Free'}`; // Displaying Premium status
     const tag = `@${m.sender.split('@')[0]}`;
     
     // --- 3. DUMMY COMMANDS (To demonstrate P and L tags) ---
     let tags = {
       'downloader': 'Downloader',
+      'premium': 'Premium', // Added dedicated Premium category
       'owner': 'Owner',
       'main': 'Main',
     }
     let help = [ 
         { help: ['tiktok <url>'], tags: ['downloader'], limit: true, premium: false },
         { help: ['ytmp3 <url>'], tags: ['downloader'], limit: true, premium: false },
+        { help: ['buypremium'], tags: ['premium'], limit: false, premium: false }, // Command to buy premium
         { help: ['kick @user'], tags: ['group'], limit: true, premium: false },
-        { help: ['restart'], tags: ['owner'], limit: false, premium: true },
+        { help: ['restart'], tags: ['owner'], limit: false, premium: true }, // Premium required
         { help: ['ping'], tags: ['main'], limit: false, premium: false },
     ];
     let groups = {};
@@ -165,7 +167,15 @@ let handler = async (conn, mek, m, { usedPrefix: _p, args, command, reply }) => 
     // Final text compilation
     text = text.replace(new RegExp(`%(${Object.keys(replace).sort((a, b) => b.length - a.length).join`|`})`, 'g'), (_, name) => '' + replace[name])
     
-    // --- 5. SEND FINAL MESSAGE (Most Stable Method) ---
+    // --- 5. PREMIUM BUTTON HINT (Mimicking a button for Premium feature) ---
+    const premiumHint = `
+╭━━━━━━━━━━━━━━━━━━╮
+│ 🌟 *PREMIUM FEATURES*
+│ TYPE *.buypremium* TO ACTIVATE
+╰━━━━━━━━━━━━━━━━━━╯
+`;
+    
+    // --- 6. SEND FINAL MESSAGE (Most Stable Method) ---
     
     // FAKE TROLLEY (Aesthetic Quoted Message)
     const ftrol = {
@@ -201,9 +211,11 @@ let handler = async (conn, mek, m, { usedPrefix: _p, args, command, reply }) => 
         console.error('Menu Audio send failed:', audioError);
     }
     
-    // Final response: Text Message (Most reliable send method)
-    // We quote the aesthetic message (ftrol) and send the menu text.
-    return conn.reply(m.chat, text.trim(), ftrol, { contextInfo: { mentionedJid: [m.sender] } });
+    // Final response: Text Message + Premium Button Hint
+    const finalMessage = text.trim() + '\n\n' + premiumHint;
+    
+    // Final reliable send method: Text Message with aesthetic quote
+    return conn.reply(m.chat, finalMessage, ftrol, { contextInfo: { mentionedJid: [m.sender] } });
 }
 
 // --- COMMAND WRAPPER ---
