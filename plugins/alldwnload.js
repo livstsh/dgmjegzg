@@ -1,27 +1,37 @@
 const { cmd } = require('../command');
 const axios = require('axios');
 const Buffer = require('buffer').Buffer;
-const fetch = require('node-fetch'); // Assuming node-fetch is available
+const fetch = require('node-fetch'); 
+const FormData = require('form-data'); // Required for Catbox upload
 
 // --- API Endpoint ---
 const HDR_API = "https://hookrestapi.vercel.app/tools/hdr?url=";
 
 
-// --- Helper function to upload image to Telegraph (Public Host) ---
-async function uploadImageToTelegraph(imageBuffer) {
+// --- Helper function to upload image to Catbox (Public Host) ---
+async function uploadImageToPublicHost(imageBuffer) {
     try {
-        const uploadResponse = await axios.post('https://telegra.ph/upload', Buffer.from(imageBuffer, 'binary'), {
-            headers: { 'Content-Type': 'image/jpeg' },
-            timeout: 15000
-        });
+        const form = new FormData();
+        form.append('reqtype', 'fileupload');
+        form.append('fileToUpload', imageBuffer, 'image.jpg'); // Upload buffer as a file
+
+        const response = await axios.post(
+            'https://catbox.moe/user/api.php', 
+            form, 
+            {
+                headers: form.getHeaders(),
+                timeout: 20000 
+            }
+        );
         
-        // Assuming telegraph returns an array of file objects
-        if (uploadResponse.data && uploadResponse.data[0] && uploadResponse.data[0].src) {
-             return 'https://telegra.ph' + uploadResponse.data[0].src; 
-        }
-        throw new Error("Telegraph upload se link nahi mila.");
+        const url = response.data.trim();
+
+        if (!url.startsWith('http')) throw new Error(`Catbox se sahi link nahi mila: ${url.substring(0, 50)}`);
+        
+        return url;
     } catch (uploadError) {
-        throw new Error("❌ Photo ko server par upload karne mein dikkat aayi.");
+        console.error("Catbox Upload Error:", uploadError.message);
+        throw new Error("❌ Photo ko Catbox par upload karne mein vifal rahe.");
     }
 }
 
@@ -37,13 +47,13 @@ let handler = async (conn, mek, m, { q, reply, usedPrefix, command }) => {
             return reply(`❌ Kripya photo ko reply karein ya photo ke saath command use karein:\n\n*Udaharan:* Reply photo se ya link bhejkar \`${usedPrefix + command}\``);
 
         await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
-        await reply("⏳ Photo ko HDR quality mein badla jaa raha hai...");
+        await reply("⏳ Photo ko HDR quality mein badla jaa raha hai (Host: Catbox)...");
 
         // 1. Download the image buffer
         let imageBuffer = await conn.downloadMediaMessage(quoted);
 
-        // 2. Upload to Telegraph to get a public URL
-        let publicImageUrl = await uploadImageToTelegraph(imageBuffer);
+        // 2. Upload to Catbox to get a public URL
+        let publicImageUrl = await uploadImageToPublicHost(imageBuffer);
         
         // 3. Request HDR API
         let api = `${HDR_API}${encodeURIComponent(publicImageUrl)}`;
