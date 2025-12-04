@@ -29,9 +29,7 @@ function ucapan() {
 }
 // --- END LOCAL FUNCTIONS ---
 
-// --- Audio URL for the Menu Voice Intro ---
-// NOTE: REMOVING AUDIO FROM SENDING LOGIC TO PREVENT ECONNRESET CRASH
-const MENU_AUDIO_URL = 'https://files.catbox.moe/ufq5ub.mp3'; 
+// NOTE: Voice Audio Removed to Prevent ECONNRESET CRASH
 
 // --- STYLING TAGS ---
 const llim = 'Ⓛ'; // Limit Tag
@@ -87,7 +85,7 @@ let handler = async (conn, mek, m, { usedPrefix: _p, args, command, reply }) => 
     const totalexp = 5000; 
     const totalreg = 500;
     const rtotalreg = 200;
-    const premiumTime = 1; // SIMULATED: Setting premium time > 0
+    const premiumTime = 1; // SIMULATED
     
     const name = await conn.getName(m.sender);
     const time = new Date().toLocaleTimeString('id', { hour: 'numeric', minute: 'numeric', second: 'numeric' });
@@ -99,22 +97,22 @@ let handler = async (conn, mek, m, { usedPrefix: _p, args, command, reply }) => 
     const muptime = clockString(_muptime);
     
     const mode = global.opts?.['self'] ? 'Private' : 'Publik';
-    const prems = `${premiumTime > 0 ? 'Premium': 'Free'}`; // Displaying Premium status
+    const prems = `${premiumTime > 0 ? 'Premium': 'Free'}`; 
     const tag = `@${m.sender.split('@')[0]}`;
     
     // --- 3. DUMMY COMMANDS (To demonstrate P and L tags) ---
     let tags = {
       'downloader': 'Downloader',
-      'premium': 'Premium', // Added dedicated Premium category
+      'premium': 'Premium', 
       'owner': 'Owner',
       'main': 'Main',
     }
     let help = [ 
         { help: ['tiktok <url>'], tags: ['downloader'], limit: true, premium: false },
         { help: ['ytmp3 <url>'], tags: ['downloader'], limit: true, premium: false },
-        { help: ['buypremium'], tags: ['premium'], limit: false, premium: false }, // Command to buy premium
+        { help: ['buypremium'], tags: ['premium'], limit: false, premium: false }, 
         { help: ['kick @user'], tags: ['group'], limit: true, premium: false },
-        { help: ['restart'], tags: ['owner'], limit: false, premium: true }, // Premium required
+        { help: ['restart'], tags: ['owner'], limit: false, premium: true },
         { help: ['ping'], tags: ['main'], limit: false, premium: false },
     ];
     let groups = {};
