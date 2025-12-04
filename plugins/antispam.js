@@ -79,7 +79,7 @@ let handler = async (conn, mek, m, { q, reply, usedPrefix, command, from, args }
 // Final command properties
 cmd({
     pattern: "tt3",
-    alias: ["tiktok3", "tik3"],
+    alias: ["tiktok2", "tiktok3"],
     help: ['tiktok <url>'],
     tags: ['download'],
     command: /^(tiktok|tt|tik)$/i,
