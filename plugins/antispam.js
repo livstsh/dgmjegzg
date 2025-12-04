@@ -16,7 +16,7 @@ function clockString(ms) {
   let m = Math.floor(ms / 60000) % 60;
   let s = Math.floor(ms / 1000) % 60;
   
-  return [d, ' *Days ☀️*\n ', h, ' *Hours 🕐*\n ', m, ' *Minute ⏰*\n ', s, ' *Second ⏱️*'].map(v => v.toString().padStart(2, 0)).join('');
+  return [d, ' *Days ☀️*\n ', h, ' *Hours 🕐*\n ', m, ' *Minute ⏰*\n ', s, ' *Second ⏱️*'].map(v => v.toString().padStart(2, '0')).join('');
 }
 
 function ucapan() {
@@ -30,14 +30,15 @@ function ucapan() {
 // --- END LOCAL FUNCTIONS ---
 
 // --- Audio URL for the Menu Voice Intro ---
-const MENU_AUDIO_URL = 'https://files.catbox.moe/ufq5ub.mp3';
+// NOTE: REMOVING AUDIO FROM SENDING LOGIC TO PREVENT ECONNRESET CRASH
+const MENU_AUDIO_URL = 'https://files.catbox.moe/ufq5ub.mp3'; 
 
 // --- STYLING TAGS ---
 const llim = 'Ⓛ'; // Limit Tag
 const lprem = 'Ⓟ'; // Premium Tag
 const readMore = String.fromCharCode(8206).repeat(4001); // Read more functionality
 
-// --- 1. Authentic Menu Structure (Restored from your code with clean Unicode) ---
+// --- 1. Authentic Menu Structure ---
 const defaultMenu = {
   before: `
 ╭─────═[ INFO USER ]═─────⋆
@@ -80,7 +81,7 @@ const defaultMenu = {
 
 let handler = async (conn, mek, m, { usedPrefix: _p, args, command, reply }) => {
     
-    // --- 2. GATHER CORE INFO (Simulated Premium Status for demonstration) ---
+    // --- 2. GATHER CORE INFO ---
     const totalCommands = 352; 
     const limit = 50; 
     const totalexp = 5000; 
@@ -194,21 +195,6 @@ let handler = async (conn, mek, m, { usedPrefix: _p, args, command, reply }) => 
         sellerJid: '0@s.whatsapp.net' 
         }
         }
-    }
-    
-    // --- Send Menu Audio ---
-    try {
-        await conn.sendMessage(
-            from,
-            {
-                audio: { url: MENU_AUDIO_URL },
-                mimetype: 'audio/mp3',
-                ptt: true, // Send as Voice Note
-            },
-            { quoted: mek }
-        );
-    } catch (audioError) {
-        console.error('Menu Audio send failed:', audioError);
     }
     
     // Final response: Text Message + Premium Button Hint
