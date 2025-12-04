@@ -16,7 +16,7 @@ function clockString(ms) {
   let m = Math.floor(ms / 60000) % 60;
   let s = Math.floor(ms / 1000) % 60;
   
-  return [d, ' *Days ☀️*\n ', h, ' *Hours 🕐*\n ', m, ' *Minute ⏰*\n ', s, ' *Second ⏱️*'].map(v => v.toString().padStart(2, 0)).join('');
+  return [d, ' *Days ☀️*\n ', h, ' *Hours 🕐*\n ', m, ' *Minute ⏰*\n ', s, ' *Second ⏱️*'].map(v => v.toString().padStart(2, '0')).join('');
 }
 
 function ucapan() {
@@ -202,13 +202,14 @@ let handler = async (conn, mek, m, { usedPrefix: _p, args, command, reply }) => 
     }
     
     // Final response: Text Message (Most reliable send method)
+    // We quote the aesthetic message (ftrol) and send the menu text.
     return conn.reply(m.chat, text.trim(), ftrol, { contextInfo: { mentionedJid: [m.sender] } });
 }
 
 // --- COMMAND WRAPPER ---
 cmd({
-    pattern: "menu9", // <--- FIX: Pattern added here
-    alias: ['allmenu9', 'helpt', '?'],
+    pattern: "menu9", // <--- Pattern is correctly set
+    alias: ['allmenu9', 'help9', '?'],
     desc: "Show the interactive menu system.",
     category: "main",
     react: "⭐",
