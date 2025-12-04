@@ -36,21 +36,27 @@ cmd({
     filename: __filename
 }, async (conn, mek, m, { from, reply, prefix, command }) => {
     try {
+        // Get the quoted message object (most reliable object for media download)
         const quoted = mek.message?.extendedTextMessage?.contextInfo?.quotedMessage || mek.message;
         
-        // 1. Check if the message is a reply to an image
-        const isReplyToImage = quoted.imageMessage || quoted.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
+        // Check if the quoted message contains an image
+        const quotedImageMessage = quoted?.imageMessage || quoted?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
 
-        if (!isReplyToImage) {
-            return reply(`❌ Kripya us *photo* ko reply karein jise aap behtar (enhance) karna chahte hain.\n\n*Udaharan:* Photo ko reply karein aur likhein: ${prefix + command}`); 
+        if (!quotedImageMessage) {
+            return reply(`❌ Kripya us *photo* ko reply karein jise aap behtar (enhance) karna chahte hain.`); 
         }
         
         await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
         await reply("⏳ Photo mil gayi. Remini AI se quality behtar ki jaa rahi hai, kripya intezaar karein...");
 
-        // 2. Download the image buffer
-        const imageBuffer = await conn.downloadMediaMessage(quoted);
+        // 2. Download the image buffer using the specific message object that contains the media key
+        // We use the entire quoted message object as the parameter for download
+        const imageBuffer = await conn.downloadMediaMessage(quotedImageMessage);
 
+        if (!imageBuffer || imageBuffer.length === 0) {
+             throw new Error("Download kiya gaya buffer empty hai. Media key galat hai.");
+        }
+        
         // 3. Upload image to get a direct public URL
         const publicImageUrl = await uploadImageAndGetUrl(imageBuffer);
 
@@ -60,7 +66,7 @@ cmd({
         const response = await axios.get(apiUrl, { timeout: 45000 }); // Extended timeout
         const data = response.data;
         
-        // 5. Check API response (Assuming API returns the final image URL in data.result)
+        // 5. Check API response
         if (!data || data.status !== true || !data.result) {
             console.error("Remini API response:", data);
             throw new Error(data.message || "Photo quality behtar nahi ho payi. Ho sakta hai API busy ho."); // Enhancement failed.
@@ -77,8 +83,13 @@ cmd({
         await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
     } catch (e) {
+        // Specific check for the 'media key' error
+        if (e.message.includes('media key')) {
+            reply(`⚠️ Photo behtar karte samay truti aayi: Download mein dikkat. Kripya nischit karein ki aap *seedhi photo* (forwarded nahi) ko reply kar rahe hain.`);
+        } else {
+            reply(`⚠️ Photo behtar karte samay truti aayi: ${e.message}`);
+        }
         console.error("Remini command error:", e.message);
-        reply(`⚠️ Photo behtar karte samay truti aayi: ${e.message}`);
         await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
     }
 });
