@@ -1,82 +1,81 @@
-const axios = require("axios");
-const { cmd } = require("../command");
+const { cmd } = require('../command');
+const axios = require('axios');
+const Buffer = require('buffer').Buffer;
+const fetch = require('node-fetch'); // Assuming node-fetch is available
 
-// The base URL for the multi-platform downloader API
-const API_BASE_URL = "https://jawad-tech.vercel.app/downloader";
+// --- API Endpoint ---
+const HDR_API = "https://hookrestapi.vercel.app/tools/hdr?url=";
 
-cmd({
-    pattern: "alldown",
-    alias: ["dl", "getmedia", "getvid"],
-    react: "⬇️",
-    desc: "Downloads videos/media from various platforms (FB, IG, TikTok, X, etc.) using the URL.",
-    category: "downloader",
-    filename: __filename
-}, async (conn, m, store, { from, quoted, args, q, reply }) => {
+
+// --- Helper function to upload image to Telegraph (Public Host) ---
+async function uploadImageToTelegraph(imageBuffer) {
     try {
-        const videoUrl = args[0]; // Assuming the user provides the URL as the first argument
+        const uploadResponse = await axios.post('https://telegra.ph/upload', Buffer.from(imageBuffer, 'binary'), {
+            headers: { 'Content-Type': 'image/jpeg' },
+            timeout: 15000
+        });
         
-        if (!videoUrl) {
-            return reply("❎ Kripya video download karne ke liye URL dein!\n\n*Example:* .download https://www.instagram.com/p/ExamplePost");
+        // Assuming telegraph returns an array of file objects
+        if (uploadResponse.data && uploadResponse.data[0] && uploadResponse.data[0].src) {
+             return 'https://telegra.ph' + uploadResponse.data[0].src; 
         }
-
-        // Basic URL validation (can be more robust)
-        if (!videoUrl.startsWith('http')) {
-            return reply("❌ Invalid URL. Kripya ek poora aur sahi URL dein (jo 'http' ya 'https' se shuru ho).");
-        }
-
-        await reply("⬇️ Video download ki jaa rahi hai, kripya intezaar karein...");
-
-        // 1. Construct the full API URL with the encoded target URL
-        // Assuming the API expects the video URL in a query parameter named 'url'
-        const apiUrl = `${API_BASE_URL}?url=${encodeURIComponent(videoUrl)}`;
-
-        // 2. Make the API request
-        const response = await axios.get(apiUrl);
-        const data = response.data;
-        
-        // --- DEBUGGING: API Response ko check karne ke liye log karein ---
-        console.log("--- Downloader API Response (For Debugging) ---");
-        console.log("Full Data Structure:", data);
-        console.log("------------------------------------------");
-        // -----------------------------------------------------------------
-
-        // 3. Process the response
-        // Assuming the API returns a status and an array of downloadable links in data.data
-        if (!data.status || !data.data || data.data.length === 0) {
-             console.error("API returned status false or empty data array.");
-            return reply("❌ Download karne mein error aaya ya is URL ke liye koi media nahi mila. Kripya doosra URL try karein.");
-        }
-
-        // We choose the best quality/first available link (assuming it's video)
-        // The API might return multiple qualities; we'll pick the first one.
-        const downloadItem = data.data[0];
-        const mediaUrl = downloadItem.url || downloadItem.link;
-        const mediaType = downloadItem.type || 'video/mp4'; // Default to video/mp4
-
-        if (!mediaUrl) {
-            return reply("❌ Download link API response mein nahi mila.");
-        }
-        
-        // 4. Send the media as a document/video
-        // We use document for flexibility, but video for direct display.
-        await conn.sendMessage(
-            from,
-            {
-                document: { url: mediaUrl },
-                mimetype: mediaType,
-                fileName: `downloaded_media_${Date.now()}.${mediaType.split('/')[1] || 'mp4'}`,
-                caption: `✅ *Download Successful!* Platform: ${downloadItem.platform || 'Unknown'}
-Quality: ${downloadItem.quality || 'N/A'}`
-            },
-            { quoted: m }
-        );
-        
-    } catch (error) {
-        console.error("❌ Error in download command:", error);
-        if (error.response) {
-            reply(`⚠️ API se data fetch karte samay error aaya. Status: ${error.response.status}`);
-        } else {
-            reply("⚠️ An error occurred while processing the download command.");
-        }
+        throw new Error("Telegraph upload se link nahi mila.");
+    } catch (uploadError) {
+        throw new Error("❌ Photo ko server par upload karne mein dikkat aayi.");
     }
-});
+}
+
+
+// --- MAIN COMMAND HANDLER ---
+let handler = async (conn, mek, m, { q, reply, usedPrefix, command }) => {
+    try {
+        // Use m.quoted for robust handling
+        let quoted = m.quoted ? m.quoted : m; 
+        let mime = (quoted.msg || quoted).mimetype || '';
+
+        if (!/image/.test(mime))
+            return reply(`❌ Kripya photo ko reply karein ya photo ke saath command use karein:\n\n*Udaharan:* Reply photo se ya link bhejkar \`${usedPrefix + command}\``);
+
+        await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+        await reply("⏳ Photo ko HDR quality mein badla jaa raha hai...");
+
+        // 1. Download the image buffer
+        let imageBuffer = await conn.downloadMediaMessage(quoted);
+
+        // 2. Upload to Telegraph to get a public URL
+        let publicImageUrl = await uploadImageToTelegraph(imageBuffer);
+        
+        // 3. Request HDR API
+        let api = `${HDR_API}${encodeURIComponent(publicImageUrl)}`;
+        
+        let hasil = await axios.get(api, { responseType: "arraybuffer", timeout: 30000 });
+
+        if (!hasil.data || hasil.data.byteLength === 0) {
+            throw new Error("API ne koi sahi photo wapas nahi ki.");
+        }
+
+        // 4. Kirim hasil HDR
+        return conn.sendMessage(m.chat, {
+            image: Buffer.from(hasil.data),
+            caption: "*✅ HDR Image Taiyaar!*"
+        }, { quoted: m });
+
+    } catch (e) {
+        console.error("HDR Command Error:", e);
+        let errorMsg = e.message.includes('upload') ? e.message : '❌ Gagal memproses gambar. Link ya format check karein.';
+        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+        await reply(errorMsg);
+    }
+};
+
+// --- Command Wrapper ---
+cmd({
+    pattern: "hdr",
+    alias: ["hd", "enhance"],
+    desc: "Photo ki quality ko HDR (High Dynamic Range) mein badalta hai.",
+    category: "tools",
+    react: "🖼️",
+    filename: __filename
+}, handler);
+
+module.exports = handler;
