@@ -1,82 +1,90 @@
-const { cmd } = require("../command");
-const config = require('../config');
+const { cmd } = require('../command');
+const axios = require('axios');
+const Buffer = require('buffer').Buffer;
+// const { toPTT } = require('../function/converter.js'); // NOTE: Removed unsupported external function
+// Global config is assumed to be available
+const config = require('../config'); 
 
-// --- SIMULATED DATA ---
-const isUserPremium = (sender) => {
-    // Simulating true for demonstration.
-    return true; 
-};
-const OWNER_NAME = config.OWNER_NAME || "DR KAMRAN";
+// --- API Endpoints ---
+const DOWNLOAD_API = `https://www.restwave.my.id/download/tiktok?url=`; // User's requested API
 
+let handler = async (conn, mek, m, { q, reply, usedPrefix, command, from, args }) => {
+    
+    const url = args[0] || q; // Get URL from q or args[0]
 
-cmd({
-    pattern: "ping7",
-    alias: ["speed6", "pong3", "ping2"],
-    desc: "Bot ki pratikriya samay (ping) ko check karta hai aur premium status dikhata hai.", // Checks bot response time and shows premium status.
-    category: "main",
-    react: "⚡",
-    filename: __filename
-},
-async (conn, mek, m, { from, sender, reply, usedPrefix }) => {
+    if (!url || !url.match(/tiktok\.com|vt\.tiktok/)) 
+        return reply(`❌ Kripya TikTok link dein!\n\n*Udaharan:* ${usedPrefix + command} https://vt.tiktok.com/ZS8abc123/`);
+
+    await conn.sendMessage(from, { react: { text: "⏱️", key: m.key } });
+    await reply('⏳ Video aur Audio data laaya jaa raha hai...');
+
     try {
-        // 1. Initial State and Premium Check
-        const premiumStatus = isUserPremium(sender) ? '👑 PREMIUM' : '👤 FREE USER';
-        const reactEmoji = premiumStatus === '👑 PREMIUM' ? '🔥' : '⚡';
-        
-        await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
+        // 1. Fetch data from the API
+        const { data } = await axios.get(`https://www.restwave.my.id/download/tiktok?url=${encodeURIComponent(url)}`, { timeout: 25000 });
 
-        // 2. Latency Measurement (Measuring the time it takes to send a message and receive confirmation)
-        const startTime = Date.now();
-        const message = await conn.sendMessage(from, { text: `*PINGING...*` }, { quoted: mek });
-        const endTime = Date.now();
-        
-        const ping = endTime - startTime; // This is the network latency to send/receive a single message.
+        if (!data.status || !data.result) throw new Error('API ERROR: Link invalid hai ya server error.');
 
-        // 3. Status and Indicator
-        let speedText;
-        if (ping < 100) {
-            speedText = '🚀 Excellent Speed';
-        } else if (ping < 300) {
-            speedText = '👍 Good Speed';
+        const res = data.result.data || data.result;
+
+        const videoUrl = res.hdplay || res.wmplay || res.play || res.video;
+        const musicUrl = res.music;
+
+        const caption = `
+*🎬 TIKTOK DOWNLOADED*
+----------------------------------------
+ᴜsᴇʀ : ${res.author?.nickname || 'N/A'} (@${res.author?.unique_id || 'N/A'})
+ᴊᴜᴅᴜʟ : ${res.title?.trim() || 'No Title'}
+❤️ : ${Number(res.digg_count).toLocaleString('en-US') || 0}
+💬 : ${Number(res.comment_count).toLocaleString('en-US') || 0}
+🔗 : ${url}
+`;
+        
+        // --- 2. Send Video ---
+        if (videoUrl) {
+            await conn.sendMessage(m.chat, {
+                video: { url: videoUrl },
+                caption: caption,
+                mimetype: 'video/mp4',
+                fileName: `tiktok_${res.author?.unique_id}.mp4`
+            }, { quoted: mek });
         } else {
-            speedText = '🐌 Average Speed';
+            await reply('⚠️ Video link uplabdh nahi hai.');
         }
 
-        // 4. Final Boxed Output (Mimicking the Button aesthetic)
-        const finalMessage = `
-┌───────────────┐
-│ ${reactEmoji} *KAMRAN MD PING REPORT*
-└───────────────┘
-╔═════════════════════╗
-║ 🟢 *Status:* ${speedText}
-║ ⚡ *Latency:* ${ping} ms
-║ 👑 *User Type:* ${premiumStatus}
-╚═════════════════════╝
+        // --- 3. Send Audio (Standard MP3, as PTT converter is removed) ---
+        if (musicUrl) {
+            const audioBuffer = (await axios.get(musicUrl, { responseType: 'arraybuffer' })).data;
 
-*आगे बढ़ने के लिए बटन टाइप करें:*
+            await conn.sendMessage(m.chat, {
+                audio: Buffer.from(audioBuffer),
+                mimetype: 'audio/mpeg',
+                // PTT (Voice Note) removed for stability. Sending as standard audio.
+                ptt: false, 
+                fileName: `music_${res.author?.unique_id}.mp3`,
+                caption: '🎵 Audio Extracted'
+            }, { quoted: mek });
+        } else {
+             await reply('⚠️ Audio link bhi uplabdh nahi hai.');
+        }
 
-┌───────────────┐
-│ ⚡ TYPE *${usedPrefix}PING* (Re-check)
-└───────────────┘
-┌───────────────┐
-│ 🏠 TYPE *${usedPrefix}MENU* (Main Menu)
-└───────────────┘
-
-*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${OWNER_NAME}*
-`;
-
-        // Send the final result, quoting the initial 'PINGING...' message
-        await conn.sendMessage(from, { 
-            text: finalMessage,
-            contextInfo: { mentionedJid: [sender] }
-        }, { quoted: message });
-
-        // Final success reaction
-        await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
     } catch (e) {
-        console.error("Error in ping command:", e);
-        reply(`❌ Ping karte samay truti aayi: ${e.message}`);
-        await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
+        console.error('TikTok TT Error:', e);
+        m.reply(`❌ Download fail ho gaya: ${e.message}. Link check karein ya server error hai.`);
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
     }
-});
+}
+
+// Final command properties
+cmd({
+    pattern: "tt3",
+    alias: ["tiktok3", "tik3"],
+    help: ['tiktok <url>'],
+    tags: ['download'],
+    command: /^(tiktok|tt|tik)$/i,
+    limit: true,
+    filename: __filename
+}, handler);
+
+module.exports = handler;
