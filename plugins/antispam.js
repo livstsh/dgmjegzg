@@ -2,10 +2,7 @@ const { cmd } = require("../command");
 const config = require('../config');
 
 // --- SIMULATED DATA ---
-// NOTE: Assuming there's a global function or database access to check premium status.
-// Here, we simulate a premium check.
 const isUserPremium = (sender) => {
-    // In a real bot, you would check a database here. 
     // Simulating true for demonstration.
     return true; 
 };
@@ -13,14 +10,14 @@ const OWNER_NAME = config.OWNER_NAME || "DR KAMRAN";
 
 
 cmd({
-    pattern: "ping7",
-    alias: ["speed7", "pong7", "ping8"],
+    pattern: "ping",
+    alias: ["speed", "pong", "ping2"],
     desc: "Bot ki pratikriya samay (ping) ko check karta hai aur premium status dikhata hai.", // Checks bot response time and shows premium status.
     category: "main",
     react: "⚡",
     filename: __filename
 },
-async (conn, mek, m, { from, sender, reply }) => {
+async (conn, mek, m, { from, sender, reply, usedPrefix }) => {
     try {
         // 1. Initial State and Premium Check
         const premiumStatus = isUserPremium(sender) ? '👑 PREMIUM' : '👤 FREE USER';
@@ -48,13 +45,22 @@ async (conn, mek, m, { from, sender, reply }) => {
         // 4. Final Boxed Output (Mimicking the Button aesthetic)
         const finalMessage = `
 ┌───────────────┐
-│ ${reactEmoji} *KAMRAN MD PING*
+│ ${reactEmoji} *KAMRAN MD PING REPORT*
 └───────────────┘
 ╔═════════════════════╗
 ║ 🟢 *Status:* ${speedText}
 ║ ⚡ *Latency:* ${ping} ms
 ║ 👑 *User Type:* ${premiumStatus}
 ╚═════════════════════╝
+
+*आगे बढ़ने के लिए बटन टाइप करें:*
+
+┌───────────────┐
+│ ⚡ TYPE *${usedPrefix}PING* (Re-check)
+└───────────────┘
+┌───────────────┐
+│ 🏠 TYPE *${usedPrefix}MENU* (Main Menu)
+└───────────────┘
 
 *© ᴘᴏᴡᴇʀᴇᴅ ʙʏ ${OWNER_NAME}*
 `;
