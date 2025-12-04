@@ -13,7 +13,7 @@ cmd({
     filename: __filename,
 },
 async (conn, mek, m, { from, reply }) => {
-    const githubRepoURL = 'https://dashboard.heroku.com/new?template=https://github.com/KAMRAN-SMD/KAMRAN-MD';
+    const githubRepoURL = 'https://dashboard.heroku.com/new?template=https://github.com/KAMRAN-SMD/KAMRAN-SMD';
 
     try {
         // Extract username and repo name from the URL
