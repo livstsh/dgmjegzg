@@ -1,153 +1,133 @@
-const { cmd } = require("../command");
-// Firestore Imports (MANDATORY for state persistence)
-// NOTE: These imports must be supported by your runtime environment
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithCustomToken, signInAnonymously } from 'firebase/auth';
-import { getFirestore, doc, setDoc, deleteDoc } from 'firebase/firestore';
+const { cmd } = require('../command');
+const fetch = require('node-fetch'); 
 
-// --- Firebase Configuration (MUST BE INCLUDED) ---
-// These variables are provided by the hosting environment
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
+// --- API Endpoints ---
+const SPOTIFY_API_URL = "https://api.deline.web.id/downloader/spotifyplay?q=";
 
-// Initialize Firebase (outside of cmd block for single initialization)
-let db, auth;
-let isFirebaseReady = false;
+// Global cache to store the track data for the interactive step
+const spotifyCache = new Map();
 
-// Function to handle Firebase setup (must be called and awaited)
-async function setupFirebase() {
-    if (isFirebaseReady) return;
-    
-    // Check if configuration exists
-    if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
-        console.error("Firebase Config is empty. Cannot initialize.");
-        return;
+// Function to search and get Spotify track data
+async function spotifyPlay(query) {
+    const r = await fetch(SPOTIFY_API_URL + encodeURIComponent(query), { timeout: 20000 });
+    const json = await r.json();
+
+    if (!json.status || !json.result) {
+        throw new Error('❌ Gaana khojne mein vifal rahe ya data nahi mila.');
     }
 
+    const meta = json.result.metadata;
+    return {
+        title: meta.title,
+        artist: meta.artist,
+        duration: meta.duration,
+        cover: meta.cover,
+        url: meta.url,
+        audioUrl: json.result.dlink
+    };
+}
+
+
+// --- MAIN COMMAND HANDLER ---
+let handler = async (conn, mek, m, { q, reply, prefix, command, from, args }) => {
     try {
-        const app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
+        if (!q) return reply(`❌ Kripya gaane ka title dein.\n\n*Udaharan:* ${prefix + command} sparks`);
 
-        // Authenticate user
-        if (initialAuthToken) {
-            await signInWithCustomToken(auth, initialAuthToken);
-        } else {
-            await signInAnonymously(auth);
-        }
+        await conn.sendMessage(from, { react: { text: "⏳", key: m.key } });
+        await reply(`🔎 *Spotify* par "${q}" khoja jaa raha hai...`);
+
+        // 1. Fetch Spotify data
+        const trackData = await spotifyPlay(q);
+
+        // --- STEP 2: PROMPT FOR FORMAT ---
+        const menu = `
+🎵 *Spotify Track Found!* 🎵
+*Judul:* ${trackData.title}
+*Artist:* ${trackData.artist}
+
+*Kripya bhejne ka format chunein:*
+1 - MP3 (Audio Message) 🎧
+2 - DOCUMENT (MP3 File) 📁
+
+*Kripya 1 ya 2 se reply karein.*
+`;
         
-        isFirebaseReady = true;
-        console.log("Firebase setup complete for addsewa.js");
-    } catch (error) {
-        console.error("Firebase setup failed:", error);
-        isFirebaseReady = false; 
-        throw new Error("Firebase Initialization Error"); // Throw error to block command execution
+        // Store data for the interactive step
+        const cacheKey = `${from}-${mek.key.id}`;
+        spotifyCache.set(cacheKey, trackData);
+        
+        // Send the menu message and capture its ID
+        const sentMenuMsg = await conn.sendMessage(from, { text: menu }, { quoted: mek });
+
+
+        // --- STEP 3: LISTEN FOR FORMAT SELECTION ---
+        const formatHandler = async (fMsgUpdate) => {
+            const fMsg = fMsgUpdate.messages[0];
+            if (!fMsg?.message || fMsg.key.remoteJid !== from) return;
+            
+            const repliedToPrompt = fMsg.message.extendedTextMessage?.contextInfo?.stanzaId === sentMenuMsg.key.id;
+            if (!repliedToPrompt) return;
+
+            const selection = fMsg.message.conversation?.trim() || fMsg.message.extendedTextMessage?.text?.trim();
+            const cachedData = spotifyCache.get(cacheKey);
+
+            if (cachedData && (selection === '1' || selection === '2')) {
+                // Valid selection, remove listener and clean cache
+                conn.ev.off("messages.upsert", formatHandler);
+                spotifyCache.delete(cacheKey);
+                
+                const sendAsDocument = selection === '2';
+                
+                await conn.sendMessage(from, { react: { text: '⬇️', key: fMsg.key } });
+                await reply(`⏳ *${cachedData.title}* bheja jaa raha hai (${sendAsDocument ? 'Document' : 'Audio'})...`);
+
+                // Prepare final message
+                const mediaKey = sendAsDocument ? 'document' : 'audio';
+                const caption = `✅ *${cachedData.title}*\nArtist: ${cachedData.artist}\nFormat: ${sendAsDocument ? 'Document' : 'Audio Message'}`;
+                
+                // Send the file
+                await conn.sendMessage(from, {
+                    [mediaKey]: { url: cachedData.audioUrl },
+                    mimetype: "audio/mpeg",
+                    ptt: mediaKey === 'audio' ? false : undefined, // Standard audio
+                    fileName: `${cachedData.title.replace(/[^\w\s]/gi, '')}.mp3`,
+                    caption: caption
+                }, { quoted: fMsg });
+
+                await conn.sendMessage(from, { react: { text: '✅', key: fMsg.key } });
+
+
+            } else if (cachedData) {
+                // Invalid selection, keep listener on
+                await reply("❌ Kripya सिर्फ 1 या 2 से reply करें।");
+            }
+        };
+        
+        // Add listener for format selection and set timeout (e.g., 2 minutes)
+        conn.ev.on("messages.upsert", formatHandler);
+        setTimeout(() => {
+            conn.ev.off("messages.upsert", formatHandler);
+            if (spotifyCache.has(cacheKey)) {
+                reply("⚠️ Samay seema samapt ho gayi. Kripya dobara khojein.");
+                spotifyCache.delete(cacheKey);
+            }
+        }, 120000); // 2 minutes timeout
+
+
+    } catch (e) {
+        console.error("Spotify Plays Error:", e);
+        await conn.sendMessage(from, { react: { text: "❌", key: m.key } });
+        reply(`⚠️ Spotify download karte samay truti aayi: ${e.message}`);
     }
-}
-
-// Function to get the correct document path for group rental data
-function getSewaDocRef(groupId) {
-    // Firestore Path: /artifacts/{appId}/public/data/sewa/{groupId}
-    return doc(db, `artifacts/${appId}/public/data/sewa/${groupId}`);
-}
-
+};
 
 cmd({
-    pattern: "addsewa",
-    alias: ["sewadd", "rentgroup"],
-    desc: "Bot ko kisi group mein ek nishchit samay ke liye sewa par deta hai (Owner Only).", // Rents the bot to a group for a specified duration.
-    category: "owner",
-    react: "👑",
+    pattern: "plays",
+    alias: ["playspotify"],
+    desc: "Spotify par gaana khojta aur download karta hai (MP3 ya Document).",
+    category: "download",
+    react: "🎶",
     filename: __filename
-}, async (conn, mek, m, { text, reply, isOwner, from, command }) => {
-    
-    // Check if Firebase is ready and if the sender is the Owner
-    if (!isOwner) return reply("❌ Access Denied. Yeh command sirf *Owner Bot* ke liye hai.");
-    if (!m.isGroup) return reply("❌ Kripya yeh command *Group* ke andar istemaal karein.");
-    
-    try {
-        await setupFirebase();
-    } catch (e) {
-        return reply("❌ Database load nahi ho paya. Kripya thodi der baad try karein.");
-    }
-    
-    if (!isFirebaseReady) {
-        return reply("❌ Database abhi taiyar nahi hai. Kripya thodi der baad try karein.");
-    }
-    
-    const groupId = m.chat.endsWith('@g.us') ? m.chat.split('@')[0] : m.chat;
-    const groupName = m.metadata?.subject || "Unknown Group";
-    
-    if (!text) {
-        return reply(
-          `📝 *Group Sewa Jodein*\n\n` +
-          `Kripya durasi dein:\n` +
-          `• ${usedPrefix + command} 7hari\n` +
-          `• ${usedPrefix + command} 1bulan\n` +
-          `• ${usedPrefix + command} permanen`
-        );
-    }
+}, handler);
 
-    let opt = text.toLowerCase().trim();
-    let durasiMs = 0;
-    let label = "";
-    
-    // --- Parse Duration ---
-    if (["7", "7d", "7hari", "7 hari"].includes(opt)) {
-        durasiMs = 7 * 24 * 60 * 60 * 1000;
-        label = "7 Din";
-    } else if (["1", "1bulan", "1 bulan", "30hari", "30 hari"].includes(opt)) {
-        durasiMs = 30 * 24 * 60 * 60 * 1000;
-        label = "1 Mahina";
-    } else if (["2", "2bulan", "2 bulan", "60hari", "60 hari"].includes(opt)) {
-        durasiMs = 60 * 24 * 60 * 60 * 1000;
-        label = "2 Mahine";
-    } else if (["permanen", "permanent", "permanen✔️"].includes(opt)) {
-        durasiMs = 0;
-        label = "Permanently";
-    } else {
-        return reply(
-          `❌ Durasi sahi nahi hai.\n` +
-          `Kripya chunein: *7hari*, *1bulan*, *2bulan*, ya *permanen*.`
-        );
-    }
-
-    try {
-        const now = Date.now();
-        const expiredAt = durasiMs === 0 ? null : now + durasiMs;
-        
-        // --- Prepare Data for Firestore ---
-        const sewaData = {
-            groupName: groupName,
-            groupId: groupId,
-            by: m.sender,
-            startAt: now,
-            expiredAt: expiredAt,
-            paket: label,
-        };
-
-        // --- Save Data to Firestore ---
-        // Path: /artifacts/{appId}/public/data/sewa/{groupId}
-        await setDoc(getSewaDocRef(groupId), sewaData);
-
-        let teks = `✅ *Sewa Bot Safaltapoorvak Jud Gaya* (Firestore)\n\n` +
-                   `• Grup   : *${groupName}*\n` +
-                   `• Paket  : *${label}*\n` +
-                   `• Owner  : *@${m.sender.split('@')[0]}*\n` +
-                   `• Shuru  : *${new Date(now).toLocaleString("en-IN")}*\n`;
-
-        if (expiredAt) {
-            teks += `• Khatam: *${new Date(expiredAt).toLocaleString("en-IN")}*`;
-        } else {
-            teks += `• Khatam: *Permanently*`;
-        }
-
-        return conn.sendMessage(from, { text: teks, contextInfo: { mentionedJid: [m.sender] } }, { quoted: mek });
-
-    } catch (e) {
-        console.error("Firestore Sewa Add Error:", e);
-        // Provide the user with the actual error message for further debugging
-        return reply(`❌ Database mein data save karte samay truti aayi: ${e.message}`);
-    }
-});
+module.exports = handler;
