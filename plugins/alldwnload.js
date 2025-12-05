@@ -1,90 +1,98 @@
 const { cmd } = require('../command');
-const axios = require('axios');
-const Buffer = require('buffer').Buffer;
-const fetch = require('node-fetch'); 
-const FormData = require('form-data'); // Required for Catbox upload
+// WARNING: ACRCloud module must be installed separately: npm install acrcloud
+const acrcloud = require('acrcloud'); 
+const config = require('../config');
 
-// --- API Endpoint ---
-const HDR_API = "https://hookrestapi.vercel.app/tools/hdr?url=";
+// --- CRITICAL: ACRCloud Keys (Must be configured in config.js) ---
+const ACR_HOST = config.ACR_HOST || "identify-ap-southeast-1.acrcloud.com";
+const ACR_ACCESS_KEY = config.ACR_ACCESS_KEY || "ee1b81b47cf98cd73a0072a761558ab1"; // Placeholder key
+const ACR_ACCESS_SECRET = config.ACR_ACCESS_SECRET || "ya9OPe8onFAnNkyf9xMTK8qRyMGmsghfuHrIMmUI"; // Placeholder secret
 
+// Initialize ACRCloud client
+const acr = new acrcloud({
+    host: ACR_HOST,
+    access_key: ACR_ACCESS_KEY,
+    access_secret: ACR_ACCESS_SECRET,
+});
 
-// --- Helper function to upload image to Catbox (Public Host) ---
-async function uploadImageToPublicHost(imageBuffer) {
-    try {
-        const form = new FormData();
-        form.append('reqtype', 'fileupload');
-        form.append('fileToUpload', imageBuffer, 'image.jpg'); // Upload buffer as a file
-
-        const response = await axios.post(
-            'https://catbox.moe/user/api.php', 
-            form, 
-            {
-                headers: form.getHeaders(),
-                timeout: 20000 
-            }
-        );
-        
-        const url = response.data.trim();
-
-        if (!url.startsWith('http')) throw new Error(`Catbox se sahi link nahi mila: ${url.substring(0, 50)}`);
-        
-        return url;
-    } catch (uploadError) {
-        console.error("Catbox Upload Error:", uploadError.message);
-        throw new Error("❌ Photo ko Catbox par upload karne mein vifal rahe.");
-    }
+// Function to convert milliseconds to mm:ss format
+function toTime(ms) {
+    const m = Math.floor(ms / 60000) % 60;
+    const s = Math.floor(ms / 1000) % 60;
+    return [m, s].map((v) => v.toString().padStart(2, "0")).join(":");
 }
 
+async function whatmusic(buffer) {
+    if (!ACR_ACCESS_KEY || ACR_ACCESS_KEY === "ee1b81b47cf98cd73a0072a761558ab1") {
+        throw new Error("ACRCloud API Key and Secret missing/default. Kripya config mein sahi key set karein.");
+    }
+    
+    // ACRCloud identifies the song from the audio buffer
+    const data = (await acr.identify(buffer)).metadata;
+    if (!data?.music || data.music.length === 0) throw new Error("Gaane ka data nahi mila.");
 
-// --- MAIN COMMAND HANDLER ---
-let handler = async (conn, mek, m, { q, reply, usedPrefix, command }) => {
+    return data.music.map((a) => ({
+        title: a?.title || "Unknown",
+        artist: a?.artists?.[0]?.name || "Unknown",
+        score: a?.score || 0,
+        release: a?.release_date ? new Date(a.release_date).toLocaleDateString("id-ID") : "Unknown",
+        duration: a?.duration_ms ? toTime(a.duration_ms) : "00:00",
+        url: Object.keys(a?.external_metadata || {}).map((i) => {
+            if (i === "youtube") return `https://youtu.be/${a.external_metadata[i].vid}`;
+            if (i === "spotify") return `https://open.spotify.com/track/${a.external_metadata[i].track.id}`;
+            return "";
+        }).filter(Boolean),
+    }));
+}
+
+let handler = async (conn, mek, m, { reply, from }) => {
+    // Determine the target message (reply or current message if it contains audio)
+    const target = m.quoted || m; 
+    
+    // Check if the target message is audio
+    const isAudio = target.mimetype && /audio/.test(target.mimetype);
+
+    if (!isAudio) {
+        return reply(`*❌ Oops!* Kripya us audio file ya voice note ko reply karein jiska gaana aap pehchanna chahte hain.`);
+    }
+
+    await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+    await reply('⏳ Audio analysis shuru ho gaya hai...');
+
     try {
-        // Use m.quoted for robust handling
-        let quoted = m.quoted ? m.quoted : m; 
-        let mime = (quoted.msg || quoted).mimetype || '';
-
-        if (!/image/.test(mime))
-            return reply(`❌ Kripya photo ko reply karein ya photo ke saath command use karein:\n\n*Udaharan:* Reply photo se ya link bhejkar \`${usedPrefix + command}\``);
-
-        await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
-        await reply("⏳ Photo ko HDR quality mein badla jaa raha hai (Host: Catbox)...");
-
-        // 1. Download the image buffer
-        let imageBuffer = await conn.downloadMediaMessage(quoted);
-
-        // 2. Upload to Catbox to get a public URL
-        let publicImageUrl = await uploadImageToPublicHost(imageBuffer);
+        // Download the audio buffer (using m.quoted download logic)
+        const buffer = await conn.downloadMediaMessage(target);
         
-        // 3. Request HDR API
-        let api = `${HDR_API}${encodeURIComponent(publicImageUrl)}`;
-        
-        let hasil = await axios.get(api, { responseType: "arraybuffer", timeout: 30000 });
+        // Perform music recognition
+        const data = await whatmusic(buffer);
 
-        if (!hasil.data || hasil.data.byteLength === 0) {
-            throw new Error("API ne koi sahi photo wapas nahi ki.");
+        let caption = `*🎤 Gaana Pehchana Gaya (ACRCloud)* 🎶\n\n`;
+        for (const result of data) {
+            caption += `*Judul:* ${result.title}\n`;
+            caption += `*Artis:* ${result.artist}\n`;
+            caption += `*Durasi:* ${result.duration}\n`;
+            caption += `*Released:* ${result.release}\n`;
+            caption += `*Sumber:* ${result.url.join("\n") || "Koi link nahi mila"}\n\n`;
         }
+        
+        await conn.sendMessage(from, { text: caption }, { quoted: mek });
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
-        // 4. Kirim hasil HDR
-        return conn.sendMessage(m.chat, {
-            image: Buffer.from(hasil.data),
-            caption: "*✅ HDR Image Taiyaar!*"
-        }, { quoted: m });
-
-    } catch (e) {
-        console.error("HDR Command Error:", e);
-        let errorMsg = e.message.includes('upload') ? e.message : '❌ Gagal memproses gambar. Link ya format check karein.';
-        await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-        await reply(errorMsg);
+    } catch (err) {
+        console.error("Shazam Command Error:", err);
+        // Custom error message for the user
+        let errorMessage = err.message.includes('ACRCloud') ? '❌ Service Key Error ya module missing hai.' : `❌ Maaf! ${err.message}`;
+        await reply(errorMessage);
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
     }
 };
 
-// --- Command Wrapper ---
 cmd({
-    pattern: "hdr",
-    alias: ["hd", "enhance"],
-    desc: "Photo ki quality ko HDR (High Dynamic Range) mein badalta hai.",
+    pattern: "whatmusic",
+    alias: ["shazam", "acrmusic"],
+    desc: "Reply kiye gaye audio se gaane ka naam pehchanta hai.", // Recognizes song title from replied audio.
     category: "tools",
-    react: "🖼️",
+    react: "🎵",
     filename: __filename
 }, handler);
 
