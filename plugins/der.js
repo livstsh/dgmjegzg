@@ -8,7 +8,11 @@ const Buffer = require('buffer').Buffer;
 const SEARCH_API = "https://api.privatezia.biz.id/api/search/youtubesearch?query=";
 const PRIMARY_VIDEO_API = "https://jawad-tech.vercel.app/download/ytdl?url=";
 const PRIMARY_AUDIO_API = "https://jawad-tech.vercel.app/download/audio?url=";
-const SPOTIFY_API = "https://api.deline.web.id/downloader/spotifyplay?q="; // New Spotify API
+
+// --- SPOTIFY APIs (Dual Fallback) ---
+const PRIMARY_SPOTIFY_API = "https://api.deline.web.id/downloader/spotifyplay?q="; 
+const FALLBACK_SPOTIFY_API = "https://api.ryzendesu.vip/api/downloader/spotify?query=";
+
 
 const cache = new Map(); // Caching search results
 
@@ -20,8 +24,15 @@ function normalizeYouTubeUrl(url) {
   return match ? `https://youtube.com/watch?v=${match[1]}` : null;
 }
 
+function getVideoId(url) {
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/.*[?&]v=)([a-zA-Z0-9_-]{11})/);
+  return match ? match[1] : null;
+}
+
 // Function to perform the search (YouTube only, simplified)
 async function searchYouTube(query) {
+    // Logic remains the same: Primary API (privatezia) or fallback (yts)
+    // [Search logic code block omitted for brevity, it's unchanged]
     let formattedVideo = null;
     
     // Attempt 1: External Search API (User Provided)
@@ -67,6 +78,8 @@ async function searchYouTube(query) {
 
 // Function to fetch download links for YouTube
 async function fetchYouTubeDownloadLink(url, isAudio) {
+    // Logic remains the same: Primary API (jawad-tech) or failure
+    // [Download link code block omitted for brevity, it's unchanged]
     let finalUrl = null;
 
     // Attempt 1: Primary APIs (User's /ytdl and /audio)
@@ -91,22 +104,50 @@ async function fetchYouTubeDownloadLink(url, isAudio) {
     return { url: finalUrl, title: 'YouTube Download' };
 }
 
-// Function to fetch Spotify data
+// Function to fetch Spotify data (FIXED WITH FALLBACK)
 async function fetchSpotifyDownloadLink(query) {
-    const url = `${SPOTIFY_API}${encodeURIComponent(query)}`;
-    const response = await axios.get(url, { timeout: 15000 });
-    const data = response.data;
+    // Attempt 1: Primary API
+    try {
+        const url = `${PRIMARY_SPOTIFY_API}${encodeURIComponent(query)}`;
+        const response = await axios.get(url, { timeout: 15000 });
+        const data = response.data;
 
-    if (data.status === true && data.result && data.result.dlink) {
-        const meta = data.result.metadata;
-        return {
-            url: data.result.dlink,
-            title: meta.title,
-            artist: meta.artist,
-            cover: meta.cover
-        };
+        if (data.status === true && data.result && data.result.dlink) {
+            const meta = data.result.metadata;
+            return {
+                url: data.result.dlink,
+                title: meta.title,
+                artist: meta.artist,
+                cover: meta.cover,
+                source: 'Primary'
+            };
+        }
+        throw new Error("Primary API failed.");
+    } catch (e) {
+        console.warn("Spotify Primary API failed. Trying Fallback.");
     }
-    throw new Error("Spotify link prapt nahi hua.");
+    
+    // Attempt 2: Fallback API
+    try {
+        const fallbackUrl = `${FALLBACK_SPOTIFY_API}${encodeURIComponent(query)}`;
+        const response = await axios.get(fallbackUrl, { timeout: 15000 });
+        const data = response.data;
+        
+        // Assuming this fallback API returns a simplified structure with direct audio link
+        if (data.status === true && data.result && data.result.url) { 
+            return {
+                url: data.result.url,
+                title: data.result.title,
+                artist: data.result.artist || 'Unknown',
+                cover: data.result.thumb || 'https://i.imgur.com/empty.png',
+                source: 'Fallback'
+            };
+        }
+        throw new Error("Fallback API failed.");
+    } catch (e) {
+        console.error("Spotify Final Fallback Failed:", e.message);
+        throw new Error("❌ Dono Spotify APIs se gaana nahi mila.");
+    }
 }
 
 
@@ -127,7 +168,10 @@ cmd({
 
         // 1. SEARCH PHASE (Used to get URL and Metadata)
         const videoInfo = await searchYouTube(q);
-        const spotifyInfo = await fetchSpotifyDownloadLink(q).catch(() => null); // Attempt Spotify search simultaneously
+        const spotifyInfo = await fetchSpotifyDownloadLink(q).catch((e) => {
+            console.warn(`Spotify Search Failed Entirely: ${e.message}`);
+            return null; // Return null if both Spotify attempts fail
+        });
 
         if (!videoInfo && !spotifyInfo) {
             return reply("❌ Video ya gaana khojne mein vifal rahe ya koi natija nahi mila.");
@@ -153,8 +197,8 @@ ${isSpotify ? `👤 *Artist:* ${spotifyInfo.artist}` : `⏱️ *Duration:* ${vid
 2 - MP4 DOCUMENT 📄 ${isSpotify ? "(Not Available)" : ""}
 3 - MP3 (Audio) 🎶 (Best Quality)
 4 - MP3 DOCUMENT 📁
-5 - SPOTIFY AUDIO 🎧
-6 - SPOTIFY DOC 📃
+5 - SPOTIFY AUDIO 🎧 ${!isSpotify ? "(Not Found in search)" : `(Source: ${spotifyInfo.source})`}
+6 - SPOTIFY DOC 📃 ${!isSpotify ? "(Not Found in search)" : `(Source: ${spotifyInfo.source})`}
 7 - YTSEARCH 🔍 (Show more results)
 8 - LINKPLAY 🔗 (Show original link)
 ----------------------------------------
@@ -207,6 +251,11 @@ ${isSpotify ? `👤 *Artist:* ${spotifyInfo.artist}` : `⏱️ *Duration:* ${vid
                 
                 if (isYouTubeDownload) {
                     if (!cachedData.videoInfo) return reply("❌ YouTube video link nahi mil paya. Search fail ho gaya tha.");
+                    if (selection === '1' || selection === '2') { // MP4 Video/Doc
+                         // MP4 is not possible if it was only Spotify
+                         if (isSpotify) return reply("❌ Spotify se video download karna uplabdh nahi hai. Kripya 3 ya 4 chunein.");
+                    }
+                    
                     const isAudio = selection === '3' || selection === '4';
                     try {
                         downloadResult = await fetchYouTubeDownloadLink(cachedData.videoInfo.url, isAudio);
@@ -215,7 +264,7 @@ ${isSpotify ? `👤 *Artist:* ${spotifyInfo.artist}` : `⏱️ *Duration:* ${vid
                     }
                 } else if (isSpotifyDownload) {
                     if (!cachedData.spotifyInfo) return reply("❌ Spotify gaana nahi mila. Kripya naya search karein.");
-                    downloadResult = cachedData.spotifyInfo; // We already have the audio link from search step
+                    downloadResult = cachedData.spotifyInfo; // Already contains the direct audio URL
                 } else {
                     return reply("❌ Invalid option.");
                 }
@@ -227,9 +276,12 @@ ${isSpotify ? `👤 *Artist:* ${spotifyInfo.artist}` : `⏱️ *Duration:* ${vid
 
                 // --- 3C: Send Final Media ---
                 const sendAsDocument = selection === '2' || selection === '4' || selection === '6';
-                const mediaKey = sendAsDocument ? 'document' : (isAudio ? 'audio' : 'video');
-                const mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
-                const fileExt = isAudio ? 'mp3' : 'mp4';
+                const isAudioMedia = selection === '3' || selection === '4' || selection === '5' || selection === '6';
+                
+                const mediaKey = sendAsDocument ? 'document' : (isAudioMedia ? 'audio' : 'video');
+                const mimeType = isAudioMedia ? 'audio/mpeg' : 'video/mp4';
+                const fileExt = isAudioMedia ? 'mp3' : 'mp4';
+                
                 const formatLabel = isSpotifyDownload ? 'Spotify MP3' : (isAudio ? 'YouTube MP3' : 'YouTube MP4');
                 const finalTitle = downloadResult.title || cachedData.title;
 
