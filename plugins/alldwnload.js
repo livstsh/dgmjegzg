@@ -1,5 +1,6 @@
 const { cmd } = require("../command");
 // Firestore Imports (MANDATORY for state persistence)
+// NOTE: These imports must be supported by your runtime environment
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signInAnonymously } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -14,9 +15,16 @@ const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial
 let db, auth;
 let isFirebaseReady = false;
 
+// Function to handle Firebase setup (must be called and awaited)
 async function setupFirebase() {
     if (isFirebaseReady) return;
     
+    // Check if configuration exists
+    if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
+        console.error("Firebase Config is empty. Cannot initialize.");
+        return;
+    }
+
     try {
         const app = initializeApp(firebaseConfig);
         db = getFirestore(app);
@@ -34,6 +42,7 @@ async function setupFirebase() {
     } catch (error) {
         console.error("Firebase setup failed:", error);
         isFirebaseReady = false; 
+        throw new Error("Firebase Initialization Error"); // Throw error to block command execution
     }
 }
 
@@ -57,7 +66,12 @@ cmd({
     if (!isOwner) return reply("❌ Access Denied. Yeh command sirf *Owner Bot* ke liye hai.");
     if (!m.isGroup) return reply("❌ Kripya yeh command *Group* ke andar istemaal karein.");
     
-    await setupFirebase();
+    try {
+        await setupFirebase();
+    } catch (e) {
+        return reply("❌ Database load nahi ho paya. Kripya thodi der baad try karein.");
+    }
+    
     if (!isFirebaseReady) {
         return reply("❌ Database abhi taiyar nahi hai. Kripya thodi der baad try karein.");
     }
@@ -133,6 +147,7 @@ cmd({
 
     } catch (e) {
         console.error("Firestore Sewa Add Error:", e);
+        // Provide the user with the actual error message for further debugging
         return reply(`❌ Database mein data save karte samay truti aayi: ${e.message}`);
     }
 });
