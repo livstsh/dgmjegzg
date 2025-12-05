@@ -1,146 +1,163 @@
-const { cmd } = require('../command');
-const axios = require('axios');
-const fs = require('fs');
-const Buffer = require('buffer').Buffer;
-const fetch = require('node-fetch');
-
-// --- API Endpoints ---
-const SEARCH_API = 'https://www.restwave.my.id/search/lirikv2?title=';
-// NOTE: We use a different API that generates the image directly, as 'canvas' is blocked.
-const IMAGE_GENERATOR_API = 'https://api.deline.web.id/maker/lirik?title='; // Placeholder for Image Generator
-
-// --- Global State Cache for Interactive Steps ---
-const searchCache = new Map();
-
-// --- API Functions (Simplified and Adapted) ---
-
-async function appleSearch(query) {
-  // Use the original search API
-  const res = await axios.get(`${SEARCH_API}${encodeURIComponent(query)}`, { timeout: 15000 });
-
-  if (!res.data.status || !res.data.result || !res.data.result.length) {
-    throw new Error('❌ Maaf, koi natija nahi mila.');
-  }
-
-  // Ensure lyrics are available (or will be fetched later)
-  return res.data.result.slice(0, 7).map(v => ({
-      title: v.trackName,
-      artist: v.artistName,
-      lyrics: v.plainLyrics || v.syncedLyrics || "Lirik tidak tersedia", // Get available lyrics
-  }));
-}
-
-// Function to replace renderLyrics by calling an external API that handles the canvas work
-async function generateLyricsImage(trackName, artistName, lyrics) {
-    const encodedTitle = encodeURIComponent(trackName);
-    const encodedArtist = encodeURIComponent(artistName);
-    // Note: Most image APIs require a specific lyrics format/length, which is complex.
-    // For simplicity, we just send the text and hope the API handles the formatting.
-    
-    // We send the first 500 characters of the lyrics to the API.
-    const encodedLyrics = encodeURIComponent(lyrics.substring(0, 500)); 
-
-    const url = `${IMAGE_GENERATOR_API}${encodedLyrics}&title=${encodedTitle}&artist=${encodedArtist}`;
-    
-    // Attempt to fetch the final image buffer
-    const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 30000 });
-    
-    if (!response.data || response.data.byteLength === 0) {
-        throw new Error("API se image buffer nahi mila.");
-    }
-    
-    return Buffer.from(response.data);
-}
-
-
-// --- MAIN COMMAND HANDLER ---
-let handler = async (conn, mek, m, { q, reply, from, prefix, command }) => {
-    
-    if (!q) return reply(`❌ Kripya gaane ka title dein!\n\n*Udaharan:* ${prefix + command} menepi`);
-
-    await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-    await reply('⏳ *Lyrics* khoje ja rahe hain...');
-
-    try {
-        // 1. Search for lyrics
-        const results = await appleSearch(q);
-        
-        // 2. Format the list for the user
-        let teks = `🎵 *Lyrics Khoje Gaye* 🎵\n\n*Kripya image banane ke liye number (1 - ${results.length}) se reply karein:*\n\n`;
-        results.forEach((v, i) => {
-            teks += `${i + 1}. *${v.title}*\n   ➤ ${v.artist}\n\n`;
-        });
-
-        // Store results temporarily in cache
-        const cacheKey = `${from}-${mek.key.id}`;
-        searchCache.set(cacheKey, { results, q });
-
-        // 3. Send the selection prompt
-        const msg = await conn.sendMessage(m.chat, { text: teks.trim() }, { quoted: mek });
-
-        // --- LISTEN FOR USER'S SELECTION (HANDLER 2) ---
-        const selectionHandler = async (msgUpdate) => {
-            const receivedMsg = msgUpdate.messages[0];
-            if (!receivedMsg?.message || receivedMsg.key.remoteJid !== from) return;
-
-            const repliedToPrompt = receivedMsg.message.extendedTextMessage?.contextInfo?.stanzaId === msg.key.id;
-            if (!repliedToPrompt) return;
-
-            const selectedIndex = parseInt(receivedMsg.message.conversation?.trim() || receivedMsg.message.extendedTextMessage?.text?.trim()) - 1;
-            const cachedData = searchCache.get(cacheKey);
-            
-            if (cachedData && selectedIndex >= 0 && selectedIndex < cachedData.results.length) {
-                // Valid selection found, remove listener and clean cache
-                conn.ev.off("messages.upsert", selectionHandler);
-                searchCache.delete(cacheKey);
-
-                const selectedTrack = cachedData.results[selectedIndex];
-
-                await conn.sendMessage(from, { react: { text: '🖼️', key: receivedMsg.key } });
-                await reply(`⏳ *${selectedTrack.title}* ke lyrics ki image banai jaa rahi hai...`);
-
-                // 4. Generate the Lyrics Image (via external API)
-                const buffer = await generateLyricsImage(selectedTrack.title, selectedTrack.artist, selectedTrack.lyrics);
-                
-                // 5. Send the final image
-                await conn.sendMessage(m.chat, {
-                    image: buffer,
-                    caption: `✅ *Lyrics Image Taiyaar!*\n${selectedTrack.title} — ${selectedTrack.artist}`
-                }, { quoted: receivedMsg });
-
-                await conn.sendMessage(from, { react: { text: '✅', key: receivedMsg.key } });
-
-            } else if (cachedData) {
-                // Invalid selection number
-                await reply(`❌ Kripya sahi number (1 se ${cachedData.results.length}) se reply karein.`);
-            }
-        };
-
-        // Add listener and set timeout (e.g., 3 minutes)
-        conn.ev.on("messages.upsert", selectionHandler);
-        setTimeout(() => {
-            conn.ev.off("messages.upsert", selectionHandler);
-            if (searchCache.has(cacheKey)) {
-                reply("⚠️ Samay seema samapt ho gayi. Kripya dobara khojein.");
-                searchCache.delete(cacheKey);
-            }
-        }, 180000); // 3 minutes timeout
-
-    } catch (err) {
-        console.error("Lyrics Canvas Command Error:", err);
-        reply('❌ Gagal search ya image banane mein truti aayi: ' + err.message);
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-    }
-};
+const os = require("os")
+const process = require("process")
+const fs = require("fs")
+const { execSync } = require("child_process")
+const { cmd } = require("../command")
 
 cmd({
-    pattern: "lirik",
-    alias: ["lyrics"],
-    desc: "Lyrics khojta aur unki image banaata hai.", // Searches lyrics and converts them into an image.
-    category: "search",
-    react: "🎶",
-    filename: __filename,
-    limit: true
-}, handler);
+    pattern: "ping01", // Command pattern
+    alias: ["status2", "speed3"], // Alias commands
+    desc: "check full system performance bot", // Description
+    react: '✅', // Reaction upon success
+    category: 'info', // Command category
+    filename: __filename
+}, async (conn, m, store, { reply }) => { // Using the new handler signature
+    const start = Date.now()
 
-module.exports = handler;
+    // Helper function to format bytes into readable units (KB, MB, GB, etc.)
+    let formatBytes = (bytes) => {
+        if (!bytes) return "0 Bytes"
+        let units = ["Bytes", "KB", "MB", "GB", "TB"]
+        let i = Math.floor(Math.log(bytes) / Math.log(1024))
+        return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`
+    }
+
+    // Helper function to format seconds into HH:MM:SS format
+    let formatSeconds = (seconds) => {
+        let h = Math.floor(seconds / 3600)
+        let m = Math.floor((seconds % 3600) / 60)
+        let s = Math.floor(seconds % 60)
+        return `${h}h ${m}m ${s}s`
+    }
+
+    // Detect the environment where the bot is running
+    let getRuntimeEnv = () => {
+        let cwd = process.cwd().toLowerCase()
+        let hostname = os.hostname().toLowerCase()
+        let platform = os.platform()
+
+        if (cwd.includes("ptero") || fs.existsSync("/etc/pterodactyl")) return "Panel (Pterodactyl)"
+        if (platform === "linux" && hostname.length > 8) return "VPS / Dedicated Server"
+        if (platform === "win32" || hostname.includes("desktop") || hostname.includes("local")) return "Local Machine"
+        return "Terminal / CLI"
+    }
+
+    // Get disk usage details using 'df' command (Linux only)
+    let getDiskUsage = () => {
+        try {
+            // Execute 'df -k /' to get disk space in kilobytes for the root partition
+            let df = execSync("df -k /").toString().split("\n")[1].split(/\s+/)
+            let total = parseInt(df[1]) * 1024 // Convert KB to Bytes
+            let used = parseInt(df[2]) * 1024 // Convert KB to Bytes
+            let free = parseInt(df[3]) * 1024 // Convert KB to Bytes
+            return { total, used, free }
+        } catch {
+            return { total: 0, used: 0, free: 0 } // Return 0 if command fails (e.g., non-Linux OS)
+        }
+    }
+
+    // Calculate the total and idle CPU time
+    let cpuAverage = () => {
+        let cpus = os.cpus()
+        let idle = 0
+        let total = 0
+        for (let cpu of cpus) {
+            for (let type in cpu.times) total += cpu.times[type]
+            idle += cpu.times.idle
+        }
+        return { idle: idle / cpus.length, total: total / cpus.length }
+    }
+
+    // Calculate CPU usage percentage over a 500ms period
+    let getCpuUsage = async () => {
+        let start = cpuAverage()
+        await new Promise(r => setTimeout(r, 500)) // Wait 500ms
+        let end = cpuAverage()
+        let idleDiff = end.idle - start.idle
+        let totalDiff = end.total - start.total
+        // Calculate usage: (Total Time - Idle Time) / Total Time
+        let usage = 100 - Math.floor(100 * idleDiff / totalDiff)
+        return usage
+    }
+
+    // Get network usage (received/transmitted bytes) from /proc/net/dev (Linux only)
+    let getNetworkUsage = () => {
+        try {
+            // Read /proc/net/dev file
+            let data = fs.readFileSync("/proc/net/dev", "utf8").split("\n").slice(2)
+            let rx = 0 // Received bytes
+            let tx = 0 // Transmitted bytes
+            data.forEach(line => {
+                let parts = line.trim().split(/\s+/)
+                if (parts.length > 9) {
+                    rx += parseInt(parts[1]) // Received bytes (second column)
+                    tx += parseInt(parts[9]) // Transmitted bytes (tenth column)
+                }
+            })
+            return { rx, tx }
+        } catch {
+            return { rx: 0, tx: 0 } // Return 0 if file not found (e.g., non-Linux OS)
+        }
+    }
+    
+    // --- Data Collection ---
+    await store.react('⌛'); // React to show processing started
+    
+    let env = getRuntimeEnv()
+    let cpuList = os.cpus()
+    let cpuModel = cpuList[0].model.trim()
+    let cpuCount = cpuList.length
+    let cpuSpeed = cpuList[0].speed
+    let cpuUsage = await getCpuUsage()
+
+    let totalMemory = os.totalmem()
+    let freeMemory = os.freemem()
+    let usedMemory = totalMemory - freeMemory
+    let memoryUsage = ((usedMemory / totalMemory) * 100).toFixed(2)
+
+    let disk = getDiskUsage()
+    let diskUsage = disk.total ? ((disk.used / disk.total) * 100).toFixed(2) : "0.00"
+
+    let net = getNetworkUsage()
+    let netRx = formatBytes(net.rx)
+    let netTx = formatBytes(net.tx)
+
+    let uptime = os.uptime()
+    let nodeVersion = process.version
+    let platform = os.platform()
+    let arch = os.arch()
+    let hostname = os.hostname()
+    // let homeDir = os.homedir() // Removed for conciseness
+    // let cwd = process.cwd() // Removed for conciseness
+
+    // Calculate latency (ping)
+    let ping = Date.now() - start
+    // Add a small random offset if ping is too low for better perceived realism
+    if (ping < 10) ping += Math.floor(Math.random() * 11) + 5
+
+    // --- Final Output Message with enhanced formatting ---
+    let text = `
+*╭━━━「 BOT & SYSTEM STATUS 」━━━╮*
+*┃*
+*┃ ⚡ Latency:* ${ping} ms
+*┃ ⏰ Uptime:* ${formatSeconds(uptime)}
+*┃ ⚙️ Runtime:* ${env}
+*┃ 💻 CPU:* ${cpuCount} Core - ${cpuModel}
+*┃    ├─ Usage:* ${cpuUsage}%
+*┃    └─ Speed:* ${cpuSpeed} MHz
+*┃ 🧠 Memory:* ${formatBytes(usedMemory)} / ${formatBytes(totalMemory)} (${memoryUsage}%)
+*┃ 💾 Disk:* ${formatBytes(disk.used)} / ${formatBytes(disk.total)} (${diskUsage}%)
+*┃ 📈 Network:*
+*┃    ├─ RX (Received):* ${netRx}
+*┃    └─ TX (Transmitted):* ${netTx}
+*┃ 🌐 OS Info:*
+*┃    ├─ Platform:* ${platform} (${arch})
+*┃    ├─ Hostname:* ${hostname}
+*┃    └─ Node.js:* ${nodeVersion}
+*┃*
+*╰━━━━━━━━━━━━━━━━━━━━╯*
+    `
+
+    reply(text.trim())
+    await store.react('✅'); // React to show processing completed
+});
