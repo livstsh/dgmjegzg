@@ -5,8 +5,8 @@ const axios = require('axios'); // For API calls
 const Buffer = require('buffer').Buffer;
 
 // --- API Endpoints for Download Fallback (Required for reliable downloading) ---
-const DOWNLOAD_API_VIDEO = "https://api.deline.web.id/downloader/ytmp4?url=";
-const DOWNLOAD_API_AUDIO = "https://api.deline.web.id/downloader/ytmp3?url=";
+const DOWNLOAD_API_VIDEO = "https://jawad-tech.vercel.app/download/ytdl?url=";
+const DOWNLOAD_API_AUDIO = "https://jawad-tech.vercel.app/download/audio?url=";
 
 
 // --- Core Download Function (Handles Audio/Video Links) ---
