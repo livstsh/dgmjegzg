@@ -1,62 +1,55 @@
-const axios = require('axios');
-const FormData = require('form-data');
-const fs = require('fs');
 const { cmd } = require('../command');
-const config = require('../config');
+const axios = require('axios');
+const fetch = require('node-fetch'); // Required for fetching media
+const Buffer = require('buffer').Buffer;
+// NOTE: sharp import has been removed as it causes framework crash.
 
-const AUDD_API_KEY = '08e11fca53d60e4c81254e9dbc4f42b9'; // Replace this with your actual key
+// --- API Endpoint ---
+const BRAT_API_BASE = 'https://api.zenzxz.my.id/api/maker/bratvid?text='; 
 
-cmd({
-    pattern: "find",
-    alias: ["musicid", "findsong"],
-    use: '.find (reply to audio)',
-    desc: "Identify music from audio using kamran API",
-    category: "media",
-    filename: __filename
-}, 
-async (conn, mek, m, { from, quoted, reply }) => {
+
+let handler = async (conn, mek, m, { q, reply, usedPrefix, command, from }) => {
     try {
-        const mime = (quoted?.mimetype || "");
-        if (!quoted || !mime.includes("audio")) {
-            return reply("🎵 Please reply to an audio or voice note.");
-        }
+        let text = q.trim();
 
-        const audioBuffer = await quoted.download(); // Download the audio
-        const tempPath = './temp_song.mp3';
-        fs.writeFileSync(tempPath, audioBuffer);
+        if (!text) return reply(`❌ Kripya text dein.\n\n*Udaharan:*\n${usedPrefix + command} Hello World`);
 
-        const form = new FormData();
-        form.append('api_token', AUDD_API_KEY);
-        form.append('file', fs.createReadStream(tempPath));
-        form.append('return', 'apple_music,spotify');
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+        await reply(`⏳ *Brat* animation taiyaar kiya jaa raha hai...`);
 
-        const res = await axios.post('https://api.audd.io/', form, {
-            headers: form.getHeaders()
-        });
+        // 1. Fetch Video/GIF Buffer
+        const url = `${BRAT_API_BASE}${encodeURIComponent(text)}`;
+        const res = await fetch(url, { timeout: 30000 });
+        
+        if (!res.ok) throw new Error(`API se video data lene mein vifal rahe. Status: ${res.status}`);
 
-        fs.unlinkSync(tempPath); // Cleanup temp file
+        const gif = Buffer.from(await res.arrayBuffer());
 
-        const result = res.data.result;
-        if (!result) {
-            return reply("❌ No match found for this audio.");
-        }
+        // 2. Send the result as a video/GIF (Avoiding sharp for sticker conversion)
+        await conn.sendMessage(m.chat, {
+            video: gif,
+            mimetype: 'video/mp4',
+            caption: `✅ *Animation Taiyaar!* (Sticker conversion available only if 'sharp' is installed on server)`,
+            gifPlayback: true // Play as GIF loop
+        }, { quoted: m });
 
-        const { title, artist, album, release_date, label, spotify } = result;
-        const msg = `
-🎵 *sᴏɴɢ ʀᴇᴄᴏɢɴɪᴢᴇᴅ*
-*ᴛɪᴛʟᴇ:* ${title}
-*ᴀʀᴛɪsᴛ:* ${artist}
-*ᴀʟʙᴜᴍ:* ${album || 'N/A'}
-*ʀᴇʟᴇᴀsᴇ:* ${release_date || 'N/A'}
-*ʟᴀʙᴇʟ:* ${label || 'N/A'}
-${spotify?.external_urls?.spotify ? `🔗 *sᴘᴏᴛɪғʏ:* ${spotify.external_urls.spotify}` : ''}
-        `.trim();
-
-        reply(msg);
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
     } catch (e) {
-        console.error("kamran Command Error:", e);
-        reply(`❌ An error occurred: ${e.message}`);
-    }
-});
-    
+        console.error("BratGIF Command Error:", e);
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+        await reply(`❌ Gagal membuat sticker Brat: ${e.message}`);
+    } 
+};
+
+cmd({
+    pattern: "bratgif",
+    alias: ["bratvid"],
+    desc: "Text ko animated video/GIF mein badalta hai.", // Converts text to animated video/GIF.
+    category: "maker",
+    react: "🎬",
+    filename: __filename,
+    limit: true
+}, handler);
+
+module.exports = handler;
