@@ -1,56 +1,72 @@
 const { cmd } = require('../command');
-const fetch = require('node-fetch'); 
+const axios = require('axios');
 const yts = require('yt-search'); 
-const axios = require('axios'); 
-const Buffer = require('buffer').Buffer;
 const config = require('../config');
+const Buffer = require('buffer').Buffer;
 
-// --- API Endpoints (Required for reliable downloading) ---
-// User provided APIs for download
+// --- API Endpoints ---
+const SEARCH_API = "https://jawad-tech.vercel.app/search/youtube?q=";
 const PRIMARY_VIDEO_API = "https://jawad-tech.vercel.app/download/ytdl?url=";
 const PRIMARY_AUDIO_API = "https://jawad-tech.vercel.app/download/audio?url=";
-
-// --- FINAL RELIABLE FALLBACK API (Requires Key in config) ---
-// Using a stable third-party fallback API as a safety measure.
 const FALLBACK_DOWNLOAD_API = "https://api.deline.web.id/downloader/ytmp4?url="; 
 
+// --- DRAMA (CINE SUB) API ---
+const DRAMA_SEARCH_API = "https://apis.sandarux.sbs/api/download/sinhalasub/search?q=";
+const DRAMA_DOWNLOAD_API = "https://apis.sandarux.sbs/api/download/sinhalasub-dl?q=";
 
-// --- Core Download Function (Handles Audio/Video Links) ---
-async function fetchAndSendMedia(conn, chat, videoUrl, isAudio, fileName, caption, quotedMsg) {
-    let mediaKey = isAudio ? 'audio' : 'video';
-    let mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
-    let ext = isAudio ? 'mp3' : 'mp4';
+const cache = new Map(); // Caching search results
+
+
+// --- Helper Functions ---
+
+// Function to fetch video data from either API
+async function fetchDownloadLink(url, isAudio, isDrama) {
     let finalUrl = null;
 
-    // 1. Attempt Primary APIs (User's /ytdl and /audio)
+    if (isDrama) {
+        // DRAMA LOGIC (Complex 2-step scrape)
+        try {
+            const searchResponse = await axios.get(`${DRAMA_SEARCH_API}${encodeURIComponent(url)}`, { timeout: 15000 });
+            const pageLink = searchResponse.data?.result?.[0]?.link;
+            if (!pageLink) throw new Error("Drama page link not found.");
+
+            const downloadResponse = await axios.get(`${DRAMA_DOWNLOAD_API}${encodeURIComponent(pageLink)}`, { timeout: 20000 });
+            // Assuming index 1 is the typical 720p download link
+            finalUrl = downloadResponse.data.result.downloadLinks[1]?.link; 
+            if (!finalUrl) throw new Error("Drama 720p link not found.");
+            
+            return { url: finalUrl, title: downloadResponse.data.result.title };
+
+        } catch(e) {
+            console.error("Drama Fetch Failed:", e.message);
+            throw new Error(`Drama download fail: ${e.message}`);
+        }
+    }
+    
+    // YOUTUBE LOGIC (Primary API with Fallback)
     try {
-        const apiUrl = isAudio ? `${PRIMARY_AUDIO_API}${encodeURIComponent(videoUrl)}` : `${PRIMARY_VIDEO_API}${encodeURIComponent(videoUrl)}`;
+        const apiUrl = isAudio ? `${PRIMARY_AUDIO_API}${encodeURIComponent(url)}` : `${PRIMARY_VIDEO_API}${encodeURIComponent(url)}`;
         const { data } = await axios.get(apiUrl, { timeout: 15000 });
         
         if (data.status === true) {
-            // Check based on API structure: /audio gives direct link, /ytdl gives nested mp4
             if (isAudio && data.result) {
-                finalUrl = data.result; // Direct link from /download/audio
+                finalUrl = data.result; 
             } else if (!isAudio && data.result?.mp4) {
-                finalUrl = data.result.mp4; // Nested link from /download/ytdl
+                finalUrl = data.result.mp4; 
             }
         }
     } catch (e) {
-        console.warn(`Primary Download API failed for ${mediaKey}. Trying Fallback.`);
+        console.warn(`Primary Download API failed for ${isAudio}. Trying Fallback.`);
     }
-
-    // 2. Attempt Fallback API (Deline Web)
+    
+    // Fallback API (Deline Web)
     if (!finalUrl) {
         try {
-            const fallbackUrl = isAudio ? 
-                `${DOWNLOAD_API_AUDIO.replace('ytmp3', 'ytmp3')}${encodeURIComponent(videoUrl)}` : 
-                `${FALLBACK_DOWNLOAD_API}${encodeURIComponent(videoUrl)}`;
-
+            const fallbackUrl = isAudio ? `${PRIMARY_AUDIO_API.replace('ytdl', 'ytmp3')}${encodeURIComponent(url)}` : `${FALLBACK_DOWNLOAD_API}${encodeURIComponent(url)}`;
             const { data } = await axios.get(fallbackUrl, { timeout: 20000 });
             
-            // Assuming fallback API structure returns final URL in data.link or data.result.url
             if (data.status === true) {
-                finalUrl = data.result?.url || data.link || data.result;
+                finalUrl = data.result?.link || data.link || data.result;
             }
         } catch (e) {
             console.error(`Fallback Download API failed: ${e.message}`);
@@ -59,135 +75,165 @@ async function fetchAndSendMedia(conn, chat, videoUrl, isAudio, fileName, captio
 
     if (!finalUrl) throw new Error("Sabhi APIs se seedha download link nahi mila.");
     
-    // 3. Send the media
-    await conn.sendMessage(chat, {
-        [mediaKey]: { url: finalUrl },
-        mimetype: mimeType,
-        fileName: `${fileName}.${ext}`,
-        caption: caption,
-        ptt: isAudio ? false : undefined // Standard audio send
-    }, { quoted: quotedMsg });
-
-    return true;
+    return { url: finalUrl, title: 'YouTube Video' };
 }
 
-
-// Function to extract video ID (copied from user's original logic)
-function extractVideoId(url) {
-    const patterns = [
-        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/,
-        /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/
-    ];
-    for (const pattern of patterns) {
-        const match = url.match(pattern);
-        if (match && match[1]) return match[1];
+async function searchYouTube(query) {
+    try {
+        const searchResults = await yts(query);
+        const video = searchResults.videos[0];
+        if (video) {
+            return {
+                url: video.url,
+                title: video.title,
+                duration: video.timestamp,
+                thumbnail: video.thumbnail,
+            };
+        }
+    } catch (e) {
+        console.error(`Local yts search failed: ${e.message}`);
     }
     return null;
 }
 
 
-// --- MAIN HANDLER FUNCTION (Handles all aliases) ---
-let handler = async (conn, mek, m, { q, text, args, usedPrefix, command, reply, from }) => {
-    
-    // --- Determine Command Type based on user's desired aliases ---
-    // User's desired aliases: mplay, ytplay, yta, ytmp4, yts, etc.
-    const isPlay = ['play', 'ytplay', 'youtubeplay', 'mplay'].includes(command);
-    const isYTA = ['yta', 'ytmp3', 'getaud', 'youtubemp3', 'ytaudio'].includes(command);
-    const isYTV = ['getvid', 'ytmp4', 'youtubemp4', 'ytv', 'youtubevideo', 'video'].includes(command);
-    const isYTSearch = ['yts', 'ytsearch', 'youtubesearch', 'ytlist', 'youtubelist', 'ytl'].includes(command);
-    
-    
-    if (isPlay || isYTA || isYTV) {
-        // --- LOGIC FOR PLAY/DOWNLOAD ---
-        
-        if (!q) return reply(`❌ Kripya video ka naam ya URL dein.\nUdaharan: ${usedPrefix + command} naruto blue bird`);
-
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-        await reply('⏳ Video/Audio data khoja ja raha hai...');
-
-        try {
-            // Search or use direct URL
-            let videoResult;
-            if (q.includes('youtube.com') || q.includes('youtu.be')) {
-                const search = await yts({ videoId: extractVideoId(q) || q });
-                videoResult = search;
-            } else {
-                const search = await yts(q);
-                videoResult = search.videos[0];
-            }
-
-            if (!videoResult) throw 'Video nahi mila. Kripya doosra title try karein.';
-            
-            const { title, thumbnail, url, timestamp, viewCount } = videoResult;
-            const isAudio = isYTA || isPlay; // Play command defaults to audio
-            
-            // Send Info Card (Thumbnail Preview)
-            let caption = `╭──── 〔 Y O U T U B E 〕 ─⬣
-⬡ Judul: ${title}
-⬡ Durasi: ${timestamp}
-⬡ Views: ${viewCount}
-⬡ Link: ${url}
-╰────────⬣\n\n*Media bheja ja raha hai...*`;
-
-            await conn.sendMessage(from, {
-                image: { url: thumbnail },
-                caption: caption,
-                contextInfo: { externalAdReply: { title, thumbnailUrl: thumbnail, sourceUrl: url } }
-            }, { quoted: mek });
-
-            // Fetch and Send Download
-            await fetchAndSendMedia(conn, from, url, isAudio, title, `✅ Downloaded: ${title}`, mek);
-            
-            await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-        } catch (error) {
-            console.error(error);
-            await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-            reply(`❌ Download karte samay truti aayi: ${error.message}.`);
-        }
-    } 
-    
-    else if (isYTSearch) {
-        // --- LOGIC FOR YOUTUBE SEARCH/LIST ---
-        if (!q) return reply(`❌ Kripya khojne ke liye kuch shabd dein.`);
-
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-        try {
-            const searchResults = await yts(q);
-            const videos = searchResults.videos.slice(0, 5); // Max 5 results
-
-            if (videos.length === 0) return reply(`🤷‍♀️ *"${q}"* ke liye koi natija nahi mila.`);
-
-            let replyText = '📺 *YouTube Search Results* 📺\n\n';
-            
-            videos.forEach((vid, i) => {
-                replyText += `*${i + 1}. ${vid.title.trim()}*\n`;
-                replyText += `   ⏱️ ${vid.timestamp} | 👀 ${vid.views}\n`;
-                replyText += `   🔗 ${vid.url}\n\n`;
-            });
-
-            await conn.sendMessage(from, { text: replyText }, { quoted: mek });
-            await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-        } catch (error) {
-            console.error(error);
-            await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-            reply('❌ Search karte samay truti aayi.');
-        }
-    }
-};
-
-
-// --- COMMAND WRAPPER (Updated to include all new aliases) ---
+// --- MAIN COMMAND HANDLER ---
 cmd({
-    pattern: "mplay",
-    alias: ['ytplay', 'youtubeplay', 'mplay', 'ytlist', 'youtubelist', 'ytl', 'yta', 'ytmp3', 'getaud', 'youtubemp3', 'yts', 'ytsearch', 'youtubesearch', 'getvid', 'ytmp4', 'youtubemp4', 'ytv', 'youtubevideo', 'video'],
-    desc: "YouTube par search, download (MP3/MP4) aur playlist list karta hai.",
+    pattern: "allv",
+    alias: ["allvideo", "youTube"],
+    desc: "Interactive download menu for YouTube, Audio, Video, and Drama links.",
     category: "download",
-    react: "🎶",
+    react: "💾",
     filename: __filename,
-    command: /^(play|ytplay|youtubeplay|mplay|ytlist|youtubelist|ytl|yta|ytmp3|getaud|youtubemp3|yts|ytsearch|youtubesearch|getvid|ytmp4|youtubemp4|ytv|youtubevideo|video)$/i
-}, handler);
+}, async (conn, mek, m, { q, reply, prefix, command, from }) => {
+    try {
+        if (!q) return reply(`❌ Kripya video/drama ka naam ya URL dein.`);
 
-module.exports = handler;
+        await conn.sendMessage(from, { react: { text: "🔍", key: mek.key } });
+        await reply('⏳ Video/Drama data khoja ja raha hai...');
+
+        // 1. SEARCH PHASE (Used to get URL and Metadata)
+        const videoInfo = await searchYouTube(q);
+
+        if (!videoInfo) {
+            return reply("❌ Video khojne mein vifal rahe ya koi natija nahi mila.");
+        }
+
+        // --- STEP 2: SHOW INTERACTIVE MENU (8 OPTIONS) ---
+        let menu = `
+👑 *KAMRAN MD DOWNLOADER* 👑
+
+📌 *Title:* ${videoInfo.title}
+⏱️ *Duration:* ${videoInfo.duration}
+🔗 *Source URL:* ${videoInfo.url}
+
+🔢 *Kripya format select karne ke liye number se reply karein:*
+----------------------------------------
+1 - MP4 (Video) 🎥
+2 - MP4 DOCUMENT 📄 
+3 - DRAMA (720P) 🎬 (Searches for Sinhala Sub)
+4 - DRAMA DOCUMENT 📁
+5 - MP3 (Audio) 🎶
+6 - MP3 DOCUMENT 📃 
+7 - YTSEARCH 🔍 (Show more results)
+8 - LISTPLAY 📃 (Download as playlist list)
+----------------------------------------
+*Kripya 1 se 8 tak number se reply karein.*
+`;
+        
+        const cacheKey = `${from}-${mek.key.id}`;
+        cache.set(cacheKey, videoInfo); // Store video info
+        
+        const sentMenuMsg = await conn.sendMessage(
+            from,
+            { image: { url: videoInfo.thumbnail }, caption: menu },
+            { quoted: mek }
+        );
+
+        await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
+
+        // --- STEP 3: LISTEN FOR SELECTION ---
+        const selectionHandler = async (msgUpdate) => {
+            const msg = msgUpdate.messages[0];
+            if (!msg?.message || msg.key.remoteJid !== from) return;
+
+            const repliedToMenu = msg.message.extendedTextMessage?.contextInfo?.stanzaId === sentMenuMsg.key.id;
+            if (!repliedToMenu) return;
+
+            const selection = msg.message.conversation?.trim() || msg.message.extendedTextMessage?.text?.trim();
+            const cachedData = cache.get(cacheKey);
+
+            if (!cachedData) return; // Ignore if cache expired
+
+            if (selection >= '1' && selection <= '8') {
+                conn.ev.off("messages.upsert", selectionHandler); // Remove listener
+                cache.delete(cacheKey); // Clear cache
+
+                await conn.sendMessage(from, { react: { text: '⬇️', key: msg.key } });
+
+                // --- 3A: Handle Simple Options (7 & 8) ---
+                if (selection === '7') {
+                    return reply(`🌐 *More Search Results:* ${videoInfo.url.replace('/watch?v=', '/results?search_query=')}`);
+                }
+                if (selection === '8') {
+                    return reply(`🔗 *Playlist Link:* Is video ke liye koi playlist link uplabdh nahi hai.`);
+                }
+
+                // --- 3B: Handle Download Options (1-6) ---
+                const isDrama = selection === '3' || selection === '4';
+                const isAudio = selection === '5' || selection === '6';
+                const sendAsDocument = selection === '2' || selection === '4' || selection === '6';
+                
+                let downloadResult;
+                
+                try {
+                    await reply(`⏳ Link taiyaar kiya jaa raha hai... (Option: ${selection})`);
+                    
+                    downloadResult = await fetchDownloadLink(cachedData.url, isAudio, isDrama);
+                    
+                } catch (e) {
+                    return reply(`❌ Link laate samay truti aayi: ${e.message}`);
+                }
+
+                if (!downloadResult || !downloadResult.url) {
+                    return reply("❌ Download link nahi mil paya. Kripya doobara prayas karein.");
+                }
+
+                // --- 3C: Send Final Media ---
+                const mediaKey = sendAsDocument ? 'document' : (isAudio ? 'audio' : 'video');
+                const mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
+                const fileExt = isAudio ? 'mp3' : 'mp4';
+                const finalTitle = downloadResult.title || cachedData.title;
+                const formatLabel = isDrama ? 'DRAMA 720P' : (isAudio ? 'MP3' : 'MP4');
+
+                await conn.sendMessage(from, {
+                    [mediaKey]: { url: downloadResult.url },
+                    mimetype: mimeType,
+                    ptt: mediaKey === 'audio' ? false : undefined, 
+                    fileName: `${finalTitle} (${formatLabel}).${fileExt}`,
+                    caption: `✅ *${finalTitle}* Downloaded Successfully!\n*Format:* ${formatLabel} (${mediaKey.toUpperCase()})`
+                }, { quoted: msg });
+                
+                await conn.sendMessage(from, { react: { text: '✅', key: msg.key } });
+
+            } else if (cachedData) {
+                await reply("❌ Kripya sahi number (1 se 8) se reply karein.");
+            }
+        };
+
+        conn.ev.on("messages.upsert", selectionHandler);
+        setTimeout(() => {
+            conn.ev.off("messages.upsert", selectionHandler);
+            if (cache.has(cacheKey)) {
+                reply("⚠️ Samay seema samapt ho gayi. Kripya dobara khojein.");
+                cache.delete(cacheKey);
+            }
+        }, 180000); // 3 minutes main timeout
+
+
+    } catch (e) {
+        console.error("Mega Downloader Command Error:", e);
+        reply(`⚠️ Anjaan truti aayi: ${e.message}`);
+        await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
+    }
+});
