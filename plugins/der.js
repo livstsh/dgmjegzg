@@ -5,14 +5,10 @@ const config = require('../config');
 const Buffer = require('buffer').Buffer;
 
 // --- API Endpoints ---
-const SEARCH_API = "https://api.privatezia.biz.id/api/search/youtubesearch?query="; // User provided search API
+const SEARCH_API = "https://api.privatezia.biz.id/api/search/youtubesearch?query=";
 const PRIMARY_VIDEO_API = "https://jawad-tech.vercel.app/download/ytdl?url=";
 const PRIMARY_AUDIO_API = "https://jawad-tech.vercel.app/download/audio?url=";
-
-// --- DRAMA (CINE SUB) API ---
-// NOTE: Assuming Drama APIs are for Sinhala Sub/similar complex download, as provided previously.
-const DRAMA_SEARCH_API = "https://apis.sandarux.sbs/api/download/sinhalasub/search?q=";
-const DRAMA_DOWNLOAD_API = "https://apis.sandarux.sbs/api/download/sinhalasub-dl?q=";
+const SPOTIFY_API = "https://api.deline.web.id/downloader/spotifyplay?q="; // New Spotify API
 
 const cache = new Map(); // Caching search results
 
@@ -24,19 +20,11 @@ function normalizeYouTubeUrl(url) {
   return match ? `https://youtube.com/watch?v=${match[1]}` : null;
 }
 
-function getVideoId(url) {
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/.*[?&]v=)([a-zA-Z0-9_-]{11})/);
-  return match ? match[1] : null;
-}
-
-// Function to perform the search with Fallback logic
+// Function to perform the search (YouTube only, simplified)
 async function searchYouTube(query) {
-    const cacheKey = `search:${query}`;
-    if (cache.has(cacheKey)) return cache.get(cacheKey);
-
     let formattedVideo = null;
     
-    // --- Attempt 1: External Search API (User Provided) ---
+    // Attempt 1: External Search API (User Provided)
     try {
         const apiUrl = `${SEARCH_API}${encodeURIComponent(query)}`;
         const response = await axios.get(apiUrl, { timeout: 10000 });
@@ -49,13 +37,13 @@ async function searchYouTube(query) {
                 title: video.title || 'Video',
                 duration: video.duration,
                 thumbnail: video.thumbnail || `https://i.ytimg.com/vi/${getVideoId(video.url)}/hqdefault.jpg`,
+                type: 'YouTube'
             };
         } else {
-             throw new Error("Primary Search API returned no results or failed status.");
+             throw new Error("Primary Search API failed.");
         }
     } catch (error) {
-        console.warn(`Primary Search API failed. Trying fallback (yts)...`);
-        // --- Attempt 2: Local yts Fallback (More reliable) ---
+        // Fallback to yts
         try {
             const searchResults = await yts(query);
             const video = searchResults.videos[0];
@@ -66,6 +54,7 @@ async function searchYouTube(query) {
                     title: video.title,
                     duration: video.timestamp,
                     thumbnail: video.thumbnail,
+                    type: 'YouTube'
                 };
             }
         } catch(e) {
@@ -73,40 +62,14 @@ async function searchYouTube(query) {
         }
     }
 
-    if (formattedVideo) {
-        cache.set(cacheKey, formattedVideo);
-        setTimeout(() => cache.delete(cacheKey), 1800000); 
-        return formattedVideo;
-    }
-    
-    return null;
+    return formattedVideo;
 }
 
-// Function to fetch download links based on format and selected API
-async function fetchDownloadLink(url, isAudio, isDrama) {
+// Function to fetch download links for YouTube
+async function fetchYouTubeDownloadLink(url, isAudio) {
     let finalUrl = null;
 
-    if (isDrama) {
-        // DRAMA LOGIC (Complex 2-step scrape - assumed for 720p/document quality)
-        try {
-            const searchResponse = await axios.get(`${DRAMA_SEARCH_API}${encodeURIComponent(url)}`, { timeout: 15000 });
-            const pageLink = searchResponse.data?.result?.[0]?.link;
-            if (!pageLink) throw new Error("Drama page link not found.");
-
-            const downloadResponse = await axios.get(`${DRAMA_DOWNLOAD_API}${encodeURIComponent(pageLink)}`, { timeout: 20000 });
-            // Assuming index 1 is the typical 720p download link
-            finalUrl = downloadResponse.data.result.downloadLinks[1]?.link; 
-            if (!finalUrl) throw new Error("Drama 720p link not found.");
-            
-            return { url: finalUrl, title: downloadResponse.data.result.title || 'Drama Video' };
-
-        } catch(e) {
-            console.error("Drama Fetch Failed:", e.message);
-            throw new Error(`Drama download fail: ${e.message}`);
-        }
-    }
-    
-    // YOUTUBE LOGIC (Primary API with Fallback)
+    // Attempt 1: Primary APIs (User's /ytdl and /audio)
     try {
         const apiUrl = isAudio ? `${PRIMARY_AUDIO_API}${encodeURIComponent(url)}` : `${PRIMARY_VIDEO_API}${encodeURIComponent(url)}`;
         const response = await axios.get(apiUrl, { timeout: 15000 });
@@ -120,17 +83,30 @@ async function fetchDownloadLink(url, isAudio, isDrama) {
             }
         }
     } catch (e) {
-        console.warn(`Primary Download API failed for ${isAudio}. Trying Fallback.`);
-    }
-    
-    // Fallback Check (If necessary, add a third party reliable API here)
-    if (!finalUrl) {
-        // NOTE: No reliable third fallback provided, so we stop here.
+        console.warn(`Primary Download API failed for ${isAudio}.`);
     }
 
-    if (!finalUrl) throw new Error("Sabhi APIs se seedha download link nahi mila.");
+    if (!finalUrl) throw new Error("Sabhi YouTube APIs se seedha download link nahi mila.");
     
-    return { url: finalUrl, title: 'YouTube Video' };
+    return { url: finalUrl, title: 'YouTube Download' };
+}
+
+// Function to fetch Spotify data
+async function fetchSpotifyDownloadLink(query) {
+    const url = `${SPOTIFY_API}${encodeURIComponent(query)}`;
+    const response = await axios.get(url, { timeout: 15000 });
+    const data = response.data;
+
+    if (data.status === true && data.result && data.result.dlink) {
+        const meta = data.result.metadata;
+        return {
+            url: data.result.dlink,
+            title: meta.title,
+            artist: meta.artist,
+            cover: meta.cover
+        };
+    }
+    throw new Error("Spotify link prapt nahi hua.");
 }
 
 
@@ -138,52 +114,59 @@ async function fetchDownloadLink(url, isAudio, isDrama) {
 cmd({
     pattern: "mega",
     alias: ["megadl", "dlall"],
-    desc: "Interactive download menu for YouTube, Audio, Video, and Drama links.",
+    desc: "Interactive download menu for YouTube, Audio, Video, and Spotify links.",
     category: "download",
     react: "💾",
     filename: __filename,
 }, async (conn, mek, m, { q, reply, prefix, command, from }) => {
     try {
-        if (!q) return reply(`❌ Kripya video/drama ka naam ya URL dein.`);
+        if (!q) return reply(`❌ Kripya media ka naam ya URL dein.`);
 
         await conn.sendMessage(from, { react: { text: "🔍", key: mek.key } });
-        await reply('⏳ Video/Drama data khoja ja raha hai...');
+        await reply('⏳ Media data khoja ja raha hai...');
 
         // 1. SEARCH PHASE (Used to get URL and Metadata)
         const videoInfo = await searchYouTube(q);
+        const spotifyInfo = await fetchSpotifyDownloadLink(q).catch(() => null); // Attempt Spotify search simultaneously
 
-        if (!videoInfo) {
-            return reply("❌ Video khojne mein vifal rahe ya koi natija nahi mila.");
+        if (!videoInfo && !spotifyInfo) {
+            return reply("❌ Video ya gaana khojne mein vifal rahe ya koi natija nahi mila.");
         }
+        
+        // Determine the main source of the search result
+        const mainSource = videoInfo || spotifyInfo;
+        const isSpotify = !!spotifyInfo;
+        const title = mainSource.title || q;
+        const thumbnail = mainSource.thumbnail || mainSource.cover;
 
-        // --- STEP 2: SHOW INTERACTIVE MENU (8 OPTIONS) ---
+
+        // --- STEP 2: SHOW INTERACTIVE MENU (NEW 8 OPTIONS) ---
         let menu = `
  👑 *KAMRAN MD DOWNLOADER* 👑
 
-📌 *Title:* ${videoInfo.title}
-⏱️ *Duration:* ${videoInfo.duration || 'N/A'}
-🔗 *Source URL:* ${videoInfo.url}
+📌 *Title:* ${title}
+${isSpotify ? `👤 *Artist:* ${spotifyInfo.artist}` : `⏱️ *Duration:* ${videoInfo.duration || 'N/A'}`}
 
 🔢 *Kripya format select karne ke liye number se reply karein:*
 ----------------------------------------
-1 - MP4 (Video) 🎥
-2 - MP4 DOCUMENT 📄 
-3 - DRAMA (720P) 🎬 (Searches Drama/CineSub)
-4 - DRAMA DOCUMENT 📁
-5 - MP3 (Audio) 🎶
-6 - MP3 DOCUMENT 📃 
-7 - YTSEARCH 🔍 (Show more search results)
-8 - LISTPLAY 📃 (Download as playlist list)
+1 - MP4 (Video) 🎥 ${isSpotify ? "(Not Available)" : ""}
+2 - MP4 DOCUMENT 📄 ${isSpotify ? "(Not Available)" : ""}
+3 - MP3 (Audio) 🎶 (Best Quality)
+4 - MP3 DOCUMENT 📁
+5 - SPOTIFY AUDIO 🎧
+6 - SPOTIFY DOC 📃
+7 - YTSEARCH 🔍 (Show more results)
+8 - LINKPLAY 🔗 (Show original link)
 ----------------------------------------
 *Kripya 1 se 8 tak number se reply karein.*
 `;
         
         const cacheKey = `${from}-${mek.key.id}`;
-        cache.set(cacheKey, videoInfo); // Store video info
+        cache.set(cacheKey, { videoInfo, spotifyInfo }); // Store both search results
         
         const sentMenuMsg = await conn.sendMessage(
             from,
-            { image: { url: videoInfo.thumbnail }, caption: menu },
+            { image: { url: thumbnail }, caption: menu },
             { quoted: mek }
         );
 
@@ -210,40 +193,44 @@ cmd({
 
                 // --- 3A: Handle Simple Options (7 & 8) ---
                 if (selection === '7') {
-                    // Send a generic search link (we don't have the search logic built in this file)
-                    return reply(`🌐 *More Search Results:* ${cachedData.url.replace('/watch?v=', '/results?search_query=')}`);
+                    return reply(`🌐 *More Search Results:* ${cachedData.videoInfo?.url.replace('/watch?v=', '/results?search_query=') || 'YouTube URL nahi mila.'}`);
                 }
                 if (selection === '8') {
-                    return reply(`🔗 *Playlist Link:* Is video ke liye koi playlist link uplabdh nahi hai.`);
+                    return reply(`🔗 *Original Link:* ${cachedData.videoInfo?.url || cachedData.spotifyInfo?.url || 'Koi link nahi mila.'}`);
                 }
 
                 // --- 3B: Handle Download Options (1-6) ---
-                const isDrama = selection === '3' || selection === '4';
-                const isAudio = selection === '5' || selection === '6';
-                const sendAsDocument = selection === '2' || selection === '4' || selection === '6';
+                const isYouTubeDownload = selection >= '1' && selection <= '4';
+                const isSpotifyDownload = selection >= '5' && selection <= '6';
                 
                 let downloadResult;
                 
-                try {
-                    await reply(`⏳ Link taiyaar kiya jaa raha hai... (Option: ${selection})`);
-                    
-                    // Note: If isDrama is true, we pass the query 'q' (original search term) instead of the YouTube URL for the Drama scraper.
-                    const fetchSource = isDrama ? q : cachedData.url; 
-                    downloadResult = await fetchDownloadLink(fetchSource, isAudio, isDrama);
-                    
-                } catch (e) {
-                    return reply(`❌ Link laate samay truti aayi: ${e.message}`);
+                if (isYouTubeDownload) {
+                    if (!cachedData.videoInfo) return reply("❌ YouTube video link nahi mil paya. Search fail ho gaya tha.");
+                    const isAudio = selection === '3' || selection === '4';
+                    try {
+                        downloadResult = await fetchYouTubeDownloadLink(cachedData.videoInfo.url, isAudio);
+                    } catch (e) {
+                        return reply(`❌ Download fail hua: ${e.message}`);
+                    }
+                } else if (isSpotifyDownload) {
+                    if (!cachedData.spotifyInfo) return reply("❌ Spotify gaana nahi mila. Kripya naya search karein.");
+                    downloadResult = cachedData.spotifyInfo; // We already have the audio link from search step
+                } else {
+                    return reply("❌ Invalid option.");
                 }
+
 
                 if (!downloadResult || !downloadResult.url) {
                     return reply("❌ Download link nahi mil paya. Kripya doobara prayas karein.");
                 }
 
                 // --- 3C: Send Final Media ---
+                const sendAsDocument = selection === '2' || selection === '4' || selection === '6';
                 const mediaKey = sendAsDocument ? 'document' : (isAudio ? 'audio' : 'video');
                 const mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
                 const fileExt = isAudio ? 'mp3' : 'mp4';
-                const formatLabel = isDrama ? 'DRAMA 720P' : (isAudio ? 'MP3' : 'MP4');
+                const formatLabel = isSpotifyDownload ? 'Spotify MP3' : (isAudio ? 'YouTube MP3' : 'YouTube MP4');
                 const finalTitle = downloadResult.title || cachedData.title;
 
                 await conn.sendMessage(from, {
