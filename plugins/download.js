@@ -23,7 +23,7 @@ cmd({
       react: { text: "⏳", key: m.key }
     });
 
-    const response = await axios.get(`https://api.davidcyriltech.my.id/instagram?url=${q}`);
+    const response = await axios.get(`https://jawad-tech.vercel.app/igdl?url=${q}`);
     const data = response.data;
 
     if (!data || data.status !== 200 || !data.downloadUrl) {
@@ -66,7 +66,7 @@ cmd({
       react: { text: '⏳', key: m.key }
     });
 
-    const response = await axios.get(`https://www.dark-yasiya-api.site/download/twitter?url=${q}`);
+    const response = await axios.get(`https://jawad-tech.vercel.app/downloader?url=${q}`);
     const data = response.data;
 
     if (!data || !data.status || !data.result) {
@@ -182,7 +182,7 @@ cmd({
       react: { text: "⏳", key: m.key }
     });
 
-    const response = await axios.get(`https://www.dark-yasiya-api.site/download/mfire?url=${q}`);
+    const response = await axios.get(`https://api.mrfrankofc.gleeze.com/api/d/mediafire?url=${q}`);
     const data = response.data;
 
     if (!data || !data.status || !data.result || !data.result.dl_link) {
@@ -219,7 +219,7 @@ cmd({
 // apk-dl
 
 cmd({
-  pattern: "apk",
+  pattern: "apkk",
   desc: "Download APK from Aptoide.",
   category: "download",
   filename: __filename

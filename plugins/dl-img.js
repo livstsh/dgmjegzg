@@ -1,52 +1,56 @@
-const { cmd } = require("../command");
-const axios = require("axios");
 
+const {
+  cmd,
+  commands
+} = require('../command');
+const axios = require('axios');
+
+const GOOGLE_API_KEY = 'AIzaSyDMbI3nvmQUrfjoCJYLS69Lej1hSXQjnWI'; // Replace with your Google API key
+const GOOGLE_CX = 'baf9bdb0c631236e5'; // Replace with your Google Custom Search Engine ID
+//const apiKey = "AIzaSyDMbI3nvmQUrfjoCJYLS69Lej1hSXQjnWI"; // Votre clé API Google
+// const cx = "baf9bdb0c631236e5"; /
 cmd({
     pattern: "img",
-    alias: ["image", "googleimage", "searchimg"],
-    react: "🦋",
-    desc: "Search and download Google images",
-    category: "fun",
-    use: ".img <keywords>",
+    desc: "Search and send images from Google.",
+    react: "🖼️",
+    category: "media",
     filename: __filename
-}, async (conn, mek, m, { reply, args, from }) => {
+},
+async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply }) => {
     try {
-        const query = args.join(" ");
-        if (!query) {
-            return reply("🖼️ Please provide a search query\nExample: .img cute cats");
-        }
+        if (!q) return reply("Please provide a search query for the image.");
 
-        await reply(`🔍 Searching images for "${query}"...`);
-
-        const url = `https://apis.davidcyriltech.my.id/googleimage?query=${encodeURIComponent(query)}`;
+        // Fetch image URLs from Google Custom Search API
+        const searchQuery = encodeURIComponent(q);
+        const url = `https://www.googleapis.com/customsearch/v1?q=${searchQuery}&cx=${GOOGLE_CX}&key=${GOOGLE_API_KEY}&searchType=image&num=5`;
+        
         const response = await axios.get(url);
+        const data = response.data;
 
-        // Validate response
-        if (!response.data?.success || !response.data.results?.length) {
-            return reply("❌ No images found. Try different keywords");
+        if (!data.items || data.items.length === 0) {
+            return reply("No images found for your query.");
         }
 
-        const results = response.data.results;
-        // Get 5 random images
-        const selectedImages = results
-            .sort(() => 0.5 - Math.random())
-            .slice(0, 5);
+        // Send images
+        for (let i = 0; i < data.items.length; i++) {
+            const imageUrl = data.items[i].link;
 
-        for (const imageUrl of selectedImages) {
-            await conn.sendMessage(
-                from,
-                { 
-                    image: { url: imageUrl },
-                    caption: `📷 Result for: ${query}\n> © Powered by Dua Fatima`
-                },
-                { quoted: mek }
-            );
-            // Add delay between sends to avoid rate limiting
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+            // Download the image
+            const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+            const buffer = Buffer.from(imageResponse.data, 'binary');
 
-    } catch (error) {
-        console.error('Image Search Error:', error);
-        reply(`❌ Error: ${error.message || "Failed to fetch images"}`);
+            // Send the image with a footer
+            await conn.sendMessage(from, {
+                image: buffer,
+                caption: `
+*Image ${i + 1} from your search! ⭐*
+
+> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`
+}, { quoted: mek });
+}
+
+    } catch (e) {
+        console.error(e);
+        reply(`Error: ${e.message}`);
     }
 });

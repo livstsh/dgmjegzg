@@ -5,9 +5,9 @@ cmd({
     pattern: "pair",
     alias: ["getpair", "clonebot"],
     react: "✅",
-    desc: "Get pairing code for FATIMA-MD bot",
+    desc: "Get pairing code for KAMRAN-MD bot",
     category: "download",
-    use: ".pair 923155641XXX",
+    use: ".pair 18727575XXX",
     filename: __filename
 }, async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, senderNumber, reply }) => {
     try {
@@ -16,18 +16,18 @@ cmd({
 
         // Validate phone number format
         if (!phoneNumber || phoneNumber.length < 10 || phoneNumber.length > 15) {
-            return await reply("❌ Please provide a valid phone number without `+`\nExample: `.pair 923155641XXX`");
+            return await reply("❌ Please provide a valid phone number without `+`\nExample: `.pair 923195068XXX`");
         }
 
         // Make API request to get pairing code
-        const response = await axios.get(`https://dua-fatima.onrender.com/code?number=${encodeURIComponent(phoneNumber)}`);
+        const response = await axios.get(`https://kamran-md.onrender.com/code?number=${encodeURIComponent(phoneNumber)}`);
 
         if (!response.data || !response.data.code) {
             return await reply("❌ Failed to retrieve pairing code. Please try again later.");
         }
 
         const pairingCode = response.data.code;
-        const doneMessage = "> *FATIMA-MD PAIRING COMPLETED*";
+        const doneMessage = "> *KAMRAN-MD PAIRING COMPLETED*";
 
         // Send initial message with formatting
         await reply(`${doneMessage}\n\n*Your pairing code is:* ${pairingCode}`);
