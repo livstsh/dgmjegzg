@@ -1,73 +1,120 @@
-const axios = require("axios");
-const { cmd } = require("../command");
+const axios = require('axios');
+const FormData = require('form-data');
+const { fromBuffer } = require('file-type');
+const { cmd } = require("../command"); 
 
-const REMINI_API_URL = "https://api.privatezia.biz.id/api/generator/remini?url=";
-
-// Utility function to extract the image URL from a replied message (Simplified approach)
-function getQuotedImageUrl(quotedMsg) {
-    // Check if the replied message contains an image and try to extract the URL/ID.
-    // NOTE: Replace this logic with your bot's actual media retrieval system if needed.
-    const image = quotedMsg?.imageMessage || quotedMsg?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
-    
-    // In many simple frameworks, the media URL is available here.
-    if (image) {
-        // We return the URL directly for the external API call
-        return image.url || null; 
+/**
+ * Uploads a buffer to uguu.se to get a public URL.
+ * @param {Buffer} buffer - The image data buffer.
+ * @param {string} filename - The name to assign to the file during upload.
+ * @returns {Promise<string>} - The public URL of the uploaded image.
+ */
+async function Uguu(buffer, filename) {
+  let form = new FormData();
+  form.append('files[]', buffer, { filename });
+  try {
+    let { data } = await axios.post('https://uguu.se/upload.php', form, {
+      headers: form.getHeaders(),
+      timeout: 30000 // 30 seconds for upload
+    });
+    if (data?.files?.[0]?.url) return data.files[0].url;
+    // Throw an error if the upload response is invalid
+    throw new Error('Upload successful, but URL not found in response.');
+  } catch (error) {
+    // Catch Axios/network errors
+    if (axios.isAxiosError(error)) {
+        throw new Error(`Uguu Upload failed: ${error.message}`);
     }
-    return null;
+    throw error;
+  }
 }
 
 cmd({
-    pattern: "remini",
-    alias: ["enhance", "hd", "aihd"],
-    desc: "Bheji gayi photo ki quality Remini API se behtar karta hai.", // Enhances image quality using Remini API.
-    category: "ai",
-    react: "✨",
+    pattern: "hdr", // Command pattern
+    alias: ["hd", "remini"], // Alternative names
+    desc: "Enhances image quality using AI upscaling.", // Description
+    react: 'âœ¨', // Reaction emoji
+    category: 'imagehd', // Category
+    premium: true, // Requires premium status
     filename: __filename
-}, async (conn, mek, m, { from, reply }) => {
-    try {
-        // 1. Check if the message is a reply to an image
-        const quoted = mek.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-        const isReplyToImage = quoted?.imageMessage || (quoted?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage);
-
-        if (!isReplyToImage) {
-            return reply("❌ Kripya us *photo* ko reply karein jise aap behtar (enhance) karna chahte hain."); // Please reply to the photo.
-        }
-        
-        // 2. Extract the Image URL
-        const imageUrl = getQuotedImageUrl(mek.message.extendedTextMessage.contextInfo.quotedMessage);
-
-        if (!imageUrl) {
-            return reply("❌ Photo ka URL nahi mil paya. Kripya nishchit karein ki yeh seedhi photo hai (link nahi)."); // Failed to get image URL.
-        }
-        
-        await reply("⏳ Photo mil gayi. Remini AI se quality behtar ki jaa rahi hai, kripya intezaar karein..."); // Enhancing image, please wait...
-
-        // 3. Construct API URL and call
-        const apiUrl = `${REMINI_API_URL}${encodeURIComponent(imageUrl)}`;
-
-        const response = await axios.get(apiUrl, { timeout: 30000 });
-        const data = response.data;
-        
-        // 4. Check API response (Assuming API returns the final image URL in data.result)
-        if (!data || data.status !== true || !data.result) {
-            console.error("Remini API response:", data);
-            return reply("❌ Photo quality behtar nahi ho payi. Ho sakta hai API busy ho ya photo ka format sahi na ho."); // Enhancement failed.
-        }
-
-        const enhancedImageUrl = data.result;
-
-        // 5. Send the enhanced image back
-        await conn.sendMessage(from, {
-            image: { url: enhancedImageUrl },
-            caption: `✅ *Photo Quality Behtar Hui!* ✨\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`
-        }, { quoted: mek });
-
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (e) {
-        console.error("❌ remini command error:", e.message);
-        reply("⚠️ Photo behtar karte samay ek truti hui. Kripya koshish karein ki photo bahut badi na ho."); // An error occurred during enhancement.
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+}, 
+// The CMD function following your bot's signature
+async (conn, m, store, { from, args, reply, usedPrefix, command, text }) => {
+  try {
+    let q = m.quoted ? m.quoted : m;
+    let mime = (q.msg || q).mimetype || '';
+    
+    // 1. Input Validation
+    if (!mime.startsWith('image/')) {
+      await store.react('âŒ');
+      return reply(`*Reply/Caption an image with .${command} [scale]*
+*Available Scales*
+- 1
+- 4 (Default)
+- 8
+- 16
+Example: \`${usedPrefix}${command} 8\``);
     }
+
+    // Set processing reaction
+    await store.react('â³'); 
+    
+    // Determine the scale factor (default to 4 if text is not a valid number)
+    let scale = parseInt(text) || 4;
+    
+    // Enforce valid scales and sanitize input
+    if (![1, 4, 8, 16].includes(scale)) {
+        scale = 4;
+        await reply(`Invalid scale specified. Defaulting to ${scale}.`);
+    }
+
+    // 2. Download Media and Determine File Extension
+    let media = await q.download();
+    const fileInfo = await fromBuffer(media);
+    const ext = fileInfo?.ext || 'png';
+    
+    // 3. Upload to Uguu
+    let url = await Uguu(media, `image.${ext}`);
+    
+    // 4. Call Enhancement API
+    const apiUrl = `https://api.offmonprst.my.id/api/enhancer?url=${encodeURIComponent(url)}&scale=${scale}`;
+    
+    const { data } = await axios.get(apiUrl, {
+        timeout: 90000 // Longer timeout for heavy image processing
+    });
+    
+    // 5. Process API Response
+    if (!data?.result?.imageUrl) {
+        // If the API failed to provide the URL, throw a specific error
+        throw new Error(`Enhancement API response error: ${data.message || 'Image URL not found in API result.'}`);
+    }
+
+    // Send the enhanced image using the URL provided by the enhancer API
+    await conn.sendMessage(m.chat, { 
+        image: { url: data.result.imageUrl }, 
+        caption: `âœ… Successfully enhanced to ${scale}x scale.`
+    }, { quoted: m });
+    
+    // Set success reaction
+    await store.react('âœ…'); 
+    
+  } catch (e) {
+    // Log error for debugging
+    console.error(`HDR Command Error: ${e.message}`);
+    
+    let errorMsg = `âŒ Failed to process image: ${e.message}`;
+    if (axios.isAxiosError(e)) {
+        if (e.response?.status === 500) {
+            errorMsg = "âŒ External Server Error (500). The enhancement API is down or failed to process the image.";
+        } else if (e.code === 'ECONNABORTED') {
+             errorMsg = "â° Request timed out (90s). Image processing took too long. Try a smaller image.";
+        }
+    } else if (e.message.includes('Upload failed')) {
+         errorMsg = "âŒ Image upload to hosting service failed. Try again later.";
+    }
+
+    // Set failure reaction and reply with error message
+    await store.react('âŒ'); 
+    reply(errorMsg);
+  }
 });
