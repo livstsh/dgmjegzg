@@ -33,7 +33,7 @@ cmd({
     pattern: "hdr", // Command pattern
     alias: ["hd", "remini"], // Alternative names
     desc: "Enhances image quality using AI upscaling.", // Description
-    react: 'âœ¨', // Reaction emoji
+    react: '📸', // Reaction emoji
     category: 'imagehd', // Category
     premium: true, // Requires premium status
     filename: __filename
@@ -92,11 +92,11 @@ Example: \`${usedPrefix}${command} 8\``);
     // Send the enhanced image using the URL provided by the enhancer API
     await conn.sendMessage(m.chat, { 
         image: { url: data.result.imageUrl }, 
-        caption: `âœ… Successfully enhanced to ${scale}x scale.`
+        caption: `👻 Successfully enhanced to ${scale}x scale.`
     }, { quoted: m });
     
     // Set success reaction
-    await store.react('âœ…'); 
+    await store.react('✅'); 
     
   } catch (e) {
     // Log error for debugging
