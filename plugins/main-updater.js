@@ -64,5 +64,4 @@ async (conn, mek, m, { from, reply, isCreator }) => {
         }, { quoted: mek });
     }
 });
-
-                            
+                        

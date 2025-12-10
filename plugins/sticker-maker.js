@@ -47,8 +47,8 @@ cmd(
 
 cmd(
     {
-        pattern: 'sticker',
-        alias: ['s', 'stickergif'],
+        pattern: 'stcker',
+        alias: ['sicker', 'stickergif'],
         desc: 'Create a sticker from an image, video, or URL.',
         category: 'sticker',
         use: '<reply media or URL>',
@@ -57,7 +57,7 @@ cmd(
     async (conn, mek, m, { quoted, args, q, reply, from }) => {
         if (!mek.quoted) return reply(`*Reply to any Image or Video, Sir.*`);
         let mime = mek.quoted.mtype;
-        let pack = Config.STICKER_NAME || "Jawad TechX";
+        let pack = Config.STICKER_NAME || "DR KAMRAN";
         
         if (mime === "imageMessage" || mime === "stickerMessage") {
             let media = await mek.quoted.download();
@@ -77,4 +77,5 @@ cmd(
     }
 );
 
-
+// DR KAMRAN
+    

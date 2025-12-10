@@ -2,7 +2,7 @@ const { cmd } = require("../command");
 const yts = require("yt-search");
 const axios = require("axios");
 
-// NOTE: This file is a universal downloader that prompts the user for 4 distinct options (Audio/Video x Standard/Document).
+// NOTE: This code uses two endpoints: /download/ytdl (for base data/video) and /download/audio (for audio link, as requested by user).
 
 const cache = new Map(); // Caching search results
 
@@ -18,15 +18,18 @@ function getVideoId(url) {
   return match ? match[1] : null;
 }
 
-// Function to fetch base data and links (used for fallback and metadata)
+// Function to fetch base data (title, thumbnail, and internal ytdl links)
 async function fetchBaseData(url, retries = 2) {
   const cacheKey = `baseData:${getVideoId(url)}`;
   if (cache.has(cacheKey)) {
+    console.log(`Using cached data for: ${url}`);
     return cache.get(cacheKey);
   }
 
   try {
     const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
+    console.log(`Fetching Base Data from API: ${apiUrl}`);
+    
     const response = await axios.get(apiUrl, { timeout: 15000 });
     const data = response.data;
 
@@ -34,19 +37,22 @@ async function fetchBaseData(url, retries = 2) {
       const downloadData = data.result;
       
       const result = {
-        download_url_mp4: downloadData.mp4, // Video link
-        download_url_mp3: downloadData.mp3, // Audio link (fallback)
+        download_url_mp4: downloadData.mp4, // Video link from /ytdl
+        download_url_mp3: downloadData.mp3, // Audio link from /ytdl (fallback)
         title: downloadData.title || "",
-        thumbnail: `https://i.ytimg.com/vi/${getVideoId(url)}/hqdefault.jpg`,
+        thumbnail: data.info?.image || `https://i.ytimg.com/vi/${getVideoId(url)}/hqdefault.jpg`,
       };
+      
       cache.set(cacheKey, result);
-      setTimeout(() => cache.delete(cacheKey), 3600000);
+      setTimeout(() => cache.delete(cacheKey), 3600000); // Cache for 1 hour
       return result;
     }
+    
     throw new Error("API status failure or result missing.");
   } catch (error) {
     console.error(`Base Data fetch failed: ${error.message}`);
     if (retries > 0) {
+      console.log(`Retrying API fetch... (${retries} left)`);
       await new Promise((resolve) => setTimeout(resolve, 2000));
       return fetchBaseData(url, retries - 1);
     }
@@ -55,9 +61,17 @@ async function fetchBaseData(url, retries = 2) {
 }
 
 async function searchYouTube(query, maxResults = 1) {
+  const cacheKey = `search:${query}`;
+  if (cache.has(cacheKey)) {
+    return cache.get(cacheKey);
+  }
+
   try {
     const searchResults = await yts({ query, pages: 1 });
-    return searchResults.videos.slice(0, maxResults);
+    const videos = searchResults.videos.slice(0, maxResults);
+    cache.set(cacheKey, videos);
+    setTimeout(() => cache.delete(cacheKey), 1800000); 
+    return videos;
   } catch (error) {
     console.error(`Search error: ${error.message}`);
     return [];
@@ -67,11 +81,11 @@ async function searchYouTube(query, maxResults = 1) {
 // --- MAIN COMMAND ---
 cmd(
   {
-    pattern: "play3", 
-    alias: ["play2", "sania", "song", "audvid"],
-    react: "🎧",
-    desc: "Download media as Audio/Video or Document.",
-    category: "download",
+    pattern: "play",
+    alias: ["yta", "dlsong", "ytmp4"],
+    react: "🎬",
+    desc: "Download video/audio from YouTube with simple selection (1=MP4, 2=MP3).",
+    category: "ice Pakistan",
     filename: __filename,
   },
   async (robin, mek, m, { from, q, reply }) => {
@@ -93,18 +107,20 @@ cmd(
         ytdata = searchResults[0];
       }
 
-      // --- Simplified Menu for User (4 Options) ---
+      // Format the descriptive text for the simplified menu
       let desc = `
- 👑 *KAMRAN MD DOWNLOADER* 👑
+ 🎬 KAMRAN MD DOWNLOADER 🎬
 
 📌 *Title:* ${ytdata.title}
+🎬 *Channel:* ${ytdata.author.name}
+👁️ *Views:* ${ytdata.views}
 ⏱️ *Duration:* ${ytdata.timestamp}
+🕒 *Uploaded:* ${ytdata.ago}
+🔗 *Link:* ${ytdata.url}
 
-🔢 *Kripya format select karne ke liye number se reply karein:*
-1 - MP3 (AUDIO) 🎧
-2 - MP4 (VIDEO) 🎥
-3 - DOCUMENT (MP3) 📁
-4 - DOCUMENT (MP4) 📄
+🔢 *Reply with a number to select format:*
+1 - MP4 (Video) 🎥
+2 - MP3 (Audio) 🎶
    
 > © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴀᴍʀᴀɴ ᴍᴅ`; 
 
@@ -132,51 +148,43 @@ cmd(
         
         try {
             
-          const validOptions = ["1", "2", "3", "4"]; 
+          const validOptions = ["1", "2"]; // Only 1 or 2 are valid
           if (!validOptions.includes(selectedOption)) {
             await robin.sendMessage(from, { react: { text: "❓", key: msg.key } });
-            return reply("Kripya sahi option (1, 2, 3 ya 4) se reply karein."); 
+            return reply("Kripya sahi option (1 ya 2) se reply karein."); 
           }
 
           await robin.sendMessage(from, { react: { text: "⏳", key: msg.key } });
 
-          // Determine parameters based on selection
-          const isAudio = selectedOption === "1" || selectedOption === "3";
-          const sendAsDocument = selectedOption === "3" || selectedOption === "4";
+          // Determine media type based on selection
+          const isAudio = selectedOption === "2";
+
+          // Fetch the download URLs using the base data function
+          const data = await fetchBaseData(ytdata.url);
           
           let downloadUrl;
           let formatText;
-          let fileExtension;
-          let mimeType;
-          let mediaKey;
-
-          const data = await fetchBaseData(ytdata.url);
 
           if (isAudio) {
-              formatText = sendAsDocument ? "MP3 Document" : "MP3 Audio";
-              mediaKey = sendAsDocument ? 'document' : 'audio';
-              fileExtension = 'mp3';
-              mimeType = 'audio/mpeg';
-              
-              // Use the dedicated /download/audio endpoint for reliability
+              formatText = "MP3 Audio";
+              // --- Audio Logic: Use the user's requested /download/audio endpoint ---
               const audioApiUrl = `https://jawad-tech.vercel.app/download/audio?url=${encodeURIComponent(ytdata.url)}`;
+              
               try {
                   const audioRes = await axios.get(audioApiUrl, { timeout: 15000 });
                   if (audioRes.data.status === true && audioRes.data.result) {
                       downloadUrl = audioRes.data.result;
                   } else {
-                      throw new Error("Dedicated Audio API failed.");
+                      throw new Error("Dedicated Audio API failed to return a direct link.");
                   }
               } catch (audioApiError) {
                   console.error("Dedicated Audio API Failed. Falling back to /ytdl link:", audioApiError.message);
+                  // Fallback: If dedicated API fails, use the link fetched by /ytdl
                   downloadUrl = data?.download_url_mp3; 
               }
           } else {
-              // Video (MP4) Logic
-              formatText = sendAsDocument ? "MP4 Document" : "MP4 Video";
-              mediaKey = sendAsDocument ? 'document' : 'video';
-              fileExtension = 'mp4';
-              mimeType = 'video/mp4';
+              formatText = "MP4 Video";
+              // Video link always comes from the /ytdl fetch done in fetchBaseData
               downloadUrl = data?.download_url_mp4;
           }
 
@@ -184,6 +192,10 @@ cmd(
             await robin.sendMessage(from, { react: { text: "❌", key: msg.key } });
             return reply("❌ Download link nahi mil paaya! Kripya dobara koshish karein."); 
           }
+
+          const fileExtension = isAudio ? 'mp3' : 'mp4';
+          const mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
+          const mediaKey = isAudio ? 'audio' : 'video';
           
           // Send the final media
           await robin.sendMessage(
@@ -191,8 +203,8 @@ cmd(
             {
               [mediaKey]: { url: downloadUrl },
               mimetype: mimeType,
-              // CRITICAL FIX: Explicitly setting ptt: false for audio to prevent corruption error
-              ptt: mediaKey === 'audio' ? false : undefined, 
+              // --- CRITICAL FIX: Explicitly setting ptt: false for audio to prevent corruption error ---
+              ptt: isAudio ? false : undefined, 
               fileName: `${ytdata.title}_${formatText}.${fileExtension}`,
               caption: `✅ *${ytdata.title}* Downloaded Successfully!\n*Format:* ${formatText}`,
             },

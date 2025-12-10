@@ -1,6 +1,9 @@
 const { cmd } = require("../command");
 const axios = require("axios");
 
+// API URL बेस (Base API URL)
+const FAKE_NUM_API = "https://api.vreden.my.id/api/tools/fakenumber";
+
 cmd({
     pattern: "tempnum",
     alias: ["fakenum", "tempnumber"],
@@ -9,32 +12,30 @@ cmd({
     react: "📱",
     use: "<country-code>"
 },
-async (conn, mek, m, { from, args, reply }) => {
+async (conn, mek, m, { from, args, reply, usedPrefix }) => {
     try {
-        // Mandatory country code check
         if (!args || args.length < 1) {
-            return reply(`❌ *Usage:* .tempnum <country-code>\nExample: .tempnum us\n\n📦 Use .otpbox <number>* to check OTPs`);
+            return reply(`❌ *Usage:* ${usedPrefix}tempnum <country-code>\nExample: ${usedPrefix}tempnum us\n\n📦 Use ${usedPrefix}otpbox <number>* to check OTPs`);
         }
 
         const countryCode = args[0].toLowerCase();
         
-        // API call with validation
+        // API call to list numbers
         const { data } = await axios.get(
-            `https://api.vreden.my.id/api/tools/fakenumber/listnumber?id=${countryCode}`,
+            `${FAKE_NUM_API}/listnumber?id=${countryCode}`,
             { 
                 timeout: 10000,
                 validateStatus: status => status === 200
             }
         );
 
-        // Fixed syntax error here - added missing parenthesis
         if (!data?.result || !Array.isArray(data.result)) {
             console.error("Invalid API structure:", data);
-            return reply(`⚠ Invalid API response format\nTry .tempnum us`);
+            return reply(`⚠ Invalid API response format\nTry ${usedPrefix}tempnum us`);
         }
 
         if (data.result.length === 0) {
-            return reply(`📭 No numbers available for *${countryCode.toUpperCase()}*\nTry another country code!\n\nUse .otpbox <number> after selection`);
+            return reply(`📭 No numbers available for *${countryCode.toUpperCase()}*\nTry another country code!\n\nUse ${usedPrefix}otpbox <number> after selection`);
         }
 
         // Process numbers
@@ -43,7 +44,6 @@ async (conn, mek, m, { from, args, reply }) => {
             `${String(i+1).padStart(2, ' ')}. ${num.number}`
         ).join("\n");
 
-        // Final message with OTP instructions
         await reply(
             `╭──「 📱 TEMPORARY NUMBERS 」\n` +
             `│\n` +
@@ -51,17 +51,17 @@ async (conn, mek, m, { from, args, reply }) => {
             `│ Numbers Found: ${numbers.length}\n` +
             `│\n` +
             `${numberList}\n\n` +
-            `╰──「 📦 USE: .otpbox <number> 」\n` +
-            `_Example: .otpbox +1234567890_`
+            `╰──「 📦 USE: ${usedPrefix}otpbox <number> 」\n` +
+            `_Example: ${usedPrefix}otpbox +1234567890_`
         );
 
     } catch (err) {
-        console.error("API Error:", err);
+        console.error("API Error (tempnum):", err);
         const errorMessage = err.code === "ECONNABORTED" ? 
             `⏳ *Timeout*: API took too long\nTry smaller country codes like 'us', 'gb'` :
-            `⚠ *Error*: ${err.message}\nUse format: .tempnum <country-code>`;
+            `⚠ *Error*: ${err.response?.status ? `HTTP ${err.response.status}` : err.message}\nUse format: ${usedPrefix}tempnum <country-code>`;
             
-        reply(`${errorMessage}\n\n🔑 Remember: ${prefix}otpinbox <number>`);
+        reply(`${errorMessage}\n\n🔑 Remember: ${usedPrefix}otpbox <number>`);
     }
 });
 
@@ -76,16 +76,21 @@ cmd({
 },
 async (conn, m, { reply }) => {
     try {
-        const { data } = await axios.get("https://api.vreden.my.id/api/tools/fakenumber/country");
+        // API call to list countries
+        const { data } = await axios.get(`${FAKE_NUM_API}/country`);
 
-        if (!data || !data.result) return reply("❌ Couldn't fetch country list.");
+        if (!data || !data.result) return reply("❌ Couldn't fetch country list. Invalid API response structure.");
 
         const countries = data.result.map((c, i) => `*${i + 1}.* ${c.title} \`(${c.id})\``).join("\n");
 
         await reply(`🌍 *Total Available Countries:* ${data.result.length}\n\n${countries}`);
     } catch (e) {
         console.error("TEMP LIST ERROR:", e);
-        reply("❌ Failed to fetch temporary number country list.");
+        // Improved error message
+        const status = e.response?.status;
+        const errorDetail = status ? `HTTP Status: ${status}` : e.code || e.message;
+
+        reply(`❌ *Failed to fetch temporary number country list.*\n*Reason:* External API error (${errorDetail}). Please try again later.`);
     }
 });
 
@@ -97,18 +102,18 @@ cmd({
     react: "🔑",
     use: "<full-number>"
 },
-async (conn, mek, m, { from, args, reply }) => {
+async (conn, mek, m, { from, args, reply, usedPrefix }) => {
     try {
         // Validate input
         if (!args[0] || !args[0].startsWith("+")) {
-            return reply(`❌ *Usage:* .otpbox <full-number>\nExample: .otpbox +9231034481xx`);
+            return reply(`❌ *Usage:* ${usedPrefix}otpbox <full-number>\nExample: ${usedPrefix}otpbox +9231034481xx`);
         }
 
         const phoneNumber = args[0].trim();
         
         // Fetch OTP messages
         const { data } = await axios.get(
-            `https://api.vreden.my.id/api/tools/fakenumber/message?nomor=${encodeURIComponent(phoneNumber)}`,
+            `${FAKE_NUM_API}/message?nomor=${encodeURIComponent(phoneNumber)}`,
             { 
                 timeout: 10000,
                 validateStatus: status => status === 200
@@ -138,7 +143,7 @@ async (conn, mek, m, { from, args, reply }) => {
             `│ Messages Found: ${data.result.length}\n` +
             `│\n` +
             `${otpMessages}\n` +
-            `╰──「 📌 Use .tempnum to get numbers 」`
+            `╰──「 📌 Use ${usedPrefix}tempnum to get numbers 」`
         );
 
     } catch (err) {
@@ -147,6 +152,6 @@ async (conn, mek, m, { from, args, reply }) => {
             "⌛ OTP check timed out. Try again later" :
             `⚠ Error: ${err.response?.data?.error || err.message}`;
         
-        reply(`${errorMsg}\n\nUsage: .otpbox +9231034481xx`);
+        reply(`${errorMsg}\n\nUsage: ${usedPrefix}otpbox +9231034481xx`);
     }
 });

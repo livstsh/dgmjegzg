@@ -1,78 +1,75 @@
 const axios = require('axios');
 const { cmd } = require('../command');
 
+const SEARCH_API = "https://apis.sandarux.sbs/api/download/sinhalasub/search?q=";
+const DOWNLOAD_API = "https://apis.sandarux.sbs/api/movies-info/movie?name=";
+
 cmd({
     pattern: "movie",
-    desc: "Fetch detailed information about a movie.",
-    category: "utility",
+    alias: ["film", "cinesub"],
+    desc: "Sinhala Subtitles ke saath filmein khojta aur download karta hai.", // Searches and downloads movies with Sinhala Subtitles.
+    category: "download",
     react: "🎬",
     filename: __filename
-},
-async (conn, mek, m, { from, reply, sender, args }) => {
+}, async (conn, mek, m, { from, q, reply }) => {
     try {
-        // Properly extract the movie name from arguments
-        const movieName = args.length > 0 ? args.join(' ') : m.text.replace(/^[\.\#\$\!]?movie\s?/i, '').trim();
-        
-        if (!movieName) {
-            return reply("📽️ Please provide the name of the movie.\nExample: .movie Iron Man");
+        // 1. Send initial processing reaction
+        await conn.sendMessage(from, { react: { text: `🕐`, key: mek.key } });
+
+        if (!q) return await reply("❌ Kripya khojne ke liye film ka naam dein!"); // Please provide movie name to search
+
+        await reply(`⏳ *"${q}"* film khoji jaa rahi hai...`); // Searching for movie...
+
+        // 2. Search movie using the API
+        const searchQuery = encodeURIComponent(q);
+        const searchResponse = await axios.get(`${SEARCH_API}${searchQuery}`, { timeout: 15000 });
+
+        if (!searchResponse.data.status || !searchResponse.data.result || searchResponse.data.result.length === 0) {
+            await conn.sendMessage(from, { react: { text: `❌`, key: mek.key } });
+            return await reply("❗ Film nahi mili. Kripya doosra naam try karein."); // Movie not found.
         }
 
-        const apiUrl = `https://apis.davidcyriltech.my.id/imdb?query=${encodeURIComponent(movieName)}`;
-        const response = await axios.get(apiUrl);
+        // 3. Ambil hasil pehla aur page link
+        const movieSearchResult = searchResponse.data.result[0];
+        const moviePageLink = movieSearchResult.link;
 
-        if (!response.data.status || !response.data.movie) {
-            return reply("🚫 Movie not found. Please check the name and try again.");
+        await reply(`✅ *${movieSearchResult.title}* mil gayi. Ab download link laaya jaa raha hai...`); // Found movie. Retrieving download link...
+
+        // 4. Download information API call
+        const downloadResponse = await axios.get(`${DOWNLOAD_API}${encodeURIComponent(moviePageLink)}`, { timeout: 20000 });
+
+        if (!downloadResponse.data.success || !downloadResponse.data.result || !downloadResponse.data.result.downloadLinks) {
+            await conn.sendMessage(from, { react: { text: `❌`, key: mek.key } });
+            return await reply("❗ Film ka download link laane mein vifal rahe."); // Failed to retrieve download link.
         }
 
-        const movie = response.data.movie;
+        // 5. Check and specifically grab the 720p link (index 1 in the array)
+        if (downloadResponse.data.result.downloadLinks.length < 2) {
+            await conn.sendMessage(from, { react: { text: `❌`, key: mek.key } });
+            return await reply(`❗ Download link (HD 720p) is film ke liye uplabdh nahi hai.`); // Requested quality not available.
+        }
         
-        // Format the caption
-        const dec = `
-🎬 *${movie.title}* (${movie.year}) ${movie.rated || ''}
+        const downloadDetails = downloadResponse.data.result.downloadLinks[1]; // Assuming index 1 is the desired quality
+        const movieInfo = downloadResponse.data.result;
 
-⭐ *IMDb:* ${movie.imdbRating || 'N/A'} | 🍅 *Rotten Tomatoes:* ${movie.ratings.find(r => r.source === 'Rotten Tomatoes')?.value || 'N/A'} | 💰 *Box Office:* ${movie.boxoffice || 'N/A'}
+        // 6. Kirim file film as a document
+        const cleanedTitle = movieInfo.title.replace('| සිංහල උපසිරසි සමඟ', '').trim();
 
-📅 *Released:* ${new Date(movie.released).toLocaleDateString()}
-⏳ *Runtime:* ${movie.runtime}
-🎭 *Genre:* ${movie.genres}
-
-📝 *Plot:* ${movie.plot}
-
-🎥 *Director:* ${movie.director}
-✍️ *Writer:* ${movie.writer}
-🌟 *Actors:* ${movie.actors}
-
-🌍 *Country:* ${movie.country}
-🗣️ *Language:* ${movie.languages}
-🏆 *Awards:* ${movie.awards || 'None'}
-
-[View on IMDb](${movie.imdbUrl})
-`;
-
-        // Send message with the requested format
         await conn.sendMessage(
-            from,
-            {
-                image: { 
-                    url: movie.poster && movie.poster !== 'N/A' ? movie.poster : 'https://files.catbox.moe/7zfdcq.jpg'
-                },
-                caption: dec,
-                contextInfo: {
-                    mentionedJid: [sender],
-                    forwardingScore: 999,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363418144382782@newsletter',
-                        newsletterName: 'Dua Fatima',
-                        serverMessageId: 143
-                    }
-                }
-            },
-            { quoted: mek }
+            from, {
+                document: { url: downloadDetails.link },
+                mimetype: "video/mp4",
+                fileName: `${cleanedTitle} (${downloadDetails.quality}).mp4`,
+                caption: `🎬 *${cleanedTitle}* (Quality: ${downloadDetails.quality})\n\nYeh aapki film hai. Mazey lein!\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`,
+            }, { quoted: mek }
         );
 
-    } catch (e) {
-        console.error('Movie command error:', e);
-        reply(`❌ Error: ${e.message}`);
+        // 7. Kirim reaksi sukses terakhir
+        await conn.sendMessage(from, { react: { text: `✅`, key: mek.key } });
+
+    } catch (error) {
+        console.error("Error in movie command:", error);
+        await conn.sendMessage(from, { react: { text: `❌`, key: mek.key } });
+        await reply("❌ Ek truti aa gayi. Kripya doosra naam try karein."); // General error.
     }
 });

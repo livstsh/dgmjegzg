@@ -5,9 +5,9 @@ const { runtime } = require('../lib/functions');
 const axios = require('axios');
 
 cmd({
-    pattern: "fatima",
+    pattern: "menu4",
     desc: "Show interactive menu system",
-    category: "fatima",
+    category: "menu",
     react: "🧾",
     filename: __filename
 }, async (conn, mek, m, { from, reply }) => {
@@ -60,7 +60,7 @@ cmd({
                 return await conn.sendMessage(
                     from,
                     {
-                        image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/r2ncqh' },
+                        image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/so68jp.jpg' },
                         caption: menuCaption,
                         contextInfo: contextInfo
                     },
@@ -405,7 +405,7 @@ cmd({
                                 await conn.sendMessage(
                                     senderID,
                                     {
-                                        image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/r2ncqh' },
+                                        image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/so68jp.jpg' },
                                         caption: selectedMenu.content,
                                         contextInfo: contextInfo
                                     },

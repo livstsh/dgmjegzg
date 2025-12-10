@@ -3,10 +3,10 @@ const { cmd, commands } = require('../command')
 const { runtime } = require('../lib/functions')
 
 cmd({
-    pattern: "irfan",
+    pattern: "list",
     alias: ["listcmd", "commands"],
     desc: "Show all available commands with descriptions",
-    category: "fatima",
+    category: "list",
     react: "📜",
     filename: __filename
 }, async (conn, mek, m, { from, reply }) => {
@@ -73,12 +73,12 @@ cmd({
         await conn.sendMessage(
             from,
             {
-                image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/r2ncqh' },
+                image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/so68jp.jpg' },
                 caption: menuText,
                 contextInfo: {
                     mentionedJid: [m.sender],
                     forwardingScore: 999,
-                    isForwarded: true
+                    isForwarded: false
                 }
             },
             { quoted: mek }
