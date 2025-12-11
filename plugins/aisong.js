@@ -1,75 +1,72 @@
 const axios = require("axios");
-const { cmd } = require("../command"); // Assuming 'cmd' utility path
+const { cmd } = require("../command"); 
 
 cmd({
-    pattern: "alquran2",
-    alias: [],
-    desc: "Fetches and displays a specific verse (ayat) from the Quran, including Arabic text, Latin transliteration, translation, and brief tafsir.",
-    react: '📖',
-    category: 'islami',
+    pattern: "tiktokmusic",
+    alias: ["ttmusic", "tms"],
+    desc: "Downloads the original audio/music from a TikTok video URL.",
+    react: '🎵',
+    category: 'download',
     limit: true,
     filename: __filename
-}, async (conn, m, store, { args, reply, usedPrefix, command }) => {
-    try {
-        // --- 1. Input Validation ---
-        if (!args[0] || !args[1]) {
-            await store.react('❌');
-            return reply(`Format salah. Gunakan:\n${usedPrefix + command} <surah> <ayat>\n\nContoh: ${usedPrefix + command} 1 5 (Surah Al-Fatihah, Ayat 5)`);
-        }
+}, async (conn, m, store, { text, usedPrefix, command, reply }) => {
+    
+    // --- 1. Input Validation ---
+    if (!text) {
+        await store.react('❌');
+        return reply(`Masukkan URL TikTok!\nContoh: ${usedPrefix + command} https://vt.tiktok.com/ZSr6HXMxk/`);
+    }
+    
+    // Simple URL validation (check for tiktok domain presence)
+    if (!/tiktok\.com/.test(text)) {
+        await store.react('❌');
+        return reply('⚠️ Link harus dari TikTok!');
+    }
 
-        let [surah, ayat] = args;
-        
-        // Basic numerical validation
-        if (isNaN(parseInt(surah)) || isNaN(parseInt(ayat))) {
-            await store.react('❌');
-            return reply(`Nomor surah dan ayat harus berupa angka.\nContoh: ${usedPrefix + command} 1 5`);
-        }
-        
+    try {
         await store.react('⏳');
-        reply(`Mencari Qur'an Surah ${surah} Ayat ${ayat}...`);
+        reply('⏳ Sedang menyelam ke lautan TikTok, tunggu sebentar...');
 
         // --- 2. API Call using axios ---
-        const apiUrl = `https://www.velyn.biz.id/api/search/alquran?surah=${surah}&ayat=${ayat}`;
-        const response = await axios.get(apiUrl, { timeout: 15000 });
-        
+        const apiUrl = `https://api.vreden.my.id/api/tikmusic?url=${encodeURIComponent(text)}`;
+        const response = await axios.get(apiUrl, { timeout: 20000 });
         const json = response.data;
 
-        if (!json.status || !json.data) {
-            throw new Error('Data tidak ditemukan atau format salah.');
+        // --- 3. Check API Status ---
+        if (json.status !== 200 || !json.result?.url) {
+            await store.react('❌');
+            return reply(`Gagal mengambil data! Pastikan URL valid dan musik tersedia.\nDetail: ${json.msg || 'Status API bukan 200'}`);
         }
 
-        // --- 3. Construct Response ---
-        const q = json.data;
+        const { title, author, album, url } = json.result;
         
-        // Use Surah and Ayat from the API response to ensure accuracy
-        let teks = `*📖 Al-Qur'an | Surah ${q.surah} Ayat ${q.ayat}*
+        // --- 4. Construct Caption ---
+        let info = `*Tiktok Music*\n\n`;
+        info += `*Judul:* ${title || 'N/A'}\n`;
+        info += `*Author:* ${author || 'N/A'}\n`;
+        info += `*Album:* ${album || 'N/A'}`;
 
-*Arab:* ${q.arab}
+        // --- 5. Send Audio ---
+        await conn.sendMessage(m.chat, {
+            audio: { url },
+            mimetype: 'audio/mpeg',
+            fileName: `${title || 'tiktok_music'}.mp3`,
+            ptt: false // Send as standard audio file
+        }, { quoted: m });
 
-*Latin (Transliterasi):* _${q.latin}_
-
-*Terjemahan (Indonesia):* ${q.terjemahan}
-
-*Tafsir Singkat:* ${q.tafsir.split('\n')[0] || 'Tidak ada tafsir singkat tersedia.'}
-
-${q.audio ? `\n_Audio:_ ${q.audio}` : ''}`;
-
-        await reply(teks);
+        // --- 6. Send Info Caption ---
+        await reply(info);
         await store.react('✅');
-        
+
     } catch (e) {
         await store.react('❌');
-        console.error("AlQuran Command Error:", e);
+        console.error("TikTok Music Command Error:", e);
         
-        let errorMessage = 'Gagal mencari data Al-Qur\'an. Pastikan nomor Surah dan Ayat benar.';
-        if (e.message.includes('timeout')) {
+        let errorMessage = 'Gagal mendownload musik TikTok.';
+        if (axios.isAxiosError(e) && e.code === 'ECONNABORTED') {
             errorMessage = 'Permintaan waktu habis (Timeout). Coba lagi.';
-        } else if (e.response && e.response.status === 404) {
-             errorMessage = `Surah ${args[0]} Ayat ${args[1]} tidak ditemukan.`;
-        } else if (e.message.includes('Data tidak ditemukan')) {
-             errorMessage = 'Data tidak ditemukan untuk ayat tersebut.';
         }
         
-        reply(`❌ Error: ${errorMessage}\nDetail Log: ${e.message}`);
+        reply(`❌ Error: ${errorMessage}\nLogs error : ${e.message || e}`);
     }
 });
