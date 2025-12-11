@@ -2,7 +2,7 @@ const axios = require("axios");
 const { cmd } = require("../command"); // Assuming 'cmd' utility path
 
 cmd({
-    pattern: "alquran",
+    pattern: "alquran2",
     alias: [],
     desc: "Fetches and displays a specific verse (ayat) from the Quran, including Arabic text, Latin transliteration, translation, and brief tafsir.",
     react: '📖',
