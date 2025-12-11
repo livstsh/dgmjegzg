@@ -3,7 +3,7 @@ const { cmd } = require('../command');
 cmd({
     pattern: "clear",
     alias: ["delmsg", "clr"],
-    desc: "Clears the last message sent by the bot in the current chat.",
+    desc: "Deletes the user's command message and the bot's temporary response, cleaning up the chat.",
     react: '🗑️',
     category: 'owner', 
     owner: true, 
@@ -11,33 +11,33 @@ cmd({
     filename: __filename
 }, async (conn, m, store, { reply }) => {
     
-    // Note: In modern multi-device bots, message deletion can be complex,
-    // as we usually need the key of the message we want to delete.
-    // This command focuses on deleting the message it just sent.
+    // NOTE: WhatsApp API does not allow bots to delete arbitrary messages or clear all chat history. 
+    // This command deletes the user's *command message* and the bot's *placeholder message* // to keep the chat clean.
     
     try {
         await store.react('🗑️');
         
-        // 1. Send an initial message
-        const message = await conn.sendMessage(m.chat, { 
-            text: 'Clearing bot messages...' 
+        // 1. Send a temporary placeholder message
+        const placeholder = await conn.sendMessage(m.chat, { 
+            text: 'Deleting command and cleaning up...' 
         });
         
-        const messageKey = message.key; 
-        
-        // 2. Add a short delay (optional, but ensures the message registers before deletion)
+        // Add a short delay to ensure messages register before deletion
         await new Promise(resolve => setTimeout(resolve, 500)); 
         
-        // 3. Delete the bot's message using the key
-        await conn.sendMessage(m.chat, { delete: messageKey });
+        // 2. Delete the user's original command message (the trigger)
+        // Note: Bot must be an admin to delete other users' messages in a group.
+        await conn.sendMessage(m.chat, { delete: m.key });
+
+        // 3. Delete the bot's placeholder message
+        await conn.sendMessage(m.chat, { delete: placeholder.key });
         
-        // Since the success message is deleted instantly, we can't show a success reaction easily,
-        // but we assume success if no error was thrown.
+        // Success is silent (no messages left)
         
     } catch (error) {
         console.error('Error clearing messages:', error);
         await store.react('❌');
-        // Reply with error, but this message won't be deleted.
-        reply('❌ An error occurred while attempting to clear the message.');
+        // If deletion fails, notify the user. This message will remain.
+        reply('❌ Failed to clean up the chat. (Bot may not have admin rights or deletion is restricted)');
     }
 });
