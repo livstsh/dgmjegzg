@@ -113,7 +113,7 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
 ‎*┋❁┋. ʙᴏᴛ ɴᴀᴍᴇ: ${config.BOT_NAME}*
 ‎*┋❁┋. ᴠᴇʀꜱɪᴏɴ: 5.0.0*
 ‎*┋❁┋. ʀᴜɴᴛɪᴍᴇ: ${runtime(process.uptime())}*
-‎*┋❁┋. ᴅᴇᴠ : ᴋᴀᴍʀᴀɴ-ᴍᴅ* ‎*┋❁┋. ᴘʟᴀᴛғᴏʀᴍ: ${os.platform()}*
+‎*┋❁┋. ᴅᴇᴠ : *‎亗𝙆𝘼𝙈𝙍𝘼𝙉*𝙎𝙈𝘿ϟᴋᴀᴍʀᴀɴsᴍᴅ*┋❁┋. ᴘʟᴀᴛғᴏʀᴍ: ${os.platform()}*
 ‎*┋❁┋. ᴍᴏᴅᴇ: ${config.MODE}*
 ‎*┋❁┋. ᴘʀᴇғɪx: [${config.PREFIX}]*
 ‎*┋❁╰───────────────*
@@ -289,7 +289,7 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
             from,
             {
                 // Using the neon-themed placeholder image
-                image: { url: 'https://placehold.co/600x400/101010/8A2BE2/png?text=KAMRAN+BOT+MENU+%E2%9C%A8' },
+                image: { url: 'https://placehold.co/600x400/101010/8A2BE2/png?text=KAMRAN+SMD+MENU+%E2%9C%A8' },
                 caption: dec,
                 contextInfo: {
                     mentionedJid: [m.sender],
