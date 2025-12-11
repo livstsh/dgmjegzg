@@ -109,7 +109,7 @@ cmd(
 
       // Format the descriptive text for the simplified menu
       let desc = `
- 🎬 KAMRAN MD DOWNLOADER 🎬
+ 🎬 亗𝙆𝘼𝙈𝙍𝘼𝙉*𝙎𝙈𝘿ϟ 𝘿𝙊𝙒𝙉𝙇𝙊𝘼𝘿 🎬
 
 📌 *Title:* ${ytdata.title}
 🎬 *Channel:* ${ytdata.author.name}
