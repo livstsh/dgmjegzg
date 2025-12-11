@@ -33,7 +33,7 @@ async (conn, mek, m, { from, reply }) => {
 
         // Send image with caption
         await conn.sendMessage(from, {
-            image: { url: `https://files.catbox.moe/so68jp.jpg` },
+            image: { url: `https://files.catbox.moe/fgtqja.jpg` },
             caption: formattedInfo,
             contextInfo: { 
                 mentionedJid: [m.sender],
@@ -41,7 +41,7 @@ async (conn, mek, m, { from, reply }) => {
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
                     newsletterJid: '120363418144382782@newsletter',
-                    newsletterName: 'Dr Kamran',
+                    newsletterName: '亗𝙆𝘼𝙈𝙍𝘼𝙉*𝙎𝙈𝘿ϟ',
                     serverMessageId: 779
                 }
             }
