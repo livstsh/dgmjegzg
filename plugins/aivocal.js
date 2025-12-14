@@ -111,7 +111,7 @@ async (conn, m, store, { from, quoted, reply, usedPrefix, command }) => {
             { quoted: m }
         );
 
-        await reply(`*✅ Berhasil memisahkan audio!* 🎶✨\n\n*• Instrumental*\n*• Vocal*`);
+        await reply(`*✅ KAMRAN-SMD memisahkan audio!* 🎶✨\n\n*• Instrumental*\n*• Vocal*`);
 
     } catch (e) {
         // Remove the loading reaction and reply with error
