@@ -109,7 +109,7 @@ cmd(
 
       // Format the descriptive text for the simplified menu
       let desc = `
- 🎬 FATIMA MD DOWNLOADER 🎬
+ 🎬 NAWAZ MD DOWNLOADER 🎬
 
 📌 *Title:* ${ytdata.title}
 🎬 *Channel:* ${ytdata.author.name}
@@ -122,7 +122,7 @@ cmd(
 1 - MP4 (Video) 🎥
 2 - MP3 (Audio) 🎶
    
-> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴋᴀᴍʀᴀɴ ᴍᴅ`; 
+> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ NAWAZ ᴍᴅ`; 
 
       // Send the menu message
       const vv = await robin.sendMessage(
