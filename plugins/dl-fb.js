@@ -84,7 +84,7 @@ cmd({
         await conn.sendMessage(from, {
             video: { url: videoData.downloadUrl },
             mimetype: "video/mp4",
-            caption: `✅ *${videoData.videoTitle}* Downloaded Successfully!\n*Quality:* ${videoData.quality}\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`
+            caption: `✅ *${videoData.videoTitle}* Downloaded Successfully!\n*Quality:* ${videoData.quality}\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ NAWAZ MD*`
         }, { quoted: mek });
 
         // Success reaction
