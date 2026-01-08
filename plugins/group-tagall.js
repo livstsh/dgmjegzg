@@ -37,7 +37,7 @@ async (conn, mek, m, { from, participants, reply, isGroup, senderNumber, groupAd
         let message = body.slice(body.indexOf(command) + command.length).trim();
         if (!message) message = "Attention Everyone"; // Default message
 
-        let teks = `▢ Group : *${groupName}*\n▢ Members : *${totalMembers}*\n▢ Message: *${message}*\n\n┌───⊷ *FATIMA-MD_MENTIONS*\n`;
+        let teks = `▢ Group : *${groupName}*\n▢ Members : *${totalMembers}*\n▢ Message: *${message}*\n\n┌───⊷ *NAWAZ-MD_MENTIONS*\n`;
 
         for (let mem of participants) {
             if (!mem.id) continue; // Prevent undefined errors
