@@ -1,76 +1,118 @@
-const { cmd } = require('../command');
-const axios = require('axios');
-const yts = require('yt-search');
+//---------------------------------------------------------------------------
+//           KAMRAN-MD - YOUTUBE VIDEO DOWNLOADER (STYLISH)
+//---------------------------------------------------------------------------
 
-const AXIOS_DEFAULTS = {
-    timeout: 60000,
-    headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Accept': 'application/json'
-    }
-};
+const { cmd } = require("../command");
+const yts = require("yt-search");
+const axios = require("axios");
 
-// ✅ SAME API AS DRAMA
-async function getYupra(url) {
-    try {
-        const api = `https://api.yupra.my.id/api/downloader/ytmp4?url=${encodeURIComponent(url)}`;
-        const res = await axios.get(api, AXIOS_DEFAULTS);
-        const d = res?.data?.data || {};
-        return d.download_url || null;
-    } catch {
-        return null;
+function normalizeYouTubeUrl(url) {
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/.*[?&]v=)([a-zA-Z0-9_-]{11})/);
+  return match ? `https://youtube.com/watch?v=${match[1]}` : null;
+}
+
+async function fetchDownloadData(url, retries = 2) {
+  try {
+    const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
+    const { data } = await axios.get(apiUrl, { timeout: 20000 });
+
+    if (data.status && data.result) {
+      return {
+        video_url: data.result.mp4,
+        title: data.result.title || "YouTube Video",
+      };
     }
+    throw new Error("API failed.");
+  } catch {
+    if (retries > 0) {
+      await new Promise(r => setTimeout(r, 2000));
+      return fetchDownloadData(url, retries - 1);
+    }
+    return null;
+  }
 }
 
 cmd({
-    pattern: "video",
-    alias: ["mp4"],
-    desc: "Download video by name",
-    category: "download",
-    react: "🎬",
-    filename: __filename
-}, async (sock, message, m, { q }) => {
-
-    const query = q ? q.trim() : "";
-    if (!query)
-        return await sock.sendMessage(
-            message.chat,
-            { text: "Please provide a song name!" },
-            { quoted: message }
-        );
-
-    try {
-        const search = await yts(query);
-        const video = search.videos[0];
-        if (!video) return;
-
-        const customName = "⚡ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ⚡";
-
-        // Thumbnail + info (same style)
-        await sock.sendMessage(message.chat, {
-            image: { url: video.thumbnail },
-            caption:
-`*${video.title}*
-
-🎥 *Channel:* ${video.author.name}
-👁️ *Views:* ${video.views.toLocaleString()}
-⏳ *Duration:* ${video.timestamp}
-
-> *${customName}*`
-        }, { quoted: message });
-
-        // Download link from Yupra
-        const downUrl = await getYupra(video.url);
-        if (!downUrl) return;
-
-        // Send video
-        await sock.sendMessage(message.chat, {
-            video: { url: downUrl },
-            mimetype: "video/mp4",
-            caption: `*${video.title}*\n\n> *${customName}*`
-        }, { quoted: message });
-
-    } catch {
-        // no extra messages
+  pattern: "video",
+  alias: ["ytmp4", "vdl"],
+  react: "🎥",
+  desc: "Search and download videos from YouTube",
+  category: "download",
+  filename: __filename,
+},
+async (conn, mek, m, { from, q, reply, prefix, command }) => {
+  try {
+    if (!q) {
+      return reply(`🎥 *Video Downloader*\n\nUsage: \`${prefix + command} <name/link>\``);
     }
+
+    await conn.sendMessage(from, { react: { text: "🔍", key: mek.key } });
+
+    // Search
+    const url = normalizeYouTubeUrl(q);
+    let ytdata;
+
+    if (url) {
+      ytdata = await yts({ videoId: url.split("v=")[1] });
+    } else {
+      const search = await yts(q);
+      if (!search.videos.length) return reply("❌ No results found!");
+      ytdata = search.videos[0];
+    }
+
+    // Stylish Info Card
+    const infoText = `
+╭━━━〔 🎬 *PROVA VIDEO DOWNLOADER* 〕━━━⬣
+┃
+┃ 🎥 *Title:* ${ytdata.title}
+┃ 📺 *Channel:* ${ytdata.author?.name || "Unknown"}
+┃ ⏱️ *Duration:* ${ytdata.timestamp}
+┃ 👁️ *Views:* ${ytdata.views.toLocaleString()}
+┃ 🔗 ${ytdata.url}
+┃
+┣━━━━━━━━━━━━━━━━━━⬣
+┃ ⏳ *Processing your video file...*
+╰━━━━━━━━━━━━━━━━━━⬣
+> © Powered By ᴘʀᴏᴠᴀ-ᴍᴅ
+`;
+
+    await conn.sendMessage(from, {
+      image: { url: ytdata.thumbnail || ytdata.image },
+      caption: infoText
+    }, { quoted: mek });
+
+    await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
+
+    // Fetch download
+    const dlData = await fetchDownloadData(ytdata.url);
+
+    if (!dlData) {
+      await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
+      return reply("❌ Download failed. Try again later.");
+    }
+
+    // Send video
+    await conn.sendMessage(from, {
+      video: { url: dlData.video_url },
+      mimetype: "video/mp4",
+      caption: `✅ *${dlData.title}*\n\n🚀 *Enjoy your video!*`,
+      contextInfo: {
+        externalAdReply: {
+          title: "YouTube Video Downloader",
+          body: dlData.title,
+          thumbnailUrl: ytdata.thumbnail || ytdata.image,
+          sourceUrl: ytdata.url,
+          mediaType: 2,
+          renderLargerThumbnail: true
+        }
+      }
+    }, { quoted: mek });
+
+    await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
+
+  } catch (e) {
+    console.error(e);
+    await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
+    reply("⚠️ Something went wrong!");
+  }
 });
