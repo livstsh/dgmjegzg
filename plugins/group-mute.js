@@ -1,69 +1,122 @@
-const config = require('../config');
-const { cmd } = require('../command');
-const { sleep } = require('../lib/functions');
+const config = require('../config')
+const { cmd } = require('../command')
 
-function parseTime(timeStr) {
-    if (!timeStr) return 0;
-    const match = timeStr.match(/(\d+)\s*([smh])/i);
-    if (!match) return null;
-
-    const value = parseInt(match[1]);
-    const unit = match[2].toLowerCase();
-
-    if (unit === "s") return value * 1000;
-    if (unit === "m") return value * 60 * 1000;
-    if (unit === "h") return value * 60 * 60 * 1000;
-    return 0;
+async function getGroupAdmins(participants = []) {
+    const admins = []
+    for (let p of participants) {
+        if (p.admin === "admin" || p.admin === "superadmin") {
+            admins.push(p.id) // p.id can be LID or PN
+        }
+    }
+    return admins
 }
 
-// Mute / Close command
+async function checkAdminStatus(conn, chatId, senderId) {
+    try {
+        const metadata = await conn.groupMetadata(chatId);
+        const participants = metadata.participants || [];
+        
+        const botId = conn.user?.id || '';
+        const botLid = conn.user?.lid || '';
+        
+        // Extract bot information
+        const botNumber = botId.includes(':') ? botId.split(':')[0] : (botId.includes('@') ? botId.split('@')[0] : botId);
+        const botIdWithoutSuffix = botId.includes('@') ? botId.split('@')[0] : botId;
+        const botLidNumeric = botLid.includes(':') ? botLid.split(':')[0] : (botLid.includes('@') ? botLid.split('@')[0] : botLid);
+        const botLidWithoutSuffix = botLid.includes('@') ? botLid.split('@')[0] : botLid;
+        
+        // Extract sender information
+        const senderNumber = senderId.includes(':') ? senderId.split(':')[0] : (senderId.includes('@') ? senderId.split('@')[0] : senderId);
+        const senderIdWithoutSuffix = senderId.includes('@') ? senderId.split('@')[0] : senderId;
+        
+        let isBotAdmin = false;
+        let isSenderAdmin = false;
+        
+        for (let p of participants) {
+            if (p.admin === "admin" || p.admin === "superadmin") {
+                // Check participant IDs
+                const pPhoneNumber = p.phoneNumber ? p.phoneNumber.split('@')[0] : '';
+                const pId = p.id ? p.id.split('@')[0] : '';
+                const pLid = p.lid ? p.lid.split('@')[0] : '';
+                const pFullId = p.id || '';
+                const pFullLid = p.lid || '';
+                
+                // Extract numeric part from participant LID
+                const pLidNumeric = pLid.includes(':') ? pLid.split(':')[0] : pLid;
+                
+                // Check if this participant is the bot
+                const botMatches = (
+                    botId === pFullId ||
+                    botId === pFullLid ||
+                    botLid === pFullLid ||
+                    botLidNumeric === pLidNumeric ||
+                    botLidWithoutSuffix === pLid ||
+                    botNumber === pPhoneNumber ||
+                    botNumber === pId ||
+                    botIdWithoutSuffix === pPhoneNumber ||
+                    botIdWithoutSuffix === pId ||
+                    (botLid && botLid.split('@')[0].split(':')[0] === pLid)
+                );
+                
+                if (botMatches) {
+                    isBotAdmin = true;
+                }
+                
+                // Check if this participant is the sender
+                const senderMatches = (
+                    senderId === pFullId ||
+                    senderId === pFullLid ||
+                    senderNumber === pPhoneNumber ||
+                    senderNumber === pId ||
+                    senderIdWithoutSuffix === pPhoneNumber ||
+                    senderIdWithoutSuffix === pId ||
+                    (pLid && senderIdWithoutSuffix === pLid)
+                );
+                
+                if (senderMatches) {
+                    isSenderAdmin = true;
+                }
+            }
+        }
+        
+        return { isBotAdmin, isSenderAdmin };
+        
+    } catch (err) {
+        console.error('❌ Error checking admin status:', err);
+        return { isBotAdmin: false, isSenderAdmin: false };
+    }
+}
+
 cmd({
-    pattern: "close",
-    alias: ["groupclose", "mute"],
+    pattern: "mute",
+    alias: ["groupmute"],
     react: "🔇",
-    desc: "Mute group immediately or after delay",
+    desc: "Mute the group (Only admins can send messages).",
     category: "group",
     filename: __filename
-}, async (conn, mek, m, { from, isGroup, isCreator, isAdmins, args, reply }) => {
-    if (!isGroup) return;
-    if (!isAdmins && !isCreator) return;
-
-    const delay = args[0] ? parseTime(args[0]) : 0;
-
-    if (delay > 0) {
-        await reply(`⏳ Group will be muted in ${args[0]}`);
-        setTimeout(async () => {
-            await conn.groupSettingUpdate(from, "announcement");
-            await reply(`*🔇 Group Muted Successfully for ${args[0]}*`);
-        }, delay);
-    } else {
+},           
+async (conn, mek, m, { from, isGroup, isBotAdmins, reply }) => {
+    try {
+        if (!isGroup) return reply("❌ This command can only be used in groups.");
+        
+        // Get sender ID with LID support
+        const senderId = mek.key.participant || mek.key.remoteJid || mek.key.fromMe ? conn.user?.id : null;
+        if (!senderId) return reply("❌ Could not identify sender.");
+        
+        // Check admin status using the integrated function
+        const { isBotAdmin, isSenderAdmin } = await checkAdminStatus(conn, from, senderId);
+        
+        if (!isSenderAdmin) return reply("❌ Only group admins can use this command.");
+        if (!isBotAdmin) return reply("❌ I need to be an admin to mute the group.");
+        
         await conn.groupSettingUpdate(from, "announcement");
-        return reply("*🔇 Group Muted Successfully*");
+        reply("✅ Group has been muted. Only admins can send messages.");
+        
+    } catch (e) {
+        console.error("Error muting group:", e);
+        reply("❌ Failed to mute the group. Please try again.");
     }
-});
+})
 
-// Unmute / Open command
-cmd({
-    pattern: "open",
-    alias: ["groupopen", "unmute"],
-    react: "🔊",
-    desc: "Unmute group immediately or after delay",
-    category: "group",
-    filename: __filename
-}, async (conn, mek, m, { from, isGroup, isCreator, isAdmins, args, reply }) => {
-    if (!isGroup) return;
-    if (!isAdmins && !isCreator) return;
 
-    const delay = args[0] ? parseTime(args[0]) : 0;
-
-    if (delay > 0) {
-        await reply(`⏳ Group will be unmuted in ${args[0]}`);
-        setTimeout(async () => {
-            await conn.groupSettingUpdate(from, "not_announcement");
-            await reply(`*🔊 Group Unmuted Successfully for ${args[0]}*`);
-        }, delay);
-    } else {
-        await conn.groupSettingUpdate(from, "not_announcement");
-        return reply("*🔊 Group Unmuted Successfully*");
-    }
-});
+            
