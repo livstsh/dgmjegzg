@@ -35,7 +35,7 @@ cmd({
         const video = search.videos.find(v => v.seconds >= 900);
         if (!video) return reply("❌ No suitable drama found (≥15 min)!");
 
-        const customName = "> *⚡ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ⚡*";
+        const customName = "> *⚡ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ⚡*";
         const videoTitle = video.title;
 
         // Play-style caption box

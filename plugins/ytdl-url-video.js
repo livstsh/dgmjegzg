@@ -46,7 +46,7 @@ cmd({
             info = videoId ? await yts({ videoId }) : null;
         } catch {}
 
-        const customName = "⚡ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ⚡";
+        const customName = "⚡ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ⚡";
 
         const apiData = await getYupra(link);
         if (!apiData.download) return;
