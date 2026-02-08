@@ -14,7 +14,7 @@ cmd({
     filename: __filename,
 },
 async (conn, mek, m, { from, reply }) => {
-    const githubRepoURL = 'https://github.com/Adeel-Xtech/ADEEL-MD';
+    const githubRepoURL = 'https://github.com/PROVA/PROVA-MD';
 
     try {
         // GitHub API fetch logic
@@ -24,19 +24,19 @@ async (conn, mek, m, { from, reply }) => {
         if (!response.ok) throw new Error(`API error: ${response.status}`);
         const repoData = await response.json();
 
-        const formattedInfo = `*BOT NAME:*\n> ${repoData.name}\n\n*OWNER NAME:*\n> ${repoData.owner.login}\n\n*STARS:*\n> ${repoData.stargazers_count}\n\n*FORKS:*\n> ${repoData.forks_count}\n\n*GITHUB LINK:*\n> ${repoData.html_url}\n\n*DESCRIPTION:*\n> ${repoData.description || 'No description'}\n\n*Don't Forget To Star and Fork Repository*\n\n> *𝐀𝐃𝐄𝐄𝐋-𝐌𝐃🖤*`;
+        const formattedInfo = `*BOT NAME:*\n> ${repoData.name}\n\n*OWNER NAME:*\n> ${repoData.owner.login}\n\n*STARS:*\n> ${repoData.stargazers_count}\n\n*FORKS:*\n> ${repoData.forks_count}\n\n*GITHUB LINK:*\n> ${repoData.html_url}\n\n*DESCRIPTION:*\n> ${repoData.description || 'No description'}\n\n*Don't Forget To Star and Fork Repository*\n\n> *PROVA-𝐌𝐃🖤*`;
 
         // 1. Send Image
         await conn.sendMessage(from, {
-            image: { url: `https://files.catbox.moe/hg5hj6.jpg` },
+            image: { url: `https://files.catbox.moe/e4za15.jpg` },
             caption: formattedInfo,
             contextInfo: { 
                 mentionedJid: [m.sender],
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363403380688821@newsletter',
-                    newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                    newsletterJid: '120363418144382782@newsletter',
+                    newsletterName: 'PROVA-𝐌𝐃',
                     serverMessageId: 143
                 }
             }
@@ -60,8 +60,8 @@ async (conn, mek, m, { from, reply }) => {
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 143
                     }
                 }
