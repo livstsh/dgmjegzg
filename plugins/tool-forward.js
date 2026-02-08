@@ -24,7 +24,7 @@ cmd({
     else if (Array.isArray(match)) jidInput = match.join(" ").trim();
     else if (match && typeof match === "object") jidInput = match.text || "";
 
-    if (!jidInput) return await message.reply("📥 *Please provide group IDs or phone numbers to forward*\n\nExample:\n.fwd 923001234567 923441112233\n.fwd 120363403380688821@g.us");
+    if (!jidInput) return await message.reply("📥 *Please provide group IDs or phone numbers to forward*\n\nExample:\n.fwd 923147168309 923195068309\n.fwd 1203603380688821@g.us");
 
     // ✂️ Split input by spaces or commas
     const rawJids = jidInput.split(/[\s,]+/).filter(x => x.trim().length > 0);
