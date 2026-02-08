@@ -42,7 +42,7 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
             let stylizedCaption = `✨ *Ｎａｎｏ Ｂａｎａｎａ ｖ５* ✨\n\n` +
                                   `📝 *Prompt:* ${q}\n` +
                                   `⚡ *Response:* Successfully Generated\n\n` +
-                                  `> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ*`;
+                                  `> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ*`;
 
             await conn.sendMessage(from, { 
                 image: { url: data.result }, 

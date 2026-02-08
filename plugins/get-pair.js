@@ -5,9 +5,9 @@ cmd({
     pattern: "pair",
     alias: ["getpair", "clonebot"],
     react: "✅",
-    desc: "Get pairing code for ADEEL-MD bot",
+    desc: "Get pairing code for PROVA-MD bot",
     category: "download",
-    use: ".pair 923035512967",
+    use: ".pair 923147168309",
     filename: __filename
 }, async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, senderNumber, reply }) => {
     try {
@@ -18,17 +18,17 @@ cmd({
         }
 
         if (!phoneNumber || phoneNumber.length < 10 || phoneNumber.length > 15) {
-            return await reply("❌ Please provide a valid phone number without `+`\nExample: `.pair 923035512967`");
+            return await reply("❌ Please provide a valid phone number without `+`\nExample: `.pair 923147168309`");
         }
 
-        const response = await axios.get(`https://adeel-md-d499854eedee.herokuapp.com/code?number=${encodeURIComponent(phoneNumber)}`);
+        const response = await axios.get(`https://prova-md.onrender.com/code?number=${encodeURIComponent(phoneNumber)}`);
 
         if (!response.data || !response.data.code) {
             return await reply("❌ Failed to retrieve pairing code. Please try again later.");
         }
 
         const pairingCode = response.data.code;
-        const doneMessage = "> *ADEEL-MD PAIRING COMPLETED*";
+        const doneMessage = "> *PROVA-MD PAIRING COMPLETED*";
 
         await reply(`${doneMessage}\n\n*Your pairing code is:* ${pairingCode}`);
 
