@@ -44,7 +44,7 @@ cmd({
         const video = search.videos[0];
         if (!video) return;
 
-        const customName = "⚡ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴅʀ-ᴍᴅ-ᴍɪɴɪ⚡";
+        const customName = "⚡ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ⚡";
 
         // Thumbnail + info (same style)
         await sock.sendMessage(message.chat, {
