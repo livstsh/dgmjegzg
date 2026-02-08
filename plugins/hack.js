@@ -39,7 +39,7 @@ async (conn, mek, m, {
             '*🔧 Finalizing operations...* 🏁',
             '⚠️ *Note:* All actions are for demonstration purposes only.',
             '⚠️ *Reminder:* Ethical hacking is the only way to ensure security.',
-            '> *ADEEL-MD-HACKING-COMPLETE ☣*'
+            '> *PROVA-MD-HACKING-COMPLETE ☣*'
         ];
 
         for (let i = 0; i < steps.length; i++) {
