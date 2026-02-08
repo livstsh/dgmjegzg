@@ -23,7 +23,7 @@ async (conn, mek, m, { from, reply }) => {
 📰 *${article.title}*
 ⚠️ _${article.description || "No description available."}_
 
-𝐀𝐃𝐄𝐄𝐋-𝐌𝐃
+PROVA-𝐌𝐃
             `;
 
             console.log('Article Image URL:', article.urlToImage); // Log image URL for debugging

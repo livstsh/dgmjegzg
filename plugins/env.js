@@ -54,15 +54,15 @@ async (conn, mek, m, { from, sender, pushname, reply }) => {
 > ${config.DESCRIPTION}`;
 
         await conn.sendMessage(from, {
-            image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/hg5hj6.jpg' },
+            image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/e4za15.jpg' },
             caption: dec,
             contextInfo: {
                 mentionedJid: [m.sender],
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363403380688821@newsletter',
-                    newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                    newsletterJid: '120363418144382782@newsletter',
+                    newsletterName: 'PROVA-𝐌𝐃',
                     serverMessageId: 143
                 }
             }
@@ -83,8 +83,8 @@ async (conn, mek, m, { from, sender, pushname, reply }) => {
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 143
                     }
                 }

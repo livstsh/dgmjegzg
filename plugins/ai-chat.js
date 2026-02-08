@@ -21,7 +21,7 @@ async (conn, mek, m, { from, args, q, reply, react }) => {
             return reply("❌ AI ne jawab nahi diya, try later.");
         }
 
-        await reply(`🤖 *AI ka jawab:*\n\n${data.message}`);
+        await reply(`🤖 *AI ka prova:*\n\n${data.message}`);
         await react("✅");
     } catch (e) {
         console.error("Error in AI command:", e);

@@ -41,7 +41,7 @@ cmd({
       `❤️ Likes: ${res.stats.like.toLocaleString()}\n` +
       `💬 Comments: ${res.stats.comment.toLocaleString()}\n` +
       `🔄 Shares: ${res.stats.share.toLocaleString()}\n\n` +
-      `✨ *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ*`;
+      `✨ *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ*`;
 
     // Sending Video
     await conn.sendMessage(from, {

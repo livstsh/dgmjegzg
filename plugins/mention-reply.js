@@ -42,13 +42,13 @@ cmd({
           forwardingScore: 999,
           isForwarded: true,
           externalAdReply: {
-            title: config.BOT_NAME || "ADEEL-MD 🥀",
-            body: config.DESCRIPTION || "𝐀𝐃𝐄𝐄𝐋-𝐌𝐃 🤌💗",
+            title: config.BOT_NAME || "PROVA-MD 🥀",
+            body: config.DESCRIPTION || "PROVA-𝐌𝐃 🤌💗",
             mediaType: 1,
             renderLargerThumbnail: true,
             thumbnail: thumbnailBuffer,
-            mediaUrl: "https://files.catbox.moe/hg5hj6.jpg", // Static image URL
-            sourceUrl: "https://wa.me/message/923035512967",
+            mediaUrl: "https://files.catbox.moe/e4za15.jpg", // Static image URL
+            sourceUrl: "https://wa.me/message/923147168309",
             showAdAttribution: true
           }
         }

@@ -30,7 +30,7 @@ cmd({
         let caption = `🎬 *CAPCUT DOWNLOADER*\n\n`;
         caption += `📝 *Title:* ${title}\n`;
         caption += `👤 *Author:* ${author}\n\n`;
-        caption += `> ᴘᴏᴡᴇʀᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ 🪸`;
+        caption += `> ᴘᴏᴡᴇʀᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ 🪸`;
 
         await conn.sendMessage(
             mek.chat,

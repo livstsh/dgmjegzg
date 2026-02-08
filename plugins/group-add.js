@@ -13,7 +13,7 @@ cmd({
     try {
         if (!isGroup) return reply("⚠️ This command only works in groups.")
         if (!isAdmins && !isCreator) return reply("❌ Access Denied! Only group admins can use this command.")
-        if (!args.length) return reply("⚠️ Please provide member numbers.\nExample: .add 923035512967")
+        if (!args.length) return reply("⚠️ Please provide member numbers.\nExample: .add 923147168309")
 
         try {
             const rawInput = args.join(" ")

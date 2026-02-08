@@ -55,8 +55,8 @@ async (conn, mek, m, { from, sender, pushname, reply }) => {
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 143
                     }
                 }
@@ -137,15 +137,15 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
         await conn.sendMessage(
             from,
             {
-                image: { url: `https://files.catbox.moe/x2qij1.jpg` },
+                image: { url: `https://files.catbox.moe/e4za15.jpg` },
                 caption: dec,
                 contextInfo: {
                     mentionedJid: [m.sender],
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: "𝐀𝐃𝐄𝐄𝐋-𝐌𝐃",
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: "PROVA-𝐌𝐃",
                         serverMessageId: 143
                     }
                 }
@@ -203,15 +203,15 @@ async (conn, mek, m, { from, quoted, reply }) => {
         await conn.sendMessage(
             from,
             {
-                image: { url: `https://files.catbox.moe/x2qij1.jpg` },
+                image: { url: `https://files.catbox.moe/e4za15.jpg` },
                 caption: dec,
                 contextInfo: {
                     mentionedJid: [m.sender],
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 144
                     }
                 }
@@ -286,15 +286,15 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
         await conn.sendMessage(
             from,
             {
-                image: { url: `https://files.catbox.moe/x2qij1.jpg` },
+                image: { url: `https://files.catbox.moe/e4za15.jpg` },
                 caption: dec,
                 contextInfo: {
                     mentionedJid: [m.sender],
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 143
                     }
                 }
@@ -365,15 +365,15 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
         await conn.sendMessage(
             from,
             {
-                image: { url: `https://files.catbox.moe/x2qij1.jpg` },
+                image: { url: `https://files.catbox.moe/e4za15.jpg` },
                 caption: dec,
                 contextInfo: {
                     mentionedJid: [m.sender],
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 143
                     }
                 }
@@ -432,15 +432,15 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
         await conn.sendMessage(
             from,
             {
-                image: { url: `https://files.catbox.moe/x2qij1.jpg` },
+                image: { url: `https://files.catbox.moe/e4za15.jpg` },
                 caption: dec,
                 contextInfo: {
                     mentionedJid: [m.sender],
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 143
                     }
                 }
@@ -501,15 +501,15 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
         await conn.sendMessage(
             from,
             {
-                image: { url: `https://files.catbox.moe/x2qij1.jpg` },
+                image: { url: `https://files.catbox.moe/e4za15.jpg` },
                 caption: dec,
                 contextInfo: {
                     mentionedJid: [m.sender],
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 143
                     }
                 }
@@ -553,15 +553,15 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
         await conn.sendMessage(
             from,
             {
-                image: { url: `https://files.catbox.moe/x2qij1.jpg` },
+                image: { url: `https://files.catbox.moe/e4za15.jpg` },
                 caption: dec,
                 contextInfo: {
                     mentionedJid: [m.sender],
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 143
                     }
                 }
@@ -612,15 +612,15 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
         await conn.sendMessage(
             from,
             {
-                image: { url: `https://files.catbox.moe/x2qij1.jpg` },
+                image: { url: `https://files.catbox.moe/e4za15.jpg` },
                 caption: dec,
                 contextInfo: {
                     mentionedJid: [m.sender],
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 143
                     }
                 }
@@ -673,15 +673,15 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
         await conn.sendMessage(
             from,
             {
-                image: { url: `https://files.catbox.moe/x2qij1.jpg` },
+                image: { url: `https://files.catbox.moe/e4za15.jpg` },
                 caption: dec,
                 contextInfo: {
                     mentionedJid: [m.sender],
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 143
                     }
                 }
@@ -742,15 +742,15 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
         await conn.sendMessage(
             from,
             {
-                image: { url: `https://files.catbox.moe/x2qij1.jpg` },
+                image: { url: `https://files.catbox.moe/e4za15.jpg` },
                 caption: dec,
                 contextInfo: {
                     mentionedJid: [m.sender],
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 143
                     }
                 }
@@ -801,15 +801,15 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
         await conn.sendMessage(
             from,
             {
-                image: { url: `https://files.catbox.moe/x2qij1.jpg` },
+                image: { url: `https://files.catbox.moe/e4za15.jpg` },
                 caption: dec,
                 contextInfo: {
                     mentionedJid: [m.sender],
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 143
                     }
                 }

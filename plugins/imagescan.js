@@ -75,7 +75,7 @@ cmd({
     await reply(
       `🔍 *Image Analysis Results*\n\n` +
       `${scanResponse.data.result}\n\n` +
-      `> 𝐀𝐃𝐄𝐄𝐋-𝐌𝐃 💜`
+      `> PROVA-𝐌𝐃 💜`
     );
 
   } catch (error) {

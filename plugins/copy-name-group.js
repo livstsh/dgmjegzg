@@ -62,6 +62,6 @@ async (conn, mek, m, { from, q, isGroup, reply }) => {
 
     } catch (error) {
         console.log(error);
-        reply("*Error occurred — ᴀᴅᴇᴇʟ-ᴍᴅ*");
+        reply("*Error occurred — PROVA-MD*");
     }
 });

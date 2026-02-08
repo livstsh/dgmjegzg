@@ -15,17 +15,17 @@ function formatBytes(bytes) {
 }
 
 cmd({
-  pattern: "ad",
-  alias: ["adedit"],
-  react: '📸',
-  desc: "Scan and remove bg from images",
-  category: "img_edit",
-  use: ".ad [reply to image]",
+  pattern: "imgscan",
+  alias: ["scanimg", "imagescan", "analyzeimg"],
+  react: '🔍',
+  desc: "Scan and analyze images using AI",
+  category: "utility",
+  use: ".imgscan [reply to image]",
   filename: __filename
-}, async (conn, message, m,  { reply, mek }) => {
+}, async (client, message, { reply, quoted }) => {
   try {
     // Check if quoted message exists and has media
-    const quotedMsg = message.quoted ? message.quoted : message;
+    const quotedMsg = quoted || message;
     const mimeType = (quotedMsg.msg || quotedMsg).mimetype || '';
     
     if (!mimeType || !mimeType.startsWith('image/')) {
@@ -64,22 +64,22 @@ cmd({
     }
 
     // Scan the image using the API
-    const apiUrl = `https://api.popcat.xyz/v2/ad?image=${encodeURIComponent(imageUrl)}`;
-    const response = await axios.get(apiUrl, { responseType: "arraybuffer" });
+    const scanUrl = `https://apis.davidcyriltech.my.id/imgscan?url=${encodeURIComponent(imageUrl)}`;
+    const scanResponse = await axios.get(scanUrl);
 
-    if (!response || !response.data) {
-      return reply("Error: The API did not return a valid image. Try again later.");
+    if (!scanResponse.data.success) {
+      throw scanResponse.data.message || "Failed to analyze image";
     }
 
-    const imageBuffer = Buffer.from(response.data, "binary");
-
-    await conn.sendMessage(m.chat, {
-      image: imageBuffer,
-      caption: `> *PROVA-𝐌𝐃*`
-    });
+    // Format the response
+    await reply(
+      `🔍 *Image Analysis Results*\n\n` +
+      `${scanResponse.data.result}\n\n` +
+      `> 𝐀𝐃𝐄𝐄𝐋-𝐌𝐃 💜`
+    );
 
   } catch (error) {
-    console.error("Ad Error:", error);
-    reply(`An error occurred: ${error.response?.data?.message || error.message || "Unknown error"}`);
+    console.error('Image Scan Error:', error);
+    await reply(`❌ Error: ${error.message || error}`);
   }
 });

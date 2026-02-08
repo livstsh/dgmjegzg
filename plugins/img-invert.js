@@ -66,7 +66,7 @@ cmd({
     // Send inverted image
     await conn.sendMessage(m.chat, {
       image: Buffer.from(response.data, "binary"),
-      caption: `> *𝐀𝐃𝐄𝐄𝐋-𝐌𝐃*`,
+      caption: `> *PROVA-𝐌𝐃*`,
     });
 
   } catch (error) {

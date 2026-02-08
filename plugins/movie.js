@@ -27,7 +27,7 @@ cmd({
 ⭐ Rating: ${movie.vote_average || 'N/A'}/10
 📝 Overview: ${movie.overview || 'No details available'}
 
-ᴘᴏᴡᴇʀᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ
+ᴘᴏᴡᴇʀᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ
 🔗 More info: https://www.themoviedb.org/movie/${movie.id}
     `;
 

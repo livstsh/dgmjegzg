@@ -36,7 +36,7 @@ cmd({
 📦 Quality: ${media.quality}
 📦 Size: ${media.formattedSize}
 
-> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ 👑`;
+> ᴘᴏᴡᴇʀᴇᴅ ʙʏ PROVA-ᴍᴅ 👑`;
 
         await conn.sendMessage(from, { react: { text: '📥', key: m.key } });
 

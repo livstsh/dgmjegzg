@@ -254,7 +254,7 @@ cmd({
 ┃ 📅 *Updated On:* ${app.updated}
 ┃ 👨‍💻 *Developer:* ${app.developer.name}
 ╰━━━━━━━━━━━━━━━┈⊷
-🔗 *🪸ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ🪸*`;
+🔗 *🪸ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ🪸*`;
 
     await conn.sendMessage(from, { react: { text: "⬆️", key: m.key } });
 
@@ -300,7 +300,7 @@ cmd({
             document: { url: downloadUrl },
             fileName: details.name || "file",
             mimetype: details.mimeType || "application/octet-stream",
-            caption: `📄 Name: ${details.name || "file"}\n📦 Size: ${details.size || "Unknown"}\n\nᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ 🤍`
+            caption: `📄 Name: ${details.name || "file"}\n📦 Size: ${details.size || "Unknown"}\n\nᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ 🤍`
         }, { quoted: m });
 
         await conn.sendMessage(from, { react: { text: "✅", key: m.key } });

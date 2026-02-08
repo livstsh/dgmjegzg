@@ -28,7 +28,7 @@ cmd({
             // Send final image to user
             await conn.sendMessage(m.chat, {
                 image: buffer,
-                caption: `EPHOTO IMAGE GENERATED FOR: ${text}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ`
+                caption: `EPHOTO IMAGE GENERATED FOR: ${text}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ`
             }, { quoted: m });
 
         } catch (err) {
