@@ -48,7 +48,7 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363418144382782@newsletter,
+                        newsletterJid: '120363418144382782@newsletter',
                         newsletterName: "Privacy Settings",
                         serverMessageId: 143
                     }
