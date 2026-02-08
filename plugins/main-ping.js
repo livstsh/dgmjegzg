@@ -2,16 +2,16 @@ const config = require('../config');
 const { cmd } = require('../command');
 
 const botNameStyles = [
-    "𝘈𝘋𝘌𝘌𝘓-𝘔𝘋",
-    "𝘼𝘿𝙀𝙀𝙇-𝙈𝘿",
-    "🅰🅳🅴🅴🅻-🅼🅳",
-    "🄰🄳🄴🄴🄻-🄼🄳",
-    "𝔸𝔻𝔼𝔼𝕃-𝕄𝔻",
-    "𝑨𝑫𝑬𝑬𝑳-𝑴𝑫",
-    "ⒶⒹⒺⒺⓁ-ⓂⒹ",
-    "𝐀𝐃𝐄𝐄𝐋-𝐌𝐃",
-    "ＡＤＥＥＬ-ＭＤ",
-    "𝓐𝓓𝓔𝓔𝓛-𝓜𝓓"
+    "𝘗𝘙𝘖𝘝𝘈-𝘔𝘋",
+    "𝙋𝙍𝙊𝙑𝘼-𝙈𝘿",
+    "🅿🆁🅾🆅🅰-🅼🅳",
+    "🄿🅁🄾🅅🄰-🄼🄳",
+    "ℙℝ𝕆𝕍𝔸-𝕄𝔻",
+    "𝑷𝑹𝑶𝑽𝑨-𝑴𝑫",
+    "ⓅⓇⓄⓋⒶ-ⓂⒹ",
+    "𝐏𝐑𝐎𝐕𝐀-𝐌𝐃",
+    "ＰＲＯＶＡ-ＭＤ",
+    "𝓟𝓡𝓞𝓥𝓐-𝓜𝓓"
 ];
 
 let currentStyleIndex = 0;
@@ -45,7 +45,7 @@ cmd({
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
                 newsletterJid: '120363403380688821@newsletter',
-                newsletterName: "𝐀𝐃𝐄𝐄𝐋-𝐌𝐃",
+                newsletterName: "𝐏𝐑𝐎𝐕𝐀-𝐌𝐃",
                 serverMessageId: 143
             }
         } 
@@ -60,5 +60,5 @@ cmd({
     const start = Date.now();
     const msg = await conn.sendMessage(from, { text: '*PINGING...*' });
     const ping = Date.now() - start;
-    await conn.sendMessage(from, { text: `*ADEEL-MD SPEED: ${ping}ms*` }, { quoted: msg });
+    await conn.sendMessage(from, { text: `*PROVA-MD SPEED: ${ping}ms*` }, { quoted: msg });
 });
