@@ -17,7 +17,7 @@ async (conn, mek, m, { from, q, isGroup, reply }) => {
 
         // Private chat only
         if (isGroup) {
-            return reply("*This command works only in private chat — ᴀᴅᴇᴇʟ-ᴍᴅ*");
+            return reply("*This command works only in private chat — ᴘʀᴏᴠᴀ-ᴍᴅ*");
         }
 
         // Require link
@@ -62,6 +62,6 @@ async (conn, mek, m, { from, q, isGroup, reply }) => {
 
     } catch (error) {
         console.log(error);
-        reply("*Error occurred — ᴀᴅᴇᴇʟ-ᴍᴅ*");
+        reply("*Error occurred — ᴘʀᴏᴠᴀ-ᴍᴅ*");
     }
 });
