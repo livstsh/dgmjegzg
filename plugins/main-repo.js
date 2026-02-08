@@ -14,7 +14,7 @@ cmd({
     filename: __filename,
 },
 async (conn, mek, m, { from, reply }) => {
-    const githubRepoURL = 'https://github.com/PROVA/PROVA-MD';
+    const githubRepoURL = 'https://github.com/PROVA-MD/PROVA-MD';
 
     try {
         // GitHub API fetch logic
