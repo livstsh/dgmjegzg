@@ -60,7 +60,7 @@ cmd({
 
         // Only 5 photos
         const limited = results.slice(0, 5);
-        const caption = `✅ *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ*`;
+        const caption = `✅ *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ*`;
 
         for (const url of limited) {
             await conn.sendMessage(from, { 
