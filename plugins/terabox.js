@@ -34,7 +34,7 @@ cmd({
 
         let caption = `📦 *AIO DOWNLOADER*\n\n`;
         caption += `📝 *Title:* ${title}\n\n`;
-        caption += `🪸 *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ* 🪸`;
+        caption += `🪸 *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ* 🪸`;
 
         // Sending the media
         await conn.sendMessage(

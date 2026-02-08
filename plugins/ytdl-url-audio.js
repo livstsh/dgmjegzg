@@ -35,7 +35,7 @@ commands.forEach(command => {
 ⏱ *Duration:* ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, "0")}
 💽 *Size:* ${data.size}
 
-> *🤍ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ🤍*`
+> *🤍ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ🤍*`
       }, { quoted: mek });
 
       await conn.sendMessage(from, {

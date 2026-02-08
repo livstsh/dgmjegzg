@@ -19,7 +19,7 @@ cmd({
         const translated = data?.responseData?.translatedText || "⚠️ Translation not found.";
 
         await reply(
-`╭━━━🌐 *ADEEL-MD TRANSLATOR* 🌐━━━╮
+`╭━━━🌐 *PROVA-MD TRANSLATOR* 🌐━━━╮
 
 🔤 *Original:* 
 ${q}

@@ -70,7 +70,7 @@ cmd({
 
     await conn.sendMessage(m.chat, {
       image: { url: resultUrl },
-      caption: `ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ`
+      caption: `ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ`
     }, { quoted: m });
 
   } catch (error) {

@@ -64,7 +64,7 @@ cmd({
 💿 *Album:* ${bestSong.album || 'Unknown'}
 🔗 *Link:* ${bestSong.spotifyUrl}
 
-🤍 ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ 🤍`;
+🤍 ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ 🤍`;
 
         await conn.sendMessage(from, {
             image: { url: thumbnail },

@@ -57,7 +57,7 @@ cmd({
     // Send enhanced photo
     await client.sendMessage(message.chat, {
       image: { url: data.result },
-      caption: "⚡ REMINI ENHANCEMENT COMPLETED SUCCESSFULLY! 💎\n✨ _Powered by ADEEL-MD_"
+      caption: "⚡ REMINI ENHANCEMENT COMPLETED SUCCESSFULLY! 💎\n✨ _Powered by PROVA-MD_"
     }, { quoted: message });
 
     // Add ✅ reaction separately

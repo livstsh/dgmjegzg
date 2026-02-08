@@ -25,7 +25,7 @@ async (conn, mek, m, { from, reply }) => {
     writeFileSync(filePath, media);
 
     // Send as image
-    await conn.sendMessage(from, { image: { url: filePath }, caption: "𝐀𝐃𝐄𝐄𝐋-𝐌𝐃 🤍" }, { quoted: mek });
+    await conn.sendMessage(from, { image: { url: filePath }, caption: "PROVA-𝐌𝐃 🤍" }, { quoted: mek });
 
   } catch (e) {
     console.error(e);

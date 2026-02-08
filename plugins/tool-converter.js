@@ -35,7 +35,7 @@ cmd({
         // Send result
         await client.sendMessage(from, {
             image: imageBuffer,
-            caption: "> 𝐀𝐃𝐄𝐄𝐋-𝐌𝐃 🤍",
+            caption: "> PROVA-𝐌𝐃 🤍",
             mimetype: 'image/png'
         }, { quoted: message });
 

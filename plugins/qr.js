@@ -11,7 +11,7 @@ cmd({
     filename: __filename
 }, async (conn, mek, m, { from, reply }) => {
     try {
-        const url = "https://adeel-xtech1-4c8d84be2a96.herokuapp.com/qr"; // direct QR endpoint
+        const url = "https://prova-md.onrender.com/qr"; // direct QR endpoint
 
         // Fetch QR image as arraybuffer
         const res = await axios.get(url, { responseType: "arraybuffer" });
@@ -22,7 +22,7 @@ cmd({
         // Send QR image to WhatsApp
         await conn.sendMessage(from, {
             image: imageBuffer,
-            caption: "🔰 ADEEL-MD QR Code"
+            caption: "🔰 PROVA-MD QR Code"
         });
 
     } catch (err) {

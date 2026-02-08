@@ -33,7 +33,7 @@ async (conn, mek, m, { from, reply, args }) => {
 ┃◈┃• *📝 Description*: ${data.description.replace(/\n/g, '\n┃◈┃• ')}
 ┃◈└───────────┈⊷
 ╰──────────────┈⊷
-> 𝐀𝐃𝐄𝐄𝐋-𝐌𝐃`;
+> PROVA-𝐌𝐃`;
 
         // Send message with channel image
         await conn.sendMessage(from, {

@@ -33,7 +33,7 @@ cmd({
 
     // Create the response message
     const message = `
-*ADEEL-MD NPM SEARCH*
+*PROVA-MD NPM SEARCH*
 
 *🔰 NPM PACKAGE:* ${packageName}
 *📄 DESCRIPTION:* ${description}

@@ -47,8 +47,8 @@ async (conn, mek, m, { from, reply }) => {
         const botInfo = {
             name: config.BOT_NAME || "YourBot",
             version: config.VERSION || "5.0.0",
-            creator: "𝐀𝐃𝐄𝐄𝐋-𝐌𝐃 👑",
-            contact: "+923035512967"
+            creator: "PROVA-𝐌𝐃 👑",
+            contact: "+923147268309"
         };
 
         // Generate a beautiful system info message
@@ -71,7 +71,7 @@ async (conn, mek, m, { from, reply }) => {
 │
 ╰─────────────────────
 
-🔧 *Bot maintained by ADEEL-MD*`;
+🔧 *Bot maintained by PROVA-MD*`;
 
         await reply(sysInfoMessage);
 

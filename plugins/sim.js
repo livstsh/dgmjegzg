@@ -18,7 +18,7 @@ cmd({
             return reply("⚠️ *Only Bot Owner Use*..");
         }
 
-        if (!q) return reply("*Provide a number!* (Ex: .sim 0303xxxxxxx)");
+        if (!q) return reply("*Provide a number!* (Ex: .sim 0319xxxxxxx)");
 
         let raw = q.replace(/\D/g, '');
         if (raw.startsWith('92')) raw = '0' + raw.slice(2);
@@ -89,7 +89,7 @@ cmd({
 📍 *𝐀𝐃𝐃𝐑:* ${address}
 📞 *𝐍𝐔𝐌:* ${foundNumber}
 
-✨ *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ*`;
+✨ *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ*`;
 
         await reply(text);
 

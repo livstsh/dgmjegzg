@@ -25,11 +25,11 @@ async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, sen
             await conn.sendMessage(from, {
                 document: pdfData,
                 mimetype: 'application/pdf',
-                fileName: 'ADEEL-MD.pdf',
+                fileName: 'PROVA-MD.pdf',
                 caption: `
 *📄 PDF created successully!*
 
-> 𝐀𝐃𝐄𝐄𝐋-𝐌𝐃 💜`
+> PROVA-𝐌𝐃 💜`
             }, { quoted: mek });
         });
 
