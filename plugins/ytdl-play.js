@@ -1,119 +1,96 @@
-const { cmd } = require('../command');
-const axios = require('axios');
+const { cmd } = require("../command");
+const yts = require("yt-search");
+const axios = require("axios");
 
-// Store play sessions
-const playSessions = new Map();
+// --- Helper Functions ---
 
-/**
- * Universal reply context getter (VERY IMPORTANT)
- */
-function getReplyContext(mek) {
-    return (
-        mek.message?.extendedTextMessage?.contextInfo ||
-        mek.message?.imageMessage?.contextInfo ||
-        mek.message?.videoMessage?.contextInfo
-    );
+function normalizeYouTubeUrl(url) {
+const match = url.match(/(?:youtu.be\/|youtube.com\/shorts\/|youtube.com\/.*[?&]v=)([a-zA-Z0-9_-]{11})/);
+return match ? `https://youtube.com/watch?v=${match[1]}` : null;
 }
 
 /**
- * Downloader API
- */
-async function aioDownload(url) {
-    const res = await axios.get(
-        `https://kyzoymd-downloader.vercel.app/api/download?url=${encodeURIComponent(url)}`
-    );
-    return res.data;
+Fetch Audio Link (Koyeb API)
+*/
+async function fetchAudioData(url) {
+try {
+const apiUrl = `https://api-aswin-sparky.koyeb.app/api/downloader/song?search=${encodeURIComponent(url)}`;
+const { data } = await axios.get(apiUrl);
+return data.status && data.data ? data.data.url : null;
+} catch (e) { return null; }
 }
 
-cmd({
-    pattern: "play",
-    desc: "YouTube play downloader",
-    category: "downloader",
-    react: "🎵",
-    filename: __filename
-}, async (conn, mek, m, { from, reply, args }) => {
-    try {
-        if (!args[0]) return reply("❌ Give song name or YouTube link");
+// --- MAIN AUDIO COMMAND ---
 
-        const query = args.join(" ");
+cmd(
+{
+pattern: "dl",
+alias: ["play", "audio"],
+react: "🎧",
+desc: "Download YouTube Audio (MP3).",
+category: "download",
+filename: __filename,
+},
+async (conn, mek, m, { from, q, reply, prefix }) => {
+try {
 
-        // Search video
-        const search = await axios.get(`https://kyzoymd-downloader.vercel.app/api/search?q=${encodeURIComponent(query)}`);
-        const video = search.data.results[0];
+if (!q) return reply(`❓ *Usage:* \`${prefix}dl <song name / link>\``);
 
-        if (!video) return reply("❌ No results found");
+await conn.sendMessage(from, { react: { text: "🔎", key: mek.key } });
 
-        const caption = `
-🎬 *Title:* ${video.title}
-⏱ *Duration:* ${video.duration}
-👁 *Views:* ${video.views}
+// Step 1: Search Video
+let ytdata;
+const url = normalizeYouTubeUrl(q);
 
-🔗 ${video.url}
+if (url) {
+const results = await yts({ videoId: url.split('v=')[1] });
+ytdata = results;
+} else {
+const search = await yts(q);
+if (!search.videos.length) return reply("❌ *No results found!*");
+ytdata = search.videos[0];
+}
 
-━━━━━━━━━━━━━━━
-Reply the number below:
+// Stylish Caption
+const caption = `
+╔═══════〔 🎵 𝚈𝚃  𝙰𝚄𝙳𝙸𝙾  𝙳𝙻 〕═══════╗
 
-① Download Video (MP4)
-② Download Audio (MP3)
+🎼 *Title:* ${ytdata.title}
+⏱️ *Duration:* ${ytdata.timestamp}
+👀 *Views:* ${ytdata.views.toLocaleString()}
+🔗 *URL:* ${ytdata.url}
 
-© Powered By PROVA-MD
+╚══════════════════════════╝
+⏳ *Please wait… Preparing high quality MP3*
+
+> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ
 `;
 
-        // Send image menu
-        const sent = await conn.sendMessage(from, {
-            image: { url: video.thumbnail },
-            caption
-        }, { quoted: mek });
+await conn.sendMessage(
+from,
+{ image: { url: ytdata.thumbnail || ytdata.image }, caption },
+{ quoted: mek }
+);
 
-        // Save session
-        playSessions.set(sent.key.id, video.url);
+// Step 2: Fetch & Send Audio
+const audioUrl = await fetchAudioData(ytdata.url);
+if (!audioUrl) return reply("❌ *Audio download failed!*");
 
-    } catch (e) {
-        console.log(e);
-        reply("❌ Error occurred");
-    }
-});
+await conn.sendMessage(
+from,
+{
+audio: { url: audioUrl },
+mimetype: "audio/mpeg",
+ptt: false
+},
+{ quoted: mek }
+);
 
+await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
 
-/**
- * Reply handler (AUTO)
- */
-cmd({
-    on: "text"
-}, async (conn, mek, m, { from, body, reply }) => {
-    try {
-        const ctx = getReplyContext(mek);
-        const contextId = ctx?.stanzaId;
-
-        if (!contextId) return;
-        if (!playSessions.has(contextId)) return;
-
-        const url = playSessions.get(contextId);
-        const choice = body.trim();
-
-        reply("⏳ Downloading...");
-
-        const data = await aioDownload(url);
-
-        if (choice === "1") {
-            // MP4
-            await conn.sendMessage(from, {
-                video: { url: data.video },
-                caption: "✅ Video Downloaded"
-            }, { quoted: mek });
-        }
-
-        else if (choice === "2") {
-            // MP3
-            await conn.sendMessage(from, {
-                audio: { url: data.audio },
-                mimetype: "audio/mpeg"
-            }, { quoted: mek });
-        }
-
-        playSessions.delete(contextId);
-
-    } catch (e) {
-        console.log(e);
-    }
-});
+} catch (e) {
+console.error(e);
+reply("⚠️ *Error occurred while processing!*");
+}
+}
+);
