@@ -1,5 +1,5 @@
-const { cmd, commands } = require('../command');
-const config = require('../config');
+const { cmd } = require("../command");
+const config = require("../config");
 
 // Function to check if user is admin (with LID support)
 async function isUserAdmin(conn, chatId, userId) {
@@ -85,7 +85,7 @@ async function isBotAdmin(conn, chatId) {
 
 cmd({
     on: "body"
-}, async (conn, m, store, {
+}, async (conn, mek, m, {
     from,
     body,
     sender,
@@ -93,13 +93,9 @@ cmd({
     reply
 }) => {
     try {
-        if (
-            config.ANTI_LINK === 'false' ||
-            config.ANTI_LINK === false ||
-            !config.ANTI_LINK
-        ) return;
-
-        if (!isGroup) return;
+        // Basic conditions
+        if (!isGroup || !body) return;
+        if (config.ANTI_BAD !== "true") return;
 
         const senderIsAdmin = await isUserAdmin(conn, from, sender);
         if (senderIsAdmin) return;
@@ -107,47 +103,42 @@ cmd({
         const botIsAdmin = await isBotAdmin(conn, from);
         if (!botIsAdmin) return;
 
-        let cleanBody = body.replace(/[\s\u200b-\u200d\uFEFF]/g, '').toLowerCase();
+        // Bad words list
+        const badWords = [
+            "sexy", "sex", "xxx", "fuck",
+            "kiss", "lips", "lun",
+            "chutiya", "gando",
+            "pakaya", "huththa", "mia"
+        ];
 
-        const urlRegex = /(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.(?:com|org|net|co|pk|biz|id|info|xyz|online|site|website|tech|shop|store|blog|app|dev|io|ai|gov|edu|mil|me)(?:\/[^\s]*)?|whatsapp\.com\/channel\/|wa\.me\//gi;
+        const text = body.toLowerCase();
+        const detected = badWords.some(word => text.includes(word));
 
-        const containsLink = urlRegex.test(cleanBody);
+        if (!detected) return;
 
-        if (!containsLink) return;
-
-        const userNumber = sender.split('@')[0] || 'User';
-
-        // Delete message if enabled
-        if (
-            config.DELETE_LINKS === 'true' ||
-            config.DELETE_LINKS === true ||
-            config.ANTI_LINK_KICK === 'true' ||
-            config.ANTI_LINK_KICK === true
-        ) {
-            try {
-                await conn.sendMessage(from, { delete: m.key }, { quoted: m });
-            } catch (e) {
-                console.error("Failed to delete message:", e);
-            }
+        // Delete message
+        try {
+            await conn.sendMessage(from, { delete: m.key });
+        } catch (e) {
+            console.error("Failed to delete message:", e);
         }
 
-        // Kick user only if enabled
-        if (config.ANTI_LINK_KICK === 'true' || config.ANTI_LINK_KICK === true) {
-            try {
-                await conn.sendMessage(from, {
-                    text:
-                        `🚫 *ANTI-LINK PROTECTION*\n\n` +
-                        `@${userNumber} has been removed from the group for sending links.`,
-                    mentions: [sender]
-                });
+        // Warning message
+        const userNumber = sender.split('@')[0];
+        const warnMsg =
+            `〔 🚫 BAD WORD DETECTED 〕\n\n` +
+            `@${userNumber} Warning! Bad language is not allowed.`;
 
-                await conn.groupParticipantsUpdate(from, [sender], "remove");
-            } catch (e) {
-                console.error("Failed to kick user:", e);
-            }
+        try {
+            await conn.sendMessage(from, {
+                text: warnMsg,
+                mentions: [sender]
+            });
+        } catch (e) {
+            console.error("Failed to send warning:", e);
         }
 
-    } catch (error) {
-        console.error("Anti-link system error:", error);
+    } catch (err) {
+        console.error("ANTI_BAD ERROR:", err);
     }
 });
