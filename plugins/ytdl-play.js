@@ -1,96 +1,137 @@
-const { cmd } = require("../command");
-const yts = require("yt-search");
-const axios = require("axios");
+const { cmd } = require('../command');
+const axios = require('axios');
+const yts = require('yt-search');
 
-// --- Helper Functions ---
+const headers = {
+  accept: "application/json",
+  "content-type": "application/json",
+  "user-agent": "Mozilla/5.0 (Android)",
+  referer: "https://ytmp3.gg/"
+};
 
-function normalizeYouTubeUrl(url) {
-const match = url.match(/(?:youtu.be\/|youtube.com\/shorts\/|youtube.com\/.*[?&]v=)([a-zA-Z0-9_-]{11})/);
-return match ? `https://youtube.com/watch?v=${match[1]}` : null;
+const poll = async (statusUrl) => {
+  const { data } = await axios.get(statusUrl, { headers });
+  if (data.status === "completed") return data;
+  if (data.status === "failed") throw new Error(data.message);
+  await new Promise(r => setTimeout(r, 2000));
+  return poll(statusUrl);
+};
+
+async function convert(url, type, quality) {
+  const { data: meta } = await axios.get("https://www.youtube.com/oembed", {
+    params: { url, format: "json" }
+  });
+
+  const payload = {
+    url,
+    os: "android",
+    output: {
+      type,
+      format: type === "audio" ? "mp3" : "mp4",
+      ...(type === "video" && { quality })
+    },
+    ...(type === "audio" && { audio: { bitrate: quality } })
+  };
+
+  let init;
+  try {
+    init = await axios.post("https://hub.ytconvert.org/api/download", payload, { headers });
+  } catch {
+    init = await axios.post("https://api.ytconvert.org/api/download", payload, { headers });
+  }
+
+  const result = await poll(init.data.statusUrl);
+
+  return {
+    title: meta.title,
+    thumb: meta.thumbnail_url,
+    url: result.downloadUrl,
+    filename: `${meta.title.replace(/[^\w\s-]/gi, '')}.${type === "audio" ? "mp3" : "mp4"}`
+  };
 }
 
-/**
-Fetch Audio Link (Koyeb API)
-*/
-async function fetchAudioData(url) {
-try {
-const apiUrl = `https://api-aswin-sparky.koyeb.app/api/downloader/song?search=${encodeURIComponent(url)}`;
-const { data } = await axios.get(apiUrl);
-return data.status && data.data ? data.data.url : null;
-} catch (e) { return null; }
-}
+// ───────────────── PLAY (search + mp3) ─────────────────
+cmd({
+  pattern: "play",
+  react: "🎵",
+  desc: "Search song and download mp3",
+  category: "downloader",
+  filename: __filename
+}, async (conn, mek, m, { from, body, reply }) => {
+  try {
+    const text = body.split(" ").slice(1).join(" ");
+    if (!text) return reply("Song name do");
 
-// --- MAIN AUDIO COMMAND ---
+    const search = await yts(text);
+    if (!search.videos.length) return reply("No result found");
 
-cmd(
-{
-pattern: "dl",
-alias: ["play", "audio"],
-react: "🎧",
-desc: "Download YouTube Audio (MP3).",
-category: "download",
-filename: __filename,
-},
-async (conn, mek, m, { from, q, reply, prefix }) => {
-try {
+    const url = search.videos[0].url;
+    reply("Downloading...");
 
-if (!q) return reply(`❓ *Usage:* \`${prefix}dl <song name / link>\``);
+    const data = await convert(url, "audio", "128k");
 
-await conn.sendMessage(from, { react: { text: "🔎", key: mek.key } });
+    await conn.sendMessage(from, {
+      audio: { url: data.url },
+      mimetype: "audio/mpeg",
+      fileName: data.filename
+    }, { quoted: mek });
 
-// Step 1: Search Video
-let ytdata;
-const url = normalizeYouTubeUrl(q);
+  } catch (e) {
+    reply(e.message);
+  }
+});
 
-if (url) {
-const results = await yts({ videoId: url.split('v=')[1] });
-ytdata = results;
-} else {
-const search = await yts(q);
-if (!search.videos.length) return reply("❌ *No results found!*");
-ytdata = search.videos[0];
-}
 
-// Stylish Caption
-const caption = `
-╔═══════〔 🎵 𝚈𝚃  𝙰𝚄𝙳𝙸𝙾  𝙳𝙻 〕═══════╗
+// ───────────────── YTMP3 (direct link) ─────────────────
+cmd({
+  pattern: "ytmp3",
+  react: "🎧",
+  desc: "Download mp3 from link",
+  category: "downloader",
+  filename: __filename
+}, async (conn, mek, m, { from, body, reply }) => {
+  try {
+    const url = body.split(" ")[1];
+    if (!url) return reply("Link do");
 
-🎼 *Title:* ${ytdata.title}
-⏱️ *Duration:* ${ytdata.timestamp}
-👀 *Views:* ${ytdata.views.toLocaleString()}
-🔗 *URL:* ${ytdata.url}
+    reply("Downloading mp3...");
 
-╚══════════════════════════╝
-⏳ *Please wait… Preparing high quality MP3*
+    const data = await convert(url, "audio", "128k");
 
-> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ
-`;
+    await conn.sendMessage(from, {
+      audio: { url: data.url },
+      mimetype: "audio/mpeg",
+      fileName: data.filename
+    }, { quoted: mek });
 
-await conn.sendMessage(
-from,
-{ image: { url: ytdata.thumbnail || ytdata.image }, caption },
-{ quoted: mek }
-);
+  } catch (e) {
+    reply(e.message);
+  }
+});
 
-// Step 2: Fetch & Send Audio
-const audioUrl = await fetchAudioData(ytdata.url);
-if (!audioUrl) return reply("❌ *Audio download failed!*");
 
-await conn.sendMessage(
-from,
-{
-audio: { url: audioUrl },
-mimetype: "audio/mpeg",
-ptt: false
-},
-{ quoted: mek }
-);
+// ───────────────── YTMP4 (video) ─────────────────
+cmd({
+  pattern: "ytmp4",
+  react: "🎬",
+  desc: "Download mp4 from link",
+  category: "downloader",
+  filename: __filename
+}, async (conn, mek, m, { from, body, reply }) => {
+  try {
+    const url = body.split(" ")[1];
+    if (!url) return reply("Link do");
 
-await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
+    reply("Downloading video...");
 
-} catch (e) {
-console.error(e);
-reply("⚠️ *Error occurred while processing!*");
-}
-}
-);
+    const data = await convert(url, "video", "720p");
+
+    await conn.sendMessage(from, {
+      video: { url: data.url },
+      caption: data.title
+    }, { quoted: mek });
+
+  } catch (e) {
+    reply(e.message);
+  }
+});
