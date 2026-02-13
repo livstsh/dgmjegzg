@@ -103,7 +103,7 @@ const AgungDevX = {
 
 cmd({
     pattern: "txt2img",
-    alias: ["t2img", "aiimg"],
+    alias: ["t2img", "img"],
     desc: "Generate AI Image from text",
     category: "ai",
     react: "🎨",
