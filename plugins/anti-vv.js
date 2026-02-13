@@ -1,61 +1,129 @@
 const { cmd } = require("../command");
-const { downloadContentFromMessage, proto } = require("@whiskeysockets/baileys");
-
-const openedMessages = new Set();
+const config = require("../config"); // Make sure to import config
 
 cmd({
   pattern: "vv",
-  react: "😋",
-  desc: "Retrieve view once message",
-  category: "public",
+  alias: ["viewonce", 'retrive'],
+  react: '🐳',
+  desc: "Owner Only - retrieve quoted message back to user",
+  category: "owner",
   filename: __filename
-}, async (conn, mek, m, { from, isGroup }) => {
+}, async (client, message, match, { from, isCreator }) => {
   try {
-    if (!m.quoted) return m.reply("⚠️ Please reply to a view once message.");
-
-    const quoted = m.quoted;
-    const mtype = Object.keys(quoted.message)[0];
-    const quotedMsg = quoted.message[mtype];
-
-    // Check if it really is a view once message
-    if (!quotedMsg?.viewOnce && !quotedMsg?.mediaMessage) return m.reply("❌ This is not a view once message or unsupported type.");
-
-    const msgKey = `${from}_${quoted.id}`;
-    if (openedMessages.has(msgKey)) return m.reply("⚠️ This message has already been retrieved.");
-
-    let type = mtype.replace("Message", "").toLowerCase();
-    if (type === "sticker") return m.reply("⚠️ Stickers cannot be retrieved.");
-
-    // Download media safely
-    let buffer = Buffer.from([]);
-    try {
-      const stream = await downloadContentFromMessage(quotedMsg, type);
-      for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
-    } catch {
-      return m.reply("❌ Failed to download the media from view once message.");
+    if (!isCreator) {
+      return await client.sendMessage(from, {
+        text: "*📛 This is an owner command.*"
+      }, { quoted: message });
     }
 
-    // Prepare content for sending
-    let content = {};
-    if (type === "image") content = { image: buffer, caption: quotedMsg.caption || "" };
-    else if (type === "video") content = { video: buffer, caption: quotedMsg.caption || "" };
-    else if (type === "audio") content = { audio: buffer, mimetype: "audio/mp4", ptt: quotedMsg.ptt || false };
-    else return m.reply("⚠️ Unsupported media type.");
-
-    const sentMsg = await conn.sendMessage(from, content, { quoted: mek });
-    openedMessages.add(msgKey);
-
-    // Auto-delete after 30s in groups
-    if (isGroup) {
-      setTimeout(async () => {
-        try {
-          await conn.sendMessage(from, { delete: { remoteJid: from, fromMe: true, id: sentMsg.key.id, participant: sentMsg.key.participant } });
-        } catch {}
-      }, 30000);
+    if (!match.quoted) {
+      return await client.sendMessage(from, {
+        text: "*🍁 Please reply to a view once message!*"
+      }, { quoted: message });
     }
 
+    const buffer = await match.quoted.download();
+    const mtype = match.quoted.mtype;
+    const originalCaption = match.quoted.text || '';
+    const options = { quoted: message };
+
+    let messageContent = {};
+    switch (mtype) {
+      case "imageMessage":
+        messageContent = {
+          image: buffer,
+          caption: originalCaption ? `${originalCaption}\n\n> ${config.DESCRIPTION}` : `> ${config.DESCRIPTION}`,
+          mimetype: match.quoted.mimetype || "image/jpeg"
+        };
+        break;
+      case "videoMessage":
+        messageContent = {
+          video: buffer,
+          caption: originalCaption ? `${originalCaption}\n\n> ${config.DESCRIPTION}` : `> ${config.DESCRIPTION}`,
+          mimetype: match.quoted.mimetype || "video/mp4"
+        };
+        break;
+      case "audioMessage":
+        messageContent = {
+          audio: buffer,
+          mimetype: "audio/mp4",
+          ptt: match.quoted.ptt || false
+        };
+        break;
+      default:
+        return await client.sendMessage(from, {
+          text: "❌ Only image, video, and audio messages are supported"
+        }, { quoted: message });
+    }
+
+    await client.sendMessage(from, messageContent, options);
   } catch (error) {
-    console.log("VV ERROR:", error);
-    m.reply("❌ Something went wrong while retrieving the view once message.");
+    console.error("vv Error:", error);
+    await client.sendMessage(from, {
+      text: "❌ Error fetching vv message:\n" + error.message
+    }, { quoted: message });
   }
 });
+
+cmd({
+  pattern: "vv2",
+  alias: ["wah", "ohh", "oho", "🙂", "😂", "❤️", "💋", "🥵", "🌚", "😒", "nice", "ok"],
+  desc: "Owner Only - retrieve quoted message back to user",
+  category: "owner",
+  filename: __filename
+}, async (client, message, match, { from, isCreator }) => {
+  try {
+    if (!isCreator) {
+      return; // Simply return without any response if not owner
+    }
+
+    if (!match.quoted) {
+      return await client.sendMessage(from, {
+        text: "*🍁 Please reply to a view once message!*"
+      }, { quoted: message });
+    }
+
+    const buffer = await match.quoted.download();
+    const mtype = match.quoted.mtype;
+    const originalCaption = match.quoted.text || '';
+    const options = { quoted: message };
+
+    let messageContent = {};
+    switch (mtype) {
+      case "imageMessage":
+        messageContent = {
+          image: buffer,
+          caption: originalCaption ? `${originalCaption}\n\n> ${config.DESCRIPTION}` : `> ${config.DESCRIPTION}`,
+          mimetype: match.quoted.mimetype || "image/jpeg"
+        };
+        break;
+      case "videoMessage":
+        messageContent = {
+          video: buffer,
+          caption: originalCaption ? `${originalCaption}\n\n> ${config.DESCRIPTION}` : `> ${config.DESCRIPTION}`,
+          mimetype: match.quoted.mimetype || "video/mp4"
+        };
+        break;
+      case "audioMessage":
+        messageContent = {
+          audio: buffer,
+          mimetype: "audio/mp4",
+          ptt: match.quoted.ptt || false
+        };
+        break;
+      default:
+        return await client.sendMessage(from, {
+          text: "❌ Only image, video, and audio messages are supported"
+        }, { quoted: message });
+    }
+
+    // Forward to user's DM
+    await client.sendMessage(message.sender, messageContent, options);
+  } catch (error) {
+    console.error("vv Error:", error);
+    await client.sendMessage(from, {
+      text: "❌ Error fetching vv message:\n" + error.message
+    }, { quoted: message });
+  }
+});
+          
