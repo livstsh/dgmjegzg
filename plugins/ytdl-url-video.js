@@ -2,65 +2,56 @@ const axios = require('axios');
 const { cmd } = require('../command');
 
 cmd({
-    pattern: "ytvid",
-    alias: ["video3", "ytv"],
-    react: "🎥",
-    desc: "Download YouTube videos via ytdown.to proxy.",
-    category: "download",
+    pattern: "mikuvoice",
+    alias: ["miku", "tts-miku", "miku-voice"],
+    react: "🎤",
+    desc: "Convert text to Hatsune Miku's voice.",
+    category: "ai",
     filename: __filename
 },           
 async (conn, mek, m, { from, q, reply }) => {
     try {
-        if (!q) return reply("❌ Please provide a YouTube URL!");
-        if (!q.includes("youtube.com") && !q.includes("youtu.be")) return reply("❌ Invalid YouTube link!");
+        // Text validation
+        if (!q) return reply("Please provide text to convert to voice! Example: .mikuvoice Hello Kamran!");
 
-        await reply("⏳ *Processing your video, please wait...*");
+        await reply("🎶 *Miku is warming up her voice...*");
 
-        // Step 1: Get media items from proxy
-        let a = await axios.post(
-            "https://ytdown.to/proxy.php",
-            `url=${encodeURIComponent(q)}`,
-            {
-                headers: {
-                    "accept": "*/*",
-                    "accept-language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-                    "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-                    "x-requested-with": "XMLHttpRequest",
-                    "referrer": "https://ytdown.to/en2/"
-                }
-            }
-        );
+        // API request options
+        const options = {
+            method: "POST",
+            url: "https://shinoa.us.kg/api/voice/voice-miku",
+            headers: {
+                "accept": "*/*",
+                "api_key": "free",
+                "Content-Type": "application/json"
+            },
+            data: { text: q }
+        };
 
-        if (!a.data || !a.data.api || !a.data.api.mediaItems) {
-            throw new Error("Could not find media items. Try another link.");
+        // API request using axios
+        const response = await axios(options);
+        const result = response.data;
+
+        // Extracting audio URL from the first element of the data array
+        if (result.status && result.data && result.data.length > 0) {
+            const audioUrl = result.data[0].miku;
+
+            // Sending the audio as a voice note (PTT)
+            await conn.sendMessage(from, { 
+                audio: { url: audioUrl }, 
+                mimetype: 'audio/mpeg', 
+                ptt: true 
+            }, { quoted: mek });
+
+            await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+        } else {
+            throw new Error("Failed to generate voice. Please try again.");
         }
 
-        // Step 2: Filter for Video (picking the first available video item)
-        let b = a.data.api.mediaItems.filter(i => i.type === "Video")[0];
-        if (!b) throw new Error("Video file not found.");
-
-        // Step 3: Get the direct file JSON
-        let c = await axios.get(b.mediaUrl, {
-            headers: { "Accept": "application/json" }
-        });
-
-        if (!c.data || !c.data.fileUrl) throw new Error("Failed to fetch file URL.");
-
-        // Step 4: Download the video as Buffer
-        let d = await axios.get(c.data.fileUrl, {
-            responseType: "arraybuffer",
-            headers: { "Range": "bytes=0-" }
-        });
-
-        // Step 5: Send the video to the user
-        await conn.sendMessage(from, { 
-            video: Buffer.from(d.data), 
-            caption: `*✅ Video Downloaded Successfully*\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`,
-            mimetype: 'video/mp4'
-        }, { quoted: mek });
-
-    } catch (e) {
-        console.error(e);
-        reply(`❌ *Error:* ${e.message}`);
+    } catch (error) {
+        console.error("Miku Voice Error:", error);
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+        reply("❌ *Error:* Miku voice generate karne mein masla hua. " + (error.message || ""));
     }
 });
+            
