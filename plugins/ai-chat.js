@@ -47,14 +47,14 @@ async (conn, mek, m, { from, q, reply }) => {
 
         // Success reply with Ad-Reply style and branding
         await conn.sendMessage(from, {
-            text: `*✦ GPT-4 AI RESPONSE ✦*\n\n${content}\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`,
+            text: `*✦ GPT-4 AI RESPONSE ✦*\n\n${content}\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ*`,
             contextInfo: {
                 externalAdReply: {
                     title: 'GPT-4 CHAT ASSISTANT',
-                    body: 'Powered by KAMRAN-MD',
+                    body: 'Powered by ᴘʀᴏᴠᴀ-ᴍᴅ',
                     mediaType: 1,
                     thumbnailUrl: 'https://files.catbox.moe/4rnbtb.jpg',
-                    sourceUrl: 'https://github.com/Dr-Kamran-Ghani', // Aapka link yahan aa sakta hai
+                    sourceUrl: 'https://github.com/KAMRAN-SMD', // Aapka link yahan aa sakta hai
                     renderLargerThumbnail: true,
                     showAdAttribution: true
                 }
