@@ -1,92 +1,77 @@
 const { cmd } = require('../command');
 const axios = require('axios');
+const fetch = require('node-fetch');
 
 cmd({
-    pattern: "ai",
-    alias: ["bot", "dj", "gpt", "gpt4", "bing"],
-    desc: "Chat with an AI model",
-    category: "ai",
+    pattern: "gpt",
+    alias: ["gemini"],
     react: "🤖",
-    filename: __filename
-},
-async (conn, mek, m, { from, args, q, reply, react }) => {
-    try {
-        if (!q) return reply("Please provide a message for the AI.\nExample: `.ai Hello`");
-
-        const apiUrl = `https://api.yupra.my.id/api/ai/copilot?text=${encodeURIComponent(q)}`;
-        const { data } = await axios.get(apiUrl);
-
-        if (!data || !data.message) {
-            await react("❌");
-            return reply("AI failed to respond. Please try again later.");
-        }
-
-        await reply(`${data.message}`);
-        await react("✅");
-    } catch (e) {
-        console.error("Error in AI command:", e);
-        await react("❌");
-        reply("An error occurred while communicating with the AI.");
-    }
-});
-
-cmd({
-    pattern: "openai",
-    alias: ["chatgpt", "gpt3", "open-gpt"],
-    desc: "Chat with OpenAI",
+    desc: "AI Chat (GPT / Gemini)",
     category: "ai",
-    react: "🧠",
     filename: __filename
 },
-async (conn, mek, m, { from, args, q, reply, react }) => {
+async (conn, mek, m, { from, body, reply }) => {
+
     try {
-        if (!q) return reply("Please provide a message for OpenAI.\nExample: `.openai Hello`");
 
-        const apiUrl = `https://vapis.my.id/api/openai?q=${encodeURIComponent(q)}`;
-        const { data } = await axios.get(apiUrl);
+        const text = body.split(" ").slice(1).join(" ");
+        if (!text) return reply("Example:\n.gpt write a html code");
 
-        if (!data || !data.result) {
-            await react("❌");
-            return reply("OpenAI failed to respond. Please try again later.");
+        await conn.sendMessage(from, {
+            react: { text: "🤖", key: mek.key }
+        });
+
+        // ===== GPT API =====
+        if (body.startsWith(".gpt")) {
+
+            const res = await axios.get(
+                `https://zellapi.autos/ai/chatbot?text=${encodeURIComponent(text)}`
+            );
+
+            if (res.data && res.data.status && res.data.result) {
+                return reply(res.data.result);
+            } else {
+                return reply("❌ GPT API Error");
+            }
+
         }
 
-        await reply(`🧠 *OpenAI Response:*\n\n${data.result}`);
-        await react("✅");
-    } catch (e) {
-        console.error("Error in OpenAI command:", e);
-        await react("❌");
-        reply("An error occurred while communicating with OpenAI.");
-    }
-});
+        // ===== GEMINI APIs (Auto Fallback) =====
+        if (body.startsWith(".gemini")) {
 
-cmd({
-    pattern: "deepseek",
-    alias: ["deep", "seekai"],
-    desc: "Chat with DeepSeek AI",
-    category: "ai",
-    react: "🧠",
-    filename: __filename
-},
-async (conn, mek, m, { from, args, q, reply, react }) => {
-    try {
-        if (!q) return reply("Please provide a message for DeepSeek AI.\nExample: `.deepseek Hello`");
+            const apis = [
+                `https://vapis.my.id/api/gemini?q=${encodeURIComponent(text)}`,
+                `https://api.siputzx.my.id/api/ai/gemini-pro?content=${encodeURIComponent(text)}`,
+                `https://api.ryzendesu.vip/api/ai/gemini?text=${encodeURIComponent(text)}`,
+                `https://zellapi.autos/ai/chatbot?text=${encodeURIComponent(text)}`
+            ];
 
-        const apiUrl = `https://api.ryzendesu.vip/api/ai/deepseek?text=${encodeURIComponent(q)}`;
-        const { data } = await axios.get(apiUrl);
+            for (let api of apis) {
+                try {
+                    const response = await fetch(api);
+                    const data = await response.json();
 
-        if (!data || !data.answer) {
-            await react("❌");
-            return reply("DeepSeek AI failed to respond. Please try again later.");
+                    const answer =
+                        data.message ||
+                        data.data ||
+                        data.answer ||
+                        data.result;
+
+                    if (answer) {
+                        return reply(answer);
+                    }
+
+                } catch (e) {
+                    continue;
+                }
+            }
+
+            return reply("❌ All Gemini APIs Failed");
         }
 
-        await reply(`🧠 *DeepSeek AI Response:*\n\n${data.answer}`);
-        await react("✅");
-    } catch (e) {
-        console.error("Error in DeepSeek AI command:", e);
-        await react("❌");
-        reply("An error occurred while communicating with DeepSeek AI.");
+    } catch (err) {
+        console.log(err);
+        return reply("❌ Failed to get response. Try again later.");
     }
+
 });
-
-
-    
