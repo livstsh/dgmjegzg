@@ -1,103 +1,102 @@
 const axios = require('axios');
-const cheerio = require('cheerio');
+const fs = require('fs');
+const path = require('path');
 const yts = require('yt-search');
 const { cmd } = require('../command');
 
+// --- Snakeloader API Config ---
+const API_URL = 'https://api.snakeloader.com/index.php';
+const DEFAULT_HEADERS = {
+    'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+    'origin': 'https://snakeloader.com',
+    'referer': 'https://snakeloader.com/',
+    'user-agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36',
+    'x-requested-with': 'XMLHttpRequest',
+};
+
 // --- Helper Functions ---
 
-function extractVideoId(url) {
-    const match = url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
-    return match ? match[1] : null;
+const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '0';
+
+async function snakeSearch(query) {
+    const params = new URLSearchParams();
+    params.append('query', query);
+    params.append('action', 'search');
+    const res = await axios.post(API_URL, params.toString(), { headers: DEFAULT_HEADERS });
+    if (res.data.status !== 'ok') throw new Error('Search failed on Snakeloader');
+    return res.data.data;
 }
 
-async function fetchYtmp3(url) {
-    const videoId = extractVideoId(url);
-    const thumbnail = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null;
+async function snakeDownload(vid, key) {
+    const params = new URLSearchParams();
+    params.append('vid', vid);
+    params.append('key', key);
+    params.append('captcha_provider', 'cloudflare');
+    params.append('action', 'searchConvert');
 
-    // Scraper 1: YT1S.click
-    try {
-        const form = new URLSearchParams();
-        form.append('q', url);
-        form.append('type', 'mp3');
-        const res = await axios.post('https://yt1s.click/search', form.toString(), {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Origin': 'https://yt1s.click',
-                'Referer': 'https://yt1s.click/',
-                'User-Agent': 'Mozilla/5.0',
-            },
-        });
-        const $ = cheerio.load(res.data);
-        const link = $('a[href*="download"]').attr('href');
-        if (link) return { link, title: $('title').text().trim(), thumbnail, success: true };
-    } catch (e) { console.warn('YT1S failed'); }
-
-    // Scraper 2: FLVTO.online
-    try {
-        const payload = { fileType: 'MP3', id: videoId };
-        const res = await axios.post('https://ht.flvto.online/converter', payload, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Origin': 'https://ht.flvto.online',
-                'User-Agent': 'Mozilla/5.0',
-            },
-        });
-        if (res.data?.status === 'ok' && res.data.link) {
-            return { link: res.data.link, title: res.data.title, thumbnail, success: true };
-        }
-    } catch (e) { console.warn('FLVTO failed'); }
-
-    throw new Error('Gagal mendapatkan link download.');
+    // Polling logic for conversion (max 10 attempts)
+    for (let i = 0; i < 10; i++) {
+        const res = await axios.post(API_URL, params.toString(), { headers: DEFAULT_HEADERS });
+        const dlink = res.data.dlink || res.data.data?.dlink;
+        if (dlink) return dlink;
+        await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    throw new Error('Conversion timed out.');
 }
 
 // --- Bot Command ---
 
 cmd({
-    pattern: "play6",
-    alias: ["musik", "song5", "lagu"],
-    react: "🎶",
-    desc: "Search and play audio from YouTube.",
+    pattern: "ytmp33",
+    alias: ["yta", "song6", "audio"],
+    react: "🧸",
+    desc: "Download high quality YouTube audio via Snakeloader.",
     category: "download",
     filename: __filename
 },           
-async (conn, mek, m, { from, q, reply, usedPrefix, command }) => {
+async (conn, mek, m, { from, q, reply }) => {
     try {
-        if (!q) return reply(`*🎵 Hai Kak! Mau cari lagu apa hari ini?*\n\n*📝 Contoh:* ${usedPrefix + command} Armada Bebaskan Diriku`);
+        if (!q) return reply("Ketik judul lagu atau link\nContoh: .ytmp3 alone");
 
-        await conn.sendMessage(from, { react: { text: '🔍', key: m.key } });
+        // React with Loading
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
 
-        // Search YouTube
-        const search = await yts(q);
-        if (!search.videos.length) return reply("❌ Lagu tidak ditemukan di YouTube.");
+        // Step 1: Search on YouTube
+        const searchRes = await yts(q);
+        const video = searchRes.all[0];
+        if (!video) return reply('❌ Video tidak ditemukan.');
 
-        const video = search.videos[0];
-        const url = video.url;
+        const { title, views, timestamp, ago, url, author, image } = video;
 
-        // Info message
-        let info = `*🎶 YOUTUBE PLAY 🎶*\n\n` +
-                   `*📌 Title:* ${video.title}\n` +
-                   `*⏳ Duration:* ${video.timestamp}\n` +
-                   `*👀 Views:* ${video.views.toLocaleString()}\n` +
-                   `*📅 Published:* ${video.ago}\n\n` +
-                   `*📥 Downloading audio, please wait...*\n\n` +
-                   `*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`;
+        // Step 2: Get Snakeloader Metadata
+        const snakeData = await snakeSearch(url);
+        const audioLinks = snakeData.convert_links?.audio || [];
+        if (!audioLinks.length) throw new Error('No audio links available');
 
-        await conn.sendMessage(from, { image: { url: video.thumbnail }, caption: info }, { quoted: mek });
+        // Select 128kbps or first available
+        const pick = audioLinks.find(l => l.quality === '128kbps') || audioLinks[0];
 
-        // Get download link
-        const result = await fetchYtmp3(url);
-        if (!result.link) throw new Error("Could not fetch MP3 link.");
+        // Step 3: Start Conversion and Get Link
+        const finalDownloadUrl = await snakeDownload(snakeData.vid, pick.key);
 
-        // Send Audio with externalAdReply (Large Thumbnail)
+        // Step 4: Send Audio with AdReply
+        const caption = `⬣─ 〔 *Y T - A U D I O* 〕 ─⬣\n` +
+                        `- *Title:* ${title}\n` +
+                        `- *Views:* ${formatNumber(views)}\n` +
+                        `- *Duration:* ${timestamp}\n` +
+                        `- *Upload:* ${ago}\n` +
+                        `- *Author:* ${author?.name || 'N/A'}\n` +
+                        `⬣────────────────⬣`;
+
         await conn.sendMessage(from, {
-            audio: { url: result.link },
+            audio: { url: finalDownloadUrl },
             mimetype: 'audio/mpeg',
-            fileName: `${video.title}.mp3`,
+            fileName: `${title}.mp3`,
             contextInfo: {
                 externalAdReply: {
-                    title: video.title,
-                    body: `Duration: ${video.timestamp} | Views: ${video.views}`,
-                    thumbnailUrl: video.thumbnail,
+                    title: title,
+                    body: `YouTube Audio Player | ${timestamp}`,
+                    thumbnailUrl: snakeData.thumbnail || image,
                     sourceUrl: url,
                     mediaType: 1,
                     renderLargerThumbnail: true,
@@ -108,10 +107,10 @@ async (conn, mek, m, { from, q, reply, usedPrefix, command }) => {
 
         await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
 
-    } catch (e) {
-        console.error(e);
+    } catch (err) {
+        console.error(err);
         await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-        reply(`❌ *Gagal mengambil audio:* ${e.message}`);
+        reply(`❌ *Terjadi kesalahan:* ${err.message}`);
     }
 });
-
+                                     
