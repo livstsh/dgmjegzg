@@ -1,55 +1,73 @@
 const axios = require('axios');
 const { cmd } = require('../command');
 
+// --- Helper Function for GPT-4 API ---
+async function fetchGPT4(prompt) {
+    const modelData = {
+        api: 'https://stablediffusion.fr/gpt4/predict2',
+        referer: 'https://stablediffusion.fr/chatgpt4'
+    };
+
+    // Pehle referer page se cookies lene ke liye GET request
+    const hmm = await axios.get(modelData.referer);
+    const cookies = hmm.headers['set-cookie'] ? hmm.headers['set-cookie'].join('; ') : '';
+
+    const { data } = await axios.post(modelData.api, { prompt }, {
+        headers: {
+            'accept': '*/*',
+            'content-type': 'application/json',
+            'origin': 'https://stablediffusion.fr',
+            'referer': modelData.referer,
+            'cookie': cookies,
+            'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Mobile Safari/537.36'
+        }
+    });
+
+    return data.message;
+}
+
+// --- Bot Command ---
 cmd({
-    pattern: "shion",
-    alias: ["shionai", "hazel"],
-    react: "🎀",
-    desc: "Chat with Shion AI (Roleplay Character).",
+    pattern: "ai",
+    alias: ["gpt4", "chatgpt"],
+    react: "✨",
+    desc: "Chat with GPT-4 AI.",
     category: "ai",
     filename: __filename
 },           
 async (conn, mek, m, { from, q, reply }) => {
     try {
-        // Text validation
-        if (!q) return reply("Hai! Masukkan percakapanmu, contoh: .shion Hai Shion, apa kabar?");
+        if (!q) return reply("Contoh penggunaan: .gpt Apa itu machine learning?");
 
-        // Loading message
-        await reply("✨ *Shion is thinking...*");
+        // Initial reaction and message
+        await reply("✨ *Processing your request...*");
 
-        // API Request using the source you provided
-        const url = `https://zelapioffciall.koyeb.app/ai/shion?text=${encodeURIComponent(q)}`;
-        const res = await axios.get(url);
-        const data = res.data;
+        // Fetch response from GPT API
+        const content = await fetchGPT4(q);
 
-        // Check if API response is valid
-        if (!data.status || !data.result) {
-            throw new Error(data.message || "Tidak ada hasil ditemukan.");
-        }
-
-        // Extracting content from API result
-        const hasil = data.result.content;
-
-        // Final Response with Branding
-        const finalMsg = `*🎀 SHION AI 🎀*\n\n${hasil.trim()}\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`;
-
-        await conn.sendMessage(from, { 
-            text: finalMsg,
+        // Success reply with Ad-Reply style and branding
+        await conn.sendMessage(from, {
+            text: `*✦ GPT-4 AI RESPONSE ✦*\n\n${content}\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`,
             contextInfo: {
-                forwardingScore: 999,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363418144382782@newsletter',
-                    newsletterName: 'PROVA-MD',
-                    serverMessageId: 143
+                externalAdReply: {
+                    title: 'GPT-4 CHAT ASSISTANT',
+                    body: 'Powered by KAMRAN-MD',
+                    mediaType: 1,
+                    thumbnailUrl: 'https://files.catbox.moe/4rnbtb.jpg',
+                    sourceUrl: 'https://github.com/Dr-Kamran-Ghani', // Aapka link yahan aa sakta hai
+                    renderLargerThumbnail: true,
+                    showAdAttribution: true
                 }
             }
         }, { quoted: mek });
 
-    } catch (error) {
-        console.error("Shion AI Error:", error);
-        const errorMsg = error.response?.data?.message || error.message || error;
-        reply(`❌ *Terjadi kesalahan:* ${errorMsg}`);
+        // Update reaction to Success
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+
+    } catch (e) {
+        console.error("GPT-4 Error:", e);
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+        reply(`❌ *Gagal mengambil respons:* ${e.message || e}`);
     }
 });
-            
+                      
