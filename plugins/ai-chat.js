@@ -3,8 +3,8 @@ const axios = require('axios');
 const fetch = require('node-fetch');
 
 cmd({
-    pattern: "gpt",
-    alias: ["gemini"],
+    pattern: "ai",
+    alias: ["gemini4"],
     react: "🤖",
     desc: "AI Chat (GPT / Gemini)",
     category: "ai",
@@ -40,9 +40,9 @@ async (conn, mek, m, { from, body, reply }) => {
         if (body.startsWith(".gemini")) {
 
             const apis = [
-                `https://vapis.my.id/api/gemini?q=${encodeURIComponent(text)}`,
-                `https://api.siputzx.my.id/api/ai/gemini-pro?content=${encodeURIComponent(text)}`,
-                `https://api.ryzendesu.vip/api/ai/gemini?text=${encodeURIComponent(text)}`,
+                `https://zellapi.autos/ai/chatbot?text=${encodeURIComponent(text)}`,
+                `https://zellapi.autos/ai/chatbot?text=${encodeURIComponent(text)}`,
+                `https://zellapi.autos/ai/chatbot?text=${encodeURIComponent(text)}`,
                 `https://zellapi.autos/ai/chatbot?text=${encodeURIComponent(text)}`
             ];
 
