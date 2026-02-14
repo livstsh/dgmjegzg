@@ -1,123 +1,67 @@
-const { cmd } = require('../command');
 const axios = require('axios');
+const { cmd } = require('../command');
 const yts = require('yt-search');
 
-// Store pending song replies
-const pendingSongs = new Map();
-
-// ---------------- SONG COMMAND ----------------
-
 cmd({
-    pattern: "song",
-    alias: ["audio", "ytmp3"],
-    react: "🎵",
-    desc: "YouTube MP3 Downloader",
+    pattern: "ytmp3",
+    alias: ["audio", "yta", "song"],
+    react: "🎶",
+    desc: "Download YouTube audio (MP3) using Mova-Nest API.",
     category: "download",
     filename: __filename
-}, async (conn, mek, m, { from, reply, q, prefix }) => {
+},           
+async (conn, mek, m, { from, q, reply }) => {
     try {
-        if (!q) return reply(`❓ Usage: ${prefix}song <name/link>`);
-
-        await conn.sendMessage(from, { react: { text: "🔍", key: mek.key } });
-
-        const search = await yts(q);
-        if (!search.videos.length) return reply("❌ No results found!");
-
-        const video = search.videos[0];
-
-        const apiUrl = `https://api-aswin-sparky.koyeb.app/api/downloader/song?search=${encodeURIComponent(video.url)}`;
-        const { data } = await axios.get(apiUrl);
-
-        if (!data?.status || !data.data?.url) return reply("❌ API error!");
-
-        const caption = `
-╭━━━〔 🎧 *PROVA SONG DOWNLOADER* 〕━━━⬣
-┃
-┃ 🎼 *Title:* ${video.title}
-┃ ⏱️ *Duration:* ${video.timestamp}
-┃ 🔗 ${video.url}
-┃
-┣━━━━━━━━━━━━━━━━━━⬣
-┃ Reply with number:
-┃
-┃ ❶ Audio (MP3)
-┃ ❷ Document File
-┃ ❸ Voice Note (PTT)
-┃
-╰━━━━━━━━━━━━━━━━━━⬣
-> © Powered By ᴘʀᴏᴠᴀ-ᴍᴅ
-`;
-
-        const sent = await conn.sendMessage(from, {
-            image: { url: video.thumbnail },
-            caption
-        }, { quoted: mek });
-
-        // Save reply context
-        pendingSongs.set(sent.key.id, {
-            title: video.title,
-            url: data.data.url
-        });
-
-    } catch (e) {
-        console.error(e);
-        reply("❌ Error occurred!");
-    }
-});
-
-
-// ---------------- GLOBAL REPLY HANDLER ----------------
-
-cmd({
-    on: "text"
-},
-async (conn, mek, m, { from, body, reply }) => {
-    try {
-        const contextId = mek.message?.extendedTextMessage?.contextInfo?.stanzaId;
-        if (!contextId) return;
-
-        const songData = pendingSongs.get(contextId);
-        if (!songData) return;
-
-        const choice = body.trim();
-
-        await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
-
-        switch (choice) {
-            case "1":
-            case "❶":
-                await conn.sendMessage(from, {
-                    audio: { url: songData.url },
-                    mimetype: "audio/mpeg"
-                }, { quoted: mek });
-                break;
-
-            case "2":
-            case "❷":
-                await conn.sendMessage(from, {
-                    document: { url: songData.url },
-                    fileName: `${songData.title}.mp3`,
-                    mimetype: "audio/mpeg"
-                }, { quoted: mek });
-                break;
-
-            case "3":
-            case "❸":
-                await conn.sendMessage(from, {
-                    audio: { url: songData.url },
-                    mimetype: "audio/mp4",
-                    ptt: true
-                }, { quoted: mek });
-                break;
-
-            default:
-                return reply("❌ Reply only with 1, 2 or 3");
+        if (!q) return reply("❌ Please provide a YouTube URL!");
+        
+        // URL check
+        const ytUrl = q.trim();
+        if (!ytUrl.includes("youtube.com") && !ytUrl.includes("youtu.be")) {
+            return reply("❌ Invalid YouTube link! Please provide a correct link.");
         }
 
-        pendingSongs.delete(contextId);
-        await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
+        await reply("⏳ *Fetching audio data, please wait...*");
+
+        // Step 1: Call the Mova-Nest API (as shown in your image)
+        const apiUrl = `https://www.movanest.xyz/v2/ytdl2?input=${encodeURIComponent(ytUrl)}&format=audio&bitrate=128`;
+        
+        const response = await axios.get(apiUrl);
+        const data = response.data;
+
+        // Check if API response is successful
+        if (!data.status || !data.results || !data.results.success) {
+            throw new Error("API could not process this video. Please try again later.");
+        }
+
+        const title = data.results.title || "YouTube Audio";
+        const downloadUrl = data.results.url; // Direct MP3 link
+        const thumb = data.results.thumb;
+
+        // Step 2: Inform user about download starting
+        await conn.sendMessage(from, { 
+            text: `*🎶 Title:* ${title}\n*📁 Format:* MP3 (128kbps)\n\n*Sending audio file...*` 
+        }, { quoted: mek });
+
+        // Step 3: Send the Audio File
+        await conn.sendMessage(from, { 
+            audio: { url: downloadUrl }, 
+            mimetype: 'audio/mpeg',
+            fileName: `${title}.mp3`,
+            contextInfo: {
+                externalAdReply: {
+                    title: title,
+                    body: "DR KAMRAN - YouTube Downloader",
+                    thumbnailUrl: thumb,
+                    sourceUrl: ytUrl,
+                    mediaType: 1,
+                    renderLargerThumbnail: true
+                }
+            }
+        }, { quoted: mek });
 
     } catch (e) {
-        console.error(e);
+        console.error("YTMP3 Error:", e);
+        reply(`❌ *Error:* ${e.message || "Failed to download audio."}`);
     }
 });
+                    
