@@ -37,7 +37,7 @@ async (conn, mek, m, { from, q, reply }) => {
         const duration = video.timestamp;
 
         // 🌐 Step 2: Get Download Link from Movanest API
-        const apiUrl = `https://www.movanest.xyz/v2/ytdl2?input=${encodeURIComponent(videoUrl)}&format=audio`;
+        const apiUrl = `https://api-aswin-sparky.koyeb.app/api/downloader/song?search=${encodeURIComponent(videoUrl)}&format=audio`;
         const res = await axios.get(apiUrl);
         const json = res.data;
 
