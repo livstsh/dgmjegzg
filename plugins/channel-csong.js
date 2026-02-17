@@ -1,101 +1,58 @@
-const { exec } = require('child_process');
-const axios = require('axios');
-const yts = require('yt-search');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
 const { cmd } = require('../command');
 
+// Note: global.botModes initialization check
+if (!global.botModes) global.botModes = {};
+if (!global.botModes.antitag) global.botModes.antitag = {};
+
 cmd({
-    pattern: "csong",
-    alias: ["channelsong", "sendchannel"],
-    react: "🎵",
-    desc: "Search and send a song to a specific WhatsApp Channel.",
-    category: "download",
+    pattern: "antitag",
+    alias: ["anti-tag", "antitall"],
+    react: "🛡️",
+    desc: "Configure Anti-Tag system to prevent mass mentions.",
+    category: "group",
     filename: __filename
 },           
-async (conn, mek, m, { from, q, reply }) => {
+async (conn, mek, m, { from, l, isGroup, participants, isAdmins, isBotAdmins, args, reply }) => {
     try {
-        // Validation: Expecting ".csong channelJid songName"
-        if (!q) return reply("❗ Example: .csong 120363xxxx@newsletter song name");
+        if (!isGroup) return reply("🚫 This command can only be used in groups.");
         
-        let args = q.split(" ");
-        let channelJid = args[0];
-        let query = args.slice(1).join(" ");
+        // Admin Check
+        if (!isAdmins) return reply("🚫 ACCÈS REFUSÉ : Seul un Admin peut configurer la protection.");
 
-        if (!channelJid.includes("@")) return reply("❗ Please provide a valid channel JID (e.g., @newsletter).");
-        if (!query) return reply("❗ Please enter the song name.");
+        const action = args[0]?.toLowerCase();
 
-        await reply("⏳ *Processing and sending to channel...*");
-
-        // 🔍 Step 1: Search YouTube
-        const search = await yts(query);
-        if (!search.videos.length) return reply("❌ No results found on YouTube.");
-        
-        const video = search.videos[0];
-        const videoUrl = video.url;
-        const duration = video.timestamp;
-
-        // 🌐 Step 2: Get Download Link from Movanest API
-        const apiUrl = `https://api-aswin-sparky.koyeb.app/api/downloader/song?search=${encodeURIComponent(videoUrl)}&format=audio`;
-        const res = await axios.get(apiUrl);
-        const json = res.data;
-
-        if (!json?.status || !json?.results?.success || !json?.results?.url) {
-            throw new Error('API did not return a valid download link');
+        if (!action) {
+            return reply(`🛡️ *SYSTÈME ANTI-TAG*\n\n` +
+                         `*.antitag on* -> Active la protection\n` +
+                         `*.antitag off* -> Désactive la protection\n\n` +
+                         `*Effet : Supprime automatiquement les tentatives de tagall (@everyone, @here, etc).*`);
         }
 
-        const dlUrl = json.results.url;
-        const title = json.results.title || video.title;
-        let thumb = json.results.thumb || video.thumbnail;
+        if (action === "on") {
+            global.botModes.antitag[from] = true;
+            return conn.sendMessage(from, { 
+                image: { url: "https://files.catbox.moe/v7zea2.jpg" },
+                caption: "✅ *PROTECTION ACTIVÉE*\n\nLe Monarque surveille désormais les mentions de ce groupe.\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*" 
+            }, { quoted: mek });
 
-        // 📂 Step 3: Temp File Handling for FFmpeg
-        const tempMp3 = path.join(os.tmpdir(), `${Date.now()}_input.mp3`);
-        const tempOpus = path.join(os.tmpdir(), `${Date.now()}_output.opus`);
+        } else if (action === "off") {
+            global.botModes.antitag[from] = false;
+            return reply("❌ *PROTECTION DÉSACTIVÉE*");
+        }
 
-        // Download MP3
-        const mp3Res = await axios.get(dlUrl, { responseType: 'arraybuffer' });
-        fs.writeFileSync(tempMp3, Buffer.from(mp3Res.data));
-
-        // 🔄 Step 4: Convert MP3 to Opus (OGG) for Voice Note style
-        await new Promise((resolve, reject) => {
-            exec(`ffmpeg -i "${tempMp3}" -c:a libopus -b:a 128k -vbr on -compression_level 10 "${tempOpus}"`, (err) => {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
-
-        const opusBuffer = fs.readFileSync(tempOpus);
-
-        // 🎨 Step 5: Prepare Channel Post
-        const caption = `*🪸 DR KAMRAN - Channel Post!!*\n\n` +
-                        `> _*🧃Title*_ : \`${title}\`\n` +
-                        `> _*🪺 Duration*_ : \`${duration}\`\n\n` +
-                        `> _*Thnk For Check Our Bot!! 😌✨*_`;
-
-        // 1. Send Image + Caption to Channel
-        await conn.sendMessage(channelJid, {
-            image: { url: thumb },
-            caption: caption
-        });
-
-        // 2. Send Audio (Voice Note style) to Channel
-        await conn.sendMessage(channelJid, {
-            audio: opusBuffer,
-            mimetype: "audio/ogg; codecs=opus",
-            ptt: true,
-            fileName: `${title}.opus`
-        });
-
-        // 🧹 Cleanup Temp Files
-        if (fs.existsSync(tempMp3)) fs.unlinkSync(tempMp3);
-        if (fs.existsSync(tempOpus)) fs.unlinkSync(tempOpus);
-
-        await reply("✅ *Sent to channel successfully!*");
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (error) {
-        console.error("CSONG Error:", error);
-        reply("⚠️ *Error:* " + (error.message || "Something went wrong"));
+    } catch (err) {
+        console.error("Erreur Antitag :", err);
+        reply("⚠️ Error configuring Anti-Tag.");
     }
 });
+
+// 🛡️ PASSIVE DETECTION LOGIC (Place this in your main handler/index.js if needed)
+// Is logic ko aap apne message listener mein add kar sakte hain:
+/*
+    if (isGroup && global.botModes.antitag?.[from]) {
+        const isTagAll = m.body.includes('@everyone') || m.body.includes('@here') || (m.mentionedJid && m.mentionedJid.length > 10);
+        if (isTagAll && !isAdmins && isBotAdmins) {
+            await conn.sendMessage(from, { delete: mek.key });
+        }
+    }
+*/
