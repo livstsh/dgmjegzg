@@ -1,116 +1,159 @@
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
-const yts = require('yt-search');
+const { spawn } = require("child_process");
+const fs = require("fs");
+const path = require("path");
+const { randomBytes } = require("crypto");
+const fetch = require("node-fetch");
 const { cmd } = require('../command');
 
-// --- Snakeloader API Config ---
-const API_URL = 'https://api.snakeloader.com/index.php';
-const DEFAULT_HEADERS = {
-    'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
-    'origin': 'https://snakeloader.com',
-    'referer': 'https://snakeloader.com/',
-    'user-agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36',
-    'x-requested-with': 'XMLHttpRequest',
-};
-
-// --- Helper Functions ---
-
-const formatNumber = (num) => num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '0';
-
-async function snakeSearch(query) {
-    const params = new URLSearchParams();
-    params.append('query', query);
-    params.append('action', 'search');
-    const res = await axios.post(API_URL, params.toString(), { headers: DEFAULT_HEADERS });
-    if (res.data.status !== 'ok') throw new Error('Search failed on Snakeloader');
-    return res.data.data;
+// --- FFmpeg Optimization Helper ---
+function runFFmpeg(input, output) {
+  return new Promise((resolve, reject) => {
+    const ff = spawn("ffmpeg", [
+      "-y",
+      "-i", input,
+      "-c:v", "libx264",
+      "-c:a", "aac",
+      "-preset", "veryfast",
+      "-movflags", "+faststart",
+      "-pix_fmt", "yuv420p",
+      output
+    ]);
+    ff.on("close", code => {
+      if (code === 0) resolve();
+      else reject(new Error("FFmpeg optimization failed"));
+    });
+  });
 }
 
-async function snakeDownload(vid, key) {
-    const params = new URLSearchParams();
-    params.append('vid', vid);
-    params.append('key', key);
-    params.append('captcha_provider', 'cloudflare');
-    params.append('action', 'searchConvert');
+// --- Y2Mate / CNV API Helper ---
+async function y2mate(input) {
+  let [query, quality] = input.split(",");
+  quality = quality ? quality.trim() : "mp3";
+  let link = query.trim();
 
-    // Polling logic for conversion (max 10 attempts)
-    for (let i = 0; i < 10; i++) {
-        const res = await axios.post(API_URL, params.toString(), { headers: DEFAULT_HEADERS });
-        const dlink = res.data.dlink || res.data.data?.dlink;
-        if (dlink) return dlink;
-        await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-    throw new Error('Conversion timed out.');
+  // Search if input is not a URL
+  if (!/^https?:\/\//i.test(link)) {
+    const searchRes = await fetch(`https://wwd.mp3juice.blog/search.php?q=${encodeURIComponent(link)}`);
+    const searchData = await searchRes.json();
+    if (!searchData.items || !searchData.items.length) throw new Error("Video not found!");
+    link = `https://www.youtube.com/watch?v=${searchData.items[0].id}`;
+  }
+
+  // Fetch Meta & Key
+  const meta = await (await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(link)}&format=json`)).json();
+  const { key } = await (await fetch("https://cnv.cx/v2/sanity/key")).json();
+
+  let format = quality === "mp3" ? "mp3" : "mp4";
+  let videoQuality = quality === "mp3" ? "128" : quality;
+
+  const body = new URLSearchParams({
+    link,
+    format,
+    audioBitrate: "128",
+    videoQuality,
+    filenameStyle: "pretty",
+    vCodec: "h264"
+  }).toString();
+
+  const convRes = await fetch("https://cnv.cx/v2/converter", {
+    method: "POST",
+    headers: {
+      "key": key,
+      "content-type": "application/x-www-form-urlencoded",
+      "user-agent": "Mozilla/5.0"
+    },
+    body
+  });
+
+  const conv = await convRes.json();
+  return {
+    type: format,
+    title: meta.title,
+    thumbnail: meta.thumbnail_url,
+    filename: conv.filename,
+    download: conv.url,
+    source: link
+  };
 }
 
-// --- Bot Command ---
-
+// --- Audio Command (yta) ---
 cmd({
-    pattern: "ytmp33",
-    alias: ["yta", "song6", "audio"],
-    react: "🧸",
-    desc: "Download high quality YouTube audio via Snakeloader.",
+    pattern: "yta",
+    alias: ["ytmp3", "ytaudio"],
+    react: "🎧",
+    desc: "Download YouTube audio.",
     category: "download",
     filename: __filename
 },           
-async (conn, mek, m, { from, q, reply }) => {
+async (conn, mek, m, { q, reply }) => {
     try {
-        if (!q) return reply("Ketik judul lagu atau link\nContoh: .ytmp3 alone");
+        if (!q) return reply("*Example:* .yta blue yung kai");
+        await reply("⏳ *Processing audio... Please wait.*");
 
-        // React with Loading
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-        // Step 1: Search on YouTube
-        const searchRes = await yts(q);
-        const video = searchRes.all[0];
-        if (!video) return reply('❌ Video tidak ditemukan.');
-
-        const { title, views, timestamp, ago, url, author, image } = video;
-
-        // Step 2: Get Snakeloader Metadata
-        const snakeData = await snakeSearch(url);
-        const audioLinks = snakeData.convert_links?.audio || [];
-        if (!audioLinks.length) throw new Error('No audio links available');
-
-        // Select 128kbps or first available
-        const pick = audioLinks.find(l => l.quality === '128kbps') || audioLinks[0];
-
-        // Step 3: Start Conversion and Get Link
-        const finalDownloadUrl = await snakeDownload(snakeData.vid, pick.key);
-
-        // Step 4: Send Audio with AdReply
-        const caption = `⬣─ 〔 *Y T - A U D I O* 〕 ─⬣\n` +
-                        `- *Title:* ${title}\n` +
-                        `- *Views:* ${formatNumber(views)}\n` +
-                        `- *Duration:* ${timestamp}\n` +
-                        `- *Upload:* ${ago}\n` +
-                        `- *Author:* ${author?.name || 'N/A'}\n` +
-                        `⬣────────────────⬣`;
-
-        await conn.sendMessage(from, {
-            audio: { url: finalDownloadUrl },
-            mimetype: 'audio/mpeg',
-            fileName: `${title}.mp3`,
+        const res = await y2mate(q + ",mp3");
+        await conn.sendMessage(m.chat, {
+            audio: { url: res.download },
+            mimetype: "audio/mpeg",
+            fileName: `${res.title}.mp3`,
             contextInfo: {
                 externalAdReply: {
-                    title: title,
-                    body: `YouTube Audio Player | ${timestamp}`,
-                    thumbnailUrl: snakeData.thumbnail || image,
-                    sourceUrl: url,
+                    title: res.title,
+                    body: "YouTube Audio Downloader",
+                    thumbnailUrl: res.thumbnail,
+                    sourceUrl: res.source,
                     mediaType: 1,
-                    renderLargerThumbnail: true,
-                    showAdAttribution: true
+                    renderLargerThumbnail: true
                 }
             }
         }, { quoted: mek });
-
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (err) {
-        console.error(err);
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-        reply(`❌ *Terjadi kesalahan:* ${err.message}`);
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+    } catch (e) {
+        reply(`❌ Error: ${e.message}`);
     }
 });
-                                     
+
+// --- Video Command (ytv) ---
+cmd({
+    pattern: "ytv",
+    alias: ["ytmp4", "ytvideo"],
+    react: "🎬",
+    desc: "Download YouTube video (optimized for WA).",
+    category: "download",
+    filename: __filename
+},           
+async (conn, mek, m, { q, reply }) => {
+    try {
+        if (!q) return reply("*Example:* .ytv https://youtu.be/... 720");
+        let [url, quality] = q.split(" ");
+        quality = quality || "720";
+        
+        await reply("⏳ *Optimizing video for WhatsApp...*");
+
+        const res = await y2mate(url + "," + quality);
+        const tempIn = path.join("./tmp", randomBytes(5).toString("hex") + ".mp4");
+        const tempOut = tempIn.replace(".mp4", "_optimized.mp4");
+
+        // Download to temp file
+        const response = await fetch(res.download);
+        const buffer = Buffer.from(await response.arrayBuffer());
+        fs.writeFileSync(tempIn, buffer);
+
+        // Run FFmpeg optimization
+        await runFFmpeg(tempIn, tempOut);
+
+        await conn.sendMessage(m.chat, {
+            video: fs.readFileSync(tempOut),
+            mimetype: "video/mp4",
+            caption: `✅ *Title:* ${res.title}\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`,
+            fileName: `${res.title}.mp4`
+        }, { quoted: mek });
+
+        // Cleanup
+        if (fs.existsSync(tempIn)) fs.unlinkSync(tempIn);
+        if (fs.existsSync(tempOut)) fs.unlinkSync(tempOut);
+        await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+    } catch (e) {
+        reply(`❌ Error: ${e.message}`);
+    }
+});
+        
