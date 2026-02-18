@@ -1,145 +1,118 @@
-// ✅ AI Image Editor for KAMRAN-MD
-
-// 🛠️ API: ai-studio.anisaofc.my.id
+//---------------------------------------------------------------------------
+//           KAMRAN-MD - AI IMAGE EDITOR (IMG2IMG)
+//---------------------------------------------------------------------------
+//  🚀 POWERED BY IMGEDITOR API (LID & NEWSLETTER SUPPORT)
+//---------------------------------------------------------------------------
 
 const { cmd } = require('../command');
-
 const axios = require('axios');
+const config = require('../config');
 
-const { jidNormalizedUser } = require('@whiskeysockets/baileys');
+// Newsletter Context for professional branding
+const newsletterContext = {
+    forwardingScore: 999,
+    isForwarded: true,
+    forwardedNewsletterMessageInfo: {
+        newsletterJid: '120363418144382782@newsletter',
+        newsletterName: 'PROVA-MD',
+        serverMessageId: 143
+    }
+};
+
+const BASE = "https://imgeditor.co/api";
+
+/**
+ * Upload Image Buffer to ImgEditor
+ */
+async function uploadImage(buffer) {
+    const res = await axios.post(`${BASE}/get-upload-url`, {
+        fileName: "image.jpg",
+        contentType: "image/jpeg",
+        fileSize: buffer.length
+    }, { headers: { "content-type": "application/json" } });
+
+    const json = res.data;
+    if (!json.uploadUrl || !json.publicUrl) throw new Error("Gagal mendapatkan upload url");
+
+    await axios.put(json.uploadUrl, buffer, {
+        headers: { "content-type": "image/jpeg" }
+    });
+
+    return json.publicUrl;
+}
+
+/**
+ * Request AI Image Generation
+ */
+async function generateImage(prompt, imageUrl) {
+    const res = await axios.post(`${BASE}/generate-image`, {
+        prompt,
+        styleId: "realistic",
+        mode: "image",
+        imageUrl,
+        imageUrls: [imageUrl],
+        numImages: 1,
+        outputFormat: "png",
+        model: "nano-banana"
+    }, { headers: { "content-type": "application/json" } });
+
+    if (!res.data.taskId) throw new Error("Task creation failed");
+    return res.data.taskId;
+}
+
+/**
+ * Wait for AI Task Completion
+ */
+async function waitResult(taskId) {
+    while (true) {
+        await new Promise(r => setTimeout(r, 2500));
+        const res = await axios.get(`${BASE}/generate-image/status?taskId=${taskId}`);
+        const json = res.data;
+
+        if (json.status === "completed" && json.imageUrl) return json.imageUrl;
+        if (json.status === "failed") throw new Error("Generation failed");
+    }
+}
+
+// --- COMMAND: EDIT IMAGE ---
 
 cmd({
-
-    pattern: "edit",
-
-    alias: ["ai-edit", "modify"],
-
-    desc: "AI Image Editing based on your prompt.",
-
+    pattern: "editimg",
+    alias: ["imgai", "reimagine"],
+    desc: "Edit an image using AI prompt.",
     category: "ai",
-
-    react: "🪄",
-
-    filename: __filename
-
-}, async (conn, mek, m, { from, q, reply, isGroup, sender }) => {
-
+    react: "🎨",
+    filename: __filename,
+}, async (conn, mek, m, { from, text, reply }) => {
     try {
-
-        // --- LID/JID Normalization ---
-
-        const senderJid = jidNormalizedUser(sender);
-
-        if (!q) {
-
-            return await reply(`*🎨 AI IMAGE EDITOR*\n\nExample: Reply to an image with \`.edit change hair color to red\`\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`);
-
-        }
-
-        // Check if there is a quoted image or the message itself is an image
-
-        let q_msg = m.quoted ? m.quoted : m;
-
-        let mime = (q_msg.msg || q_msg).mimetype || "";
-
-        if (!mime.startsWith("image/")) {
-
-            return await reply(`✨ Please reply to an *image* that you want to edit.`);
-
-        }
+        const q = m.quoted ? m.quoted : m;
+        const mime = (q.msg || q).mimetype || '';
+        
+        if (!/image/.test(mime)) return reply("📸 Please reply to an image with a prompt.\nExample: `.editimg change to a robot` ");
+        if (!text) return reply("❓ Please provide a prompt for AI.");
 
         await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
+        
+        // 1. Download and Upload
+        const mediaBuffer = await q.download();
+        const publicUrl = await uploadImage(mediaBuffer);
+        
+        // 2. Generate Task
+        const taskId = await generateImage(text, publicUrl);
+        
+        // 3. Wait for result
+        const resultUrl = await waitResult(taskId);
 
-        // Download the media
-
-        let buffer = await q_msg.download();
-
-        if (!buffer) {
-
-            return await reply(`❌ Failed to download the image. Please try again.`);
-
-        }
-
-        // Convert buffer to Base64
-
-        let imageBase64 = buffer.toString("base64");
-
-        let payload = {
-
-            image: imageBase64,
-
-            prompt: q.trim()
-
-        };
-
-        // API Call using axios
-
-        let response = await axios.post("https://ai-studio.anisaofc.my.id/api/edit-image", payload, {
-
-            headers: {
-
-                "User-Agent": "Mozilla/5.0",
-
-                "Content-Type": "application/json",
-
-                "Origin": "https://ai-studio.anisaofc.my.id",
-
-                "Referer": "https://ai-studio.anisaofc.my.id/"
-
-            }
-
-        });
-
-        const result = response.data;
-
-        if (!result || !result.imageUrl) {
-
-            await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
-
-            return await reply(`🍂 Server did not return an edited image. Try a clearer prompt.`);
-
-        }
-
-        // Send the result
-
-        await conn.sendMessage(from, {
-
-            image: { url: result.imageUrl },
-
-            caption: `✅ *Image Edited Successfully!*\n\n*Prompt:* ${q}\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`,
-
-            contextInfo: {
-
-                mentionedJid: [senderJid],
-
-                forwardingScore: 999,
-
-                isForwarded: true,
-
-                forwardedNewsletterMessageInfo: {
-
-                    newsletterJid: '120363418144382782@newsletter',
-
-                    newsletterName: 'PROVA-MD',
-
-                    serverMessageId: 143
-
-                }
-
-            }
-
+        await conn.sendMessage(from, { 
+            image: { url: resultUrl }, 
+            caption: `*🎨 AI Edit Completed*\n\n*Prompt:* ${text}\n\n*🚀 Powered by PROVA-MD*`,
+            contextInfo: newsletterContext
         }, { quoted: mek });
 
         await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
 
-    } catch (error) {
-
-        console.error("AI Edit Error:", error);
-
-        await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
-
-        await reply(`❌ *Error:* ${error.message || "An unexpected error occurred."}`);
-
+    } catch (e) {
+        console.error("AI Editor Error:", e);
+        reply(`❌ Error: ${e.message}`);
     }
-
 });
