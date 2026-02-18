@@ -56,7 +56,7 @@ async (conn, mek, m, { from, q, reply, sender }) => {
                     externalAdReply: {
                         title: "GEMINI CHAT ASSISTANT",
                         body: "Powered by Google Gemini Pro",
-                        thumbnailUrl: "https://files.catbox.moe/iw4tzb.jpg", // Aap apni choice ki image laga sakte hain
+                        thumbnailUrl: "https://files.catbox.moe/e4za15.jpg", // Aap apni choice ki image laga sakte hain
                         sourceUrl: "https://github.com/KAMRAN-SMD",
                         mediaType: 1,
                         renderLargerThumbnail: true
