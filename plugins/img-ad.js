@@ -1,85 +1,145 @@
-const axios = require("axios");
-const FormData = require('form-data');
-const fs = require('fs');
-const os = require('os');
-const path = require("path");
-const { cmd } = require("../command");
+// ✅ AI Image Editor for KAMRAN-MD
 
-// Helper function to format bytes
-function formatBytes(bytes) {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
+// 🛠️ API: ai-studio.anisaofc.my.id
+
+const { cmd } = require('../command');
+
+const axios = require('axios');
+
+const { jidNormalizedUser } = require('@whiskeysockets/baileys');
 
 cmd({
-  pattern: "ad",
-  alias: ["adedit"],
-  react: '📸',
-  desc: "Scan and remove bg from images",
-  category: "img_edit",
-  use: ".ad [reply to image]",
-  filename: __filename
-}, async (conn, message, m,  { reply, mek }) => {
-  try {
-    // Check if quoted message exists and has media
-    const quotedMsg = message.quoted ? message.quoted : message;
-    const mimeType = (quotedMsg.msg || quotedMsg).mimetype || '';
-    
-    if (!mimeType || !mimeType.startsWith('image/')) {
-      return reply("Please reply to an image file (JPEG/PNG)");
+
+    pattern: "edit",
+
+    alias: ["ai-edit", "modify"],
+
+    desc: "AI Image Editing based on your prompt.",
+
+    category: "ai",
+
+    react: "🪄",
+
+    filename: __filename
+
+}, async (conn, mek, m, { from, q, reply, isGroup, sender }) => {
+
+    try {
+
+        // --- LID/JID Normalization ---
+
+        const senderJid = jidNormalizedUser(sender);
+
+        if (!q) {
+
+            return await reply(`*🎨 AI IMAGE EDITOR*\n\nExample: Reply to an image with \`.edit change hair color to red\`\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`);
+
+        }
+
+        // Check if there is a quoted image or the message itself is an image
+
+        let q_msg = m.quoted ? m.quoted : m;
+
+        let mime = (q_msg.msg || q_msg).mimetype || "";
+
+        if (!mime.startsWith("image/")) {
+
+            return await reply(`✨ Please reply to an *image* that you want to edit.`);
+
+        }
+
+        await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
+
+        // Download the media
+
+        let buffer = await q_msg.download();
+
+        if (!buffer) {
+
+            return await reply(`❌ Failed to download the image. Please try again.`);
+
+        }
+
+        // Convert buffer to Base64
+
+        let imageBase64 = buffer.toString("base64");
+
+        let payload = {
+
+            image: imageBase64,
+
+            prompt: q.trim()
+
+        };
+
+        // API Call using axios
+
+        let response = await axios.post("https://ai-studio.anisaofc.my.id/api/edit-image", payload, {
+
+            headers: {
+
+                "User-Agent": "Mozilla/5.0",
+
+                "Content-Type": "application/json",
+
+                "Origin": "https://ai-studio.anisaofc.my.id",
+
+                "Referer": "https://ai-studio.anisaofc.my.id/"
+
+            }
+
+        });
+
+        const result = response.data;
+
+        if (!result || !result.imageUrl) {
+
+            await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
+
+            return await reply(`🍂 Server did not return an edited image. Try a clearer prompt.`);
+
+        }
+
+        // Send the result
+
+        await conn.sendMessage(from, {
+
+            image: { url: result.imageUrl },
+
+            caption: `✅ *Image Edited Successfully!*\n\n*Prompt:* ${q}\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`,
+
+            contextInfo: {
+
+                mentionedJid: [senderJid],
+
+                forwardingScore: 999,
+
+                isForwarded: true,
+
+                forwardedNewsletterMessageInfo: {
+
+                    newsletterJid: '120363418144382782@newsletter',
+
+                    newsletterName: 'PROVA-MD',
+
+                    serverMessageId: 143
+
+                }
+
+            }
+
+        }, { quoted: mek });
+
+        await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
+
+    } catch (error) {
+
+        console.error("AI Edit Error:", error);
+
+        await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
+
+        await reply(`❌ *Error:* ${error.message || "An unexpected error occurred."}`);
+
     }
 
-    // Download the media
-    const mediaBuffer = await quotedMsg.download();
-    const fileSize = formatBytes(mediaBuffer.length);
-    
-    // Get file extension based on mime type
-    let extension = '';
-    if (mimeType.includes('image/jpeg')) extension = '.jpg';
-    else if (mimeType.includes('image/png')) extension = '.png';
-    else {
-      return reply("Unsupported image format. Please use JPEG or PNG");
-    }
-
-    const tempFilePath = path.join(os.tmpdir(), `imgscan_${Date.now()}${extension}`);
-    fs.writeFileSync(tempFilePath, mediaBuffer);
-
-    // Upload to Catbox
-    const form = new FormData();
-    form.append('fileToUpload', fs.createReadStream(tempFilePath), `image${extension}`);
-    form.append('reqtype', 'fileupload');
-
-    const uploadResponse = await axios.post("https://catbox.moe/user/api.php", form, {
-      headers: form.getHeaders()
-    });
-
-    const imageUrl = uploadResponse.data;
-    fs.unlinkSync(tempFilePath); // Clean up temp file
-
-    if (!imageUrl) {
-      throw "Failed to upload image to Catbox";
-    }
-
-    // Scan the image using the API
-    const apiUrl = `https://api.popcat.xyz/v2/ad?image=${encodeURIComponent(imageUrl)}`;
-    const response = await axios.get(apiUrl, { responseType: "arraybuffer" });
-
-    if (!response || !response.data) {
-      return reply("Error: The API did not return a valid image. Try again later.");
-    }
-
-    const imageBuffer = Buffer.from(response.data, "binary");
-
-    await conn.sendMessage(m.chat, {
-      image: imageBuffer,
-      caption: `> *PROVA-𝐌𝐃*`
-    });
-
-  } catch (error) {
-    console.error("Ad Error:", error);
-    reply(`An error occurred: ${error.response?.data?.message || error.message || "Unknown error"}`);
-  }
 });
