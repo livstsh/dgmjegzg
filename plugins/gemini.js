@@ -1,5 +1,4 @@
 const { cmd } = require('../command');
-const cloudscraper = require('cloudscraper');
 const cheerio = require('cheerio');
 
 // --- SCRAPER FUNCTION ---
