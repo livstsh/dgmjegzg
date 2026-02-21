@@ -21,7 +21,7 @@ cmd({
             return await reply("❌ Please provide a valid phone number without `+`\nExample: `.pair 923147168309`");
         }
 
-        const response = await axios.get(`https://prova-md.onrender.com/pair/code?number=${encodeURIComponent(phoneNumber)}`);
+        const response = await axios.get(`https://prova-md.onrender.com/code?number=${encodeURIComponent(phoneNumber)}`);
 
         if (!response.data || !response.data.code) {
             return await reply("❌ Failed to retrieve pairing code. Please try again later.");
