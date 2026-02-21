@@ -106,8 +106,8 @@ async function waitForResult(taskId, max = 30) {
 // --- COMMAND: HAIRSTYLE / EDITHAIR ---
 
 cmd({
-    pattern: "hairstyle",
-    alias: ["edithair", "hairai"],
+    pattern: "editimg",
+    alias: ["aiphoto", "ai-editi"],
     desc: "Change hairstyle in an image using AI.",
     category: "ai",
     use: ".hairstyle <prompt>",
