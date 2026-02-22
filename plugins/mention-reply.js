@@ -45,7 +45,7 @@ async (conn, mek, m, { reply, isOwner, isAdmins }) => {
 
 // Command: antilink off
 cmd({
-    pattern: "antilink off",
+    pattern: "antilinks off",
     desc: "Turn off anti-link protection.",
     category: "config",
     filename: __filename
