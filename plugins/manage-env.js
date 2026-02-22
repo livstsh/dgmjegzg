@@ -415,7 +415,7 @@ async (conn, mek, m, { from, args, isOwner, reply }) => {
 
 // --- ANTILINK ---
 cmd({
-    pattern: "antilink-2",
+    pattern: "antilink",
     alias: ["antilinks"],
     desc: "enable or disable antilink.",
     category: "settings",
@@ -444,7 +444,7 @@ async (conn, mek, m, { args, isOwner, reply }) => {
 
 // --- ANTILINK KICK ---
 cmd({
-    pattern: "antilinkkick",
+    pattern: "antilin delete",
     alias: ["kicklink"],
     desc: "enable or disable antilink kick.",
     category: "settings",
