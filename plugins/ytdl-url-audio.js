@@ -129,7 +129,7 @@ cmd({
         // 5. Send Final Image
         await conn.sendMessage(from, {
             image: { url: resultUrl },
-            caption: `🍌 *NANO BANANA AI DONE*\n\n📝 *Prompt:* ${q}\n\n> © WHITESHADOW-MD ❤️`
+            caption: `🍌 *NANO BANANA AI DONE*\n\n📝 *Prompt:* ${q}\n\n> © PROVA-MD❤️`
         }, { quoted: mek });
 
         await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
