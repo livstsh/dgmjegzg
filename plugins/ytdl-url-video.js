@@ -9,8 +9,8 @@ const FOOTER = "⚡ POWERED BY PROVA-MD";
 
 // --- 1. SEARCH COMMAND ---
 cmd({
-    pattern: "song",
-    alias: ["video", "play"],
+    pattern: "song2",
+    alias: ["video2", "play5"],
     desc: "Search and select download format",
     category: "download",
     react: "🔍",
