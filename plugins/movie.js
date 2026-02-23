@@ -1,76 +1,70 @@
-const { cmd } = require('../command');
-const axios = require('axios');
-const yts = require('yt-search');
+const { cmd } = require("../command");
+const axios = require("axios");
 
-cmd({
-    pattern: "play4",
-    alias: ["song", "music", "ytmp3"],
-    react: "🎶",
-    desc: "Download YouTube Audio via Arslan API",
-    category: "download",
-    use: ".play <song name>",
+const commands = ["mp3url", "ytmp3", "audio"];
+
+commands.forEach(command => {
+  cmd({
+    pattern: command,
+    desc: "Download YouTube audio as MP3",
+    category: "downloader",
+    react: "🎵",
     filename: __filename
-}, async (conn, mek, m, { from, reply, q }) => {
+  }, async (conn, mek, m, { from, q, reply }) => {
     try {
-        if (!q) return reply("❌ Please provide a song name or YouTube link!");
+      if (!q) return reply("❌ Please provide a YouTube link.");
 
-        // Search Reaction
-        await conn.sendMessage(from, { react: { text: '🔍', key: mek.key } });
+      let cleanUrl = q.split("&")[0];
+      cleanUrl = cleanUrl.replace(
+        "https://youtu.be/",
+        "https://www.youtube.com/watch?v="
+      );
 
-        // Step 1: YouTube Search
-        const search = await yts(q);
-        if (!search.videos.length) return reply("❌ No results found for your query.");
-        const video = search.videos[0];
-        const videoUrl = video.url;
+      const apiUrl = `https://arslan-apis.vercel.app/download/ytmp3?url=${encodeURIComponent(cleanUrl)}`;
+      const res = await axios.get(apiUrl, { timeout: 20000 });
 
-        // Step 2: Fetch from Arslan API
-        const apiUrl = `https://arslan-apis.vercel.app/download/ytmp3?url=${encodeURIComponent(videoUrl)}`;
-        const response = await axios.get(apiUrl);
-        const data = response.data;
-
-        // API Response Check (Assuming 'data.download_url' or 'data.result')
-        const dlUrl = data.download_url || data.result || data.url;
-
-        if (!dlUrl) {
-            return reply("❌ API failed to provide a download link. Try again later.");
-        }
-
-        // Step 3: Send Audio Info
-        let caption = `🎶 *PROVA-MD PLAYER*\n\n`;
-        caption += `📌 *Title:* ${video.title}\n`;
-        caption += `🕒 *Duration:* ${video.timestamp}\n`;
-        caption += `👁‍🗨 *Views:* ${video.views.toLocaleString()}\n`;
-        caption += `🔗 *Link:* ${videoUrl}\n\n`;
-        caption += `> © PROVA-MD ❤️`;
-
+      if (!res.data?.result?.status) {
         await conn.sendMessage(from, {
-            image: { url: video.thumbnail },
-            caption: caption
-        }, { quoted: mek });
+          react: { text: "❌", key: mek.key }
+        });
+        return reply("❌ Failed to fetch audio.");
+      }
 
-        // Step 4: Send Audio File (Fixed PTT/Voice Note)
-        await conn.sendMessage(from, { react: { text: '📥', key: mek.key } });
+      const meta = res.data.result.metadata;
+      const downloadUrl = res.data.result.download.url;
 
-        // Sending as a standard audio file first
-        await conn.sendMessage(from, {
-            audio: { url: dlUrl },
-            mimetype: "audio/mpeg",
-            fileName: `${video.title}.mp3`
-        }, { quoted: mek });
+      await conn.sendMessage(from, {
+        react: { text: "⏳", key: mek.key }
+      });
 
-        // OPTIONAL: Sending as Voice Note (PTT)
-        // Agat aapko sirf voice note chahiye toh upar wala audio block delete kar dein
-        await conn.sendMessage(from, {
-            audio: { url: dlUrl },
-            mimetype: 'audio/ogg; codecs=opus',
-            ptt: true
-        }, { quoted: mek });
+      await conn.sendMessage(from, {
+        image: { url: meta.thumbnail },
+        caption: `🎶 *${meta.title}*
 
-        await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
+👤 *Channel:* ${meta.author || "Unknown"}
+💽 *Quality:* MP3
+
+> *🤍ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ🤍*`
+      }, { quoted: mek });
+
+      await conn.sendMessage(from, {
+        audio: { url: downloadUrl },
+        mimetype: "audio/mpeg",
+        fileName: `${meta.title}.mp3`
+      }, { quoted: mek });
+
+      await conn.sendMessage(from, {
+        react: { text: "✅", key: mek.key }
+      });
 
     } catch (e) {
-        console.error("Play Error:", e);
-        reply(`❌ Error: ${e.message || "API connection failed"}`);
+      console.error(`${command} command error:`, e);
+
+      await conn.sendMessage(from, {
+        react: { text: "❌", key: mek.key }
+      });
+
+      reply("❌ An error occurred.");
     }
+  });
 });
-            
