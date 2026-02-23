@@ -1,79 +1,55 @@
-const axios = require('axios');
-const { cmd } = require('../command'); // Ensure this path matches your project
-
-// Country to currency mapping with short/funny names
-const countryMap = {
-    'USA': 'USD',
-    'United States': 'USD',
-    'America': 'USD',
-    'Pakistan': 'PKR',
-    'Pak': 'PKR',
-    'UK': 'GBP',
-    'Britain': 'GBP',
-    'England': 'GBP',
-    'India': 'INR',
-    'Ina': 'INR',
-    'China': 'CNY',
-    'Japan': 'JPY',
-    'Jan': 'JPY',
-    'Germany': 'EUR',
-    'Dey': 'EUR',
-    'France': 'EUR',
-    'Canada': 'CAD',
-    'Australia': 'AUD',
-    'Russia': 'RUB',
-    'Saudi Arabia': 'SAR',
-    'UAE': 'AED',
-    'Qatar': 'QAR'
-    // Add more countries if needed
-};
-
-// Box style reply
-const boxStyleReply = (from, to, amount, rate) => `
-💱 *Currency Converter* 💱
-────────────────────────────
-📌 From: ${from.toUpperCase()}
-📌 To: ${to.toUpperCase()}
-📌 Amount: ${amount}
-📌 Rate: ${amount} ${from.toUpperCase()} = *${(rate * amount).toFixed(2)}* ${to.toUpperCase()}
-────────────────────────────
-🪷ᴘᴏᴡᴇʀᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ🪷
-`;
+const { cmd } = require("../command");
+const axios = require("axios");
 
 cmd({
-    pattern: 'currency|crancy|price|payment|pay',
-    desc: 'Check currency rate and convert amounts. Example: .pay 1 Pak to USA',
-    category: 'utility',
+    pattern: "tempnum",
+    alias: ["tempnumber", "otpnum"],
+    desc: "Get temporary phone numbers for OTP",
+    category: "tools",
+    react: "📱",
     filename: __filename
-}, async (conn, mek, m, { text, reply }) => {
-    if (!text) return reply('Usage: .pay 1 Pak to USA');
-
-    let parts = text.split(' ');
-    if (parts.length < 3) return reply('Please provide amount and countries. Example: .pay 100 Pak to USA');
-
-    let amount = parseFloat(parts[0]);
-    if (isNaN(amount)) return reply('Invalid amount.');
-
-    let from = parts[1];
-    let to = parts[2];
-
-    // Handle "to" keyword
-    if (parts[2].toLowerCase() === 'to' && parts.length >= 4) {
-        from = parts[1];
-        to = parts[3];
-    }
-
-    // Map country names and short names to currency codes
-    from = countryMap[from] || from.toUpperCase();
-    to = countryMap[to] || to.toUpperCase();
-
+}, async (conn, mek, m, { from, reply }) => {
     try {
-        const res = await axios.get(`https://open.er-api.com/v6/latest/${from}`);
-        const rate = res.data.rates[to];
-        if (!rate) return reply('❌ Invalid target country or currency.');
+        await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
 
-        reply(boxStyleReply(from, to, amount, rate));
-    } catch (err) {
-        reply('❌ Error fetching currency rate. Try again later.');
+        const apiUrl = `https://arslan-apis.vercel.app/more/tempnumber`;
+        const res = await axios.get(apiUrl);
+
+        if (!res.data || !res.data.status || !res.data.result) {
+            return reply("❌ Failed to fetch temporary numbers.");
+        }
+
+        const numbers = res.data.result;
+        let responseMsg = `🌐 *VIRTUAL TEMP NUMBERS* 🌐\n\n`;
+        responseMsg += `_You can use these numbers for OTP verification._\n\n`;
+
+        // Pehle 10 numbers dikhane ke liye
+        numbers.slice(0, 10).forEach((item, index) => {
+            responseMsg += `*${index + 1}.* 📱 +${item.number}\n`;
+            responseMsg += `🌍 *Country:* ${item.country || "International"}\n`;
+            responseMsg += `🔗 *Check Messages:* ${item.url || "N/A"}\n\n`;
+        });
+
+        responseMsg += `> *🤍ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ🤍*`;
+
+        await conn.sendMessage(from, { 
+            text: responseMsg,
+            contextInfo: {
+                externalAdReply: {
+                    title: "PROVA-MD TEMP NUMBER SERVICE",
+                    body: "Get free virtual numbers",
+                    thumbnailUrl: "https://i.ibb.co/vz6V0vB/temp-num.jpg", // Aap apni marzi ki image link dal sakte hain
+                    sourceUrl: "https://arslan-apis.vercel.app",
+                    mediaType: 1,
+                    renderLargerThumbnail: true
+                }
+            }
+        }, { quoted: mek });
+
+        await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
+
+    } catch (e) {
+        console.error("Temp Number Error:", e);
+        reply("❌ Service is currently busy. Try again later.");
     }
 });
