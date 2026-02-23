@@ -1,49 +1,58 @@
-const { cmd } = require("../command");
-const axios = require("axios");
+const { cmd } = require('../command');
+const axios = require('axios');
+
+const FOOTER = "⚡ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ";
 
 cmd({
-    pattern: "sim",
-    alias: ["database", "numinfo", "check"],
+    pattern: "database",
+    alias: ["details", "numinfo", "check"],
     desc: "Fetch details for a specific phone number",
     category: "tools",
     react: "🔍",
     filename: __filename
-}, async (conn, mek, m, { from, q, reply }) => {
+}, async (sock, message, m, { q, reply }) => {
     try {
-        if (!q) return reply("❌ Please provide a phone number.\nExample: *.sim 92300xxxxxxx*");
+        // Input validation: Check if number is provided
+        if (!q) {
+            return reply("❌ Please provide a phone number.\nExample: *.database 92300xxxxxxx*");
+        }
 
-        // Clean number (sirf digits rakhta hai)
+        // Clean the number (remove spaces, +, or dashes if user adds them)
         const cleanNumber = q.replace(/[^0-9]/g, '');
 
-        await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
-
-        // API Call
+        // Arslan Database API URL
         const apiUrl = `https://arslan-apis.vercel.app/more/database?number=${cleanNumber}`;
-        const res = await axios.get(apiUrl, { timeout: 20000 });
 
-        if (!res.data || res.data.status === false || !res.data.result) {
-            await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
-            return reply("❌ No records found for this number.");
+        // Loading message
+        await sock.sendMessage(message.chat, { react: { text: "⏳", key: message.key } });
+
+        const res = await axios.get(apiUrl);
+
+        // Check if data exists in response
+        if (!res.data || res.data.status === false) {
+            return reply("❌ No records found for this number in the database.");
         }
 
         const data = res.data.result;
 
-        // Message Formatting
-        let responseText = `📑 *SIM DATABASE INFO*\n\n`;
+        // Formatted Response
+        let responseText = `📑 *NUMBER DATABASE INFO*\n\n`;
         responseText += `👤 *Name:* ${data.name || "N/A"}\n`;
         responseText += `🆔 *CNIC:* ${data.cnic || "N/A"}\n`;
         responseText += `📱 *Number:* ${data.number || cleanNumber}\n`;
         responseText += `🏠 *Address:* ${data.address || "N/A"}\n`;
         responseText += `📅 *Date:* ${data.date || "N/A"}\n\n`;
-        responseText += `> *🤍ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ🤍*`;
+        responseText += `> ${FOOTER}`;
 
-        await conn.sendMessage(from, { text: responseText }, { quoted: mek });
+        await sock.sendMessage(message.chat, {
+            text: responseText
+        }, { quoted: message });
 
-        await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
+        await sock.sendMessage(message.chat, { react: { text: "✅", key: message.key } });
 
     } catch (e) {
-        console.error("SIM command error:", e);
-        await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
-        reply("❌ An error occurred while fetching data.");
+        console.error("Database API Error:", e);
+        reply("❌ API Error! Make sure the service is online or try again later.");
     }
 });
+            
