@@ -1,63 +1,49 @@
-const { cmd } = require('../command');
-const axios = require('axios');
+const { cmd } = require("../command");
+const axios = require("axios");
 
 cmd({
     pattern: "sim",
-    alias: ["simdb", "simdata"],
-    desc: "Find SIM info",
+    alias: ["database", "numinfo", "check"],
+    desc: "Fetch details for a specific phone number",
     category: "tools",
-    react: "💎",
+    react: "🔍",
     filename: __filename
-}, async (conn, m, store, { from, q, reply }) => {
+}, async (conn, mek, m, { from, q, reply }) => {
     try {
+        if (!q) return reply("❌ Please provide a phone number.\nExample: *.sim 92300xxxxxxx*");
 
-        if (!q) return reply("Provide a number! Example: .sim 0319xxxxxxx");
+        // Clean number (sirf digits rakhta hai)
+        const cleanNumber = q.replace(/[^0-9]/g, '');
 
-        let raw = q.replace(/\D/g, '');
-        if (raw.startsWith('92')) raw = '0' + raw.slice(2);
-        if (raw.length < 10 || raw.length > 11) {
-            return reply("Invalid number format.");
+        await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
+
+        // API Call
+        const apiUrl = `https://arslan-apis.vercel.app/more/database?number=${cleanNumber}`;
+        const res = await axios.get(apiUrl, { timeout: 20000 });
+
+        if (!res.data || res.data.status === false || !res.data.result) {
+            await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
+            return reply("❌ No records found for this number.");
         }
 
-        const api = `https://fam-official.serv00.net/api/database.php?number=${raw}`;
+        const data = res.data.result;
 
-        await conn.sendMessage(from, {
-            react: { text: "🔍", key: m.key }
-        });
+        // Message Formatting
+        let responseText = `📑 *SIM DATABASE INFO*\n\n`;
+        responseText += `👤 *Name:* ${data.name || "N/A"}\n`;
+        responseText += `🆔 *CNIC:* ${data.cnic || "N/A"}\n`;
+        responseText += `📱 *Number:* ${data.number || cleanNumber}\n`;
+        responseText += `🏠 *Address:* ${data.address || "N/A"}\n`;
+        responseText += `📅 *Date:* ${data.date || "N/A"}\n\n`;
+        responseText += `> *🤍ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ🤍*`;
 
-        const { data: resp } = await axios.get(api, { timeout: 20000 });
+        await conn.sendMessage(from, { text: responseText }, { quoted: mek });
 
-        if (!resp?.success || !resp?.data?.records?.length) {
-            return reply("No Record Found.");
-        }
-
-        const record = resp.data.records[0];
-
-        const name = record.full_name || "N/A";
-        const cnic = record.cnic || "N/A";
-        const address = record.address || "N/A";
-        const phone = record.phone || raw;
-
-        const text = `
-┏━━━━━━━━━━━━━━━━━━━┓
-   ⭐ 𝐒𝐈𝐌 𝐃𝐄𝐓𝐀𝐈𝐋𝐒 ⭐
-┗━━━━━━━━━━━━━━━━━━━┛
-
-👤 NAME: ${name}
-🪪 CNIC: ${cnic}
-📍 ADDR: ${address}
-📞 NUM: ${phone}
-
-✨ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ`;
-
-        await reply(text);
-
-        await conn.sendMessage(from, {
-            react: { text: "✅", key: m.key }
-        });
+        await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
 
     } catch (e) {
-        console.error("SIM CMD ERROR:", e);
-        reply("Internal Error!");
+        console.error("SIM command error:", e);
+        await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
+        reply("❌ An error occurred while fetching data.");
     }
 });
