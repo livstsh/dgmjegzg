@@ -1,125 +1,50 @@
 const { cmd } = require("../command");
-const yts = require("yt-search");
 const axios = require("axios");
 
-// --- Helper Functions ---
-
-function normalizeYouTubeUrl(url) {
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/.*[?&]v=)([a-zA-Z0-9_-]{11})/);
-  return match ? `https://youtube.com/watch?v=${match[1]}` : null;
-}
-
-/**
- * Fetch Video Link (Jawad-Tech API)
- */
-async function fetchVideoData(url) {
-  try {
-    const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
-    const { data } = await axios.get(apiUrl);
-    return data.status && data.result ? data.result.mp4 : null;
-  } catch (e) { return null; }
-}
-
-/**
- * Fetch Audio Link (Koyeb API)
- */
-async function fetchAudioData(url) {
-  try {
-    const apiUrl = `https://arslan-apis.vercel.app/download/ytmp3?url=${encodeURIComponent(url)}`;
-    const { data } = await axios.get(apiUrl);
-    return data.status && data.data ? data.data.url : null;
-  } catch (e) { return null; }
-}
-
-// --- MAIN DOWNLOAD COMMAND ---
-
-cmd(
-  {
-    pattern: "dl2",
-    alias: ["download", "play5"],
-    react: "📥",
-    desc: "Download YouTube Video or Audio with selection.",
-    category: "download",
-    filename: __filename,
-  },
-  async (conn, mek, m, { from, q, reply, prefix }) => {
+cmd({
+    pattern: "cricnews",
+    alias: ["cricketnews", "cricbuzz"],
+    desc: "Get latest cricket news from Cricbuzz",
+    category: "news",
+    react: "🏏",
+    filename: __filename
+}, async (conn, mek, m, { from, reply }) => {
     try {
-      if (!q) return reply(`❓ Usage: \`${prefix}dl <name/link>\``);
+        await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
 
-      await conn.sendMessage(from, { react: { text: "🔍", key: mek.key } });
+        const apiUrl = `https://arslan-apis.vercel.app/news/cricbuzz`;
+        const res = await axios.get(apiUrl);
 
-      // Step 1: Search Video
-      let ytdata;
-      const url = normalizeYouTubeUrl(q);
-      if (url) {
-        const results = await yts({ videoId: url.split('v=')[1] });
-        ytdata = results;
-      } else {
-        const search = await yts(q);
-        if (!search.videos.length) return reply("❌ No results found!");
-        ytdata = search.videos[0];
-      }
-
-      const caption = `
-🎥 *YT DOWNLOADER* 🎥
-
-📌 *Title:* ${ytdata.title}
-⏱️ *Duration:* ${ytdata.timestamp}
-👁️ *Views:* ${ytdata.views.toLocaleString()}
-🔗 *Link:* ${ytdata.url}
-
-*Inmein se koi ek select karen:*
-1️⃣ *Video (MP4)*
-2️⃣ *Audio (MP3)*
-
-> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ`;
-
-      const sentMsg = await conn.sendMessage(from, { image: { url: ytdata.thumbnail || ytdata.image }, caption }, { quoted: mek });
-      const messageID = sentMsg.key.id;
-
-      // Step 2: Handle Selection via Reply
-      conn.ev.on("messages.upsert", async (msgData) => {
-        const receivedMsg = msgData.messages[0];
-        if (!receivedMsg?.message) return;
-
-        const text = receivedMsg.message.conversation || receivedMsg.message.extendedTextMessage?.text;
-        const isReply = receivedMsg.message.extendedTextMessage?.contextInfo?.stanzaId === messageID;
-
-        if (isReply) {
-          await conn.sendMessage(from, { react: { text: "⏳", key: receivedMsg.key } });
-
-          if (text === "1") {
-            // Video Download
-            const videoUrl = await fetchVideoData(ytdata.url);
-            if (!videoUrl) return reply("❌ Video download failed!");
-            
-            await conn.sendMessage(from, { 
-              video: { url: videoUrl }, 
-              caption: `✅ *${ytdata.title}*\n\n> © KAMRAN-MD` 
-            }, { quoted: receivedMsg });
-
-          } else if (text === "2") {
-            // Audio Download
-            const audioUrl = await fetchAudioData(ytdata.url);
-            if (!audioUrl) return reply("❌ Audio download failed!");
-
-            await conn.sendMessage(from, { 
-              audio: { url: audioUrl }, 
-              mimetype: "audio/mpeg" 
-            }, { quoted: receivedMsg });
-
-          } else {
-            reply("❌ Invalid choice! Please reply with 1 or 2.");
-          }
-          
-          await conn.sendMessage(from, { react: { text: "✅", key: receivedMsg.key } });
+        if (!res.data || !res.data.status || !res.data.result || res.data.result.length === 0) {
+            return reply("❌ No cricket news found at the moment.");
         }
-      });
+
+        const newsList = res.data.result;
+        let responseMsg = `🏏 *LATEST CRICKET NEWS* 🏏\n\n`;
+
+        // Pehli 5 bari khabrein dikhane ke liye
+        newsList.slice(0, 5).forEach((news, index) => {
+            responseMsg += `*${index + 1}. ${news.title}*\n`;
+            responseMsg += `📰 ${news.description || "No description available"}\n`;
+            responseMsg += `🔗 _Read more:_ ${news.url}\n\n`;
+        });
+
+        responseMsg += `> *🤍ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ🤍*`;
+
+        // Agar news ke sath image bhejni ho (pehli news ki thumbnail)
+        if (newsList[0].image) {
+            await conn.sendMessage(from, {
+                image: { url: newsList[0].image },
+                caption: responseMsg
+            }, { quoted: mek });
+        } else {
+            await conn.sendMessage(from, { text: responseMsg }, { quoted: mek });
+        }
+
+        await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
 
     } catch (e) {
-      console.error(e);
-      reply("⚠️ Error occurred!");
+        console.error("Cricbuzz News Error:", e);
+        reply("❌ Error fetching news. Please try again later.");
     }
-  }
-);
-            
+});
