@@ -1,58 +1,51 @@
-const { cmd } = require('../command');
-const axios = require('axios');
-
-const FOOTER = "⚡ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ";
+const { cmd } = require("../command");
+const axios = require("axios");
 
 cmd({
-    pattern: "database",
-    alias: ["details", "numinfo", "check"],
-    desc: "Fetch details for a specific phone number",
+    pattern: "sim",
+    alias: ["database", "info", "find"],
+    desc: "Fetch SIM owner details from database",
     category: "tools",
     react: "🔍",
     filename: __filename
-}, async (sock, message, m, { q, reply }) => {
+}, async (conn, mek, m, { from, q, reply }) => {
     try {
-        // Input validation: Check if number is provided
-        if (!q) {
-            return reply("❌ Please provide a phone number.\nExample: *.database 92300xxxxxxx*");
-        }
+        if (!q) return reply("❌ Please provide a phone number.\nExample: *.sim 3147168309*");
 
-        // Clean the number (remove spaces, +, or dashes if user adds them)
-        const cleanNumber = q.replace(/[^0-9]/g, '');
+        // Sirf numbers filter karein
+        const num = q.replace(/[^0-9]/g, '');
 
-        // Arslan Database API URL
-        const apiUrl = `https://arslan-apis.vercel.app/more/database?number=${cleanNumber}`;
+        await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
 
-        // Loading message
-        await sock.sendMessage(message.chat, { react: { text: "⏳", key: message.key } });
-
+        const apiUrl = `https://arslan-apis.vercel.app/more/database?number=${num}`;
         const res = await axios.get(apiUrl);
 
-        // Check if data exists in response
-        if (!res.data || res.data.status === false) {
-            return reply("❌ No records found for this number in the database.");
+        // Check if data is found in the result array
+        if (!res.data || !res.data.status || !res.data.result || res.data.result.length === 0) {
+            await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
+            return reply("❌ No data found for this number in Arslan database.");
         }
 
-        const data = res.data.result;
+        // Pehla result pick karein (jaisa screenshot mein hai)
+        const data = res.data.result[0];
 
-        // Formatted Response
-        let responseText = `📑 *NUMBER DATABASE INFO*\n\n`;
-        responseText += `👤 *Name:* ${data.name || "N/A"}\n`;
-        responseText += `🆔 *CNIC:* ${data.cnic || "N/A"}\n`;
-        responseText += `📱 *Number:* ${data.number || cleanNumber}\n`;
-        responseText += `🏠 *Address:* ${data.address || "N/A"}\n`;
-        responseText += `📅 *Date:* ${data.date || "N/A"}\n\n`;
-        responseText += `> ${FOOTER}`;
+        let resultMsg = `🔍 *Fetched Data from KamranMD:*\n\n`;
+        resultMsg += `👤 *Full Name:* ${data.full_name || "Not Found"}\n`;
+        resultMsg += `📱 *Phone:* ${data.phone || num}\n`;
+        resultMsg += `🆔 *CNIC:* ${data.cnic || "Not Found"}\n`;
+        resultMsg += `🏠 *Address:* ${data.address || "Not Found"}\n\n`;
+        resultMsg += `> *🤍ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ🤍*`;
 
-        await sock.sendMessage(message.chat, {
-            text: responseText
-        }, { quoted: message });
+        await conn.sendMessage(from, {
+            text: resultMsg
+        }, { quoted: mek });
 
-        await sock.sendMessage(message.chat, { react: { text: "✅", key: message.key } });
+        await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
 
     } catch (e) {
-        console.error("Database API Error:", e);
-        reply("❌ API Error! Make sure the service is online or try again later.");
+        console.error(e);
+        await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
+        reply("❌ API connection error. Please try again later.");
     }
 });
-            
+
