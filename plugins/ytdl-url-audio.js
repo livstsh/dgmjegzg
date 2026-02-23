@@ -1,67 +1,48 @@
+//---------------------------------------------------------------------------
+// KAMRAN-MD - YT MP3 DOWNLOADER
+//---------------------------------------------------------------------------
+
 const axios = require('axios');
 const { cmd } = require('../command');
 const yts = require('yt-search');
+const fetch = require('node-fetch');
 
 cmd({
     pattern: "ytmp3",
-    alias: ["audio", "yta", "song"],
-    react: "🎶",
-    desc: "Download YouTube audio (MP3) using Mova-Nest API.",
-    category: "download",
-    filename: __filename
-},           
-async (conn, mek, m, { from, q, reply }) => {
+    desc: "Download YouTube video as MP3",
+    category: "downloader",
+    use: ".ytmp3 <YouTube link>",
+    filename: __filename,
+}, async (conn, mek, m, { from, text, reply }) => {
     try {
-        if (!q) return reply("❌ Please provide a YouTube URL!");
-        
-        // URL check
-        const ytUrl = q.trim();
-        if (!ytUrl.includes("youtube.com") && !ytUrl.includes("youtu.be")) {
-            return reply("❌ Invalid YouTube link! Please provide a correct link.");
-        }
+        if (!text) 
+            return reply("❌ Provide YouTube link.\nExample: .ytmp3 https://youtu.be/xxxx");
 
-        await reply("⏳ *Fetching audio data, please wait...*");
+        const ytUrl = text.trim();
+        const apiUrl = `https://api.dyysilence.biz.id/api/downloader/ytmp3?url=${encodeURIComponent(ytUrl)}&quality=256`;
 
-        // Step 1: Call the Mova-Nest API (as shown in your image)
-        const apiUrl = `https://www.movanest.xyz/v2/ytdl2?input=${encodeURIComponent(ytUrl)}&format=audio&bitrate=128`;
-        
-        const response = await axios.get(apiUrl);
-        const data = response.data;
+        await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
+        reply("🔎 Fetching MP3...");
 
-        // Check if API response is successful
-        if (!data.status || !data.results || !data.results.success) {
-            throw new Error("API could not process this video. Please try again later.");
-        }
+        const res = await fetch(apiUrl);
+        const json = await res.json();
 
-        const title = data.results.title || "YouTube Audio";
-        const downloadUrl = data.results.url; // Direct MP3 link
-        const thumb = data.results.thumb;
+        if (!json || !json.result || !json.result.download) 
+            return reply("❌ Failed to get MP3 link.");
 
-        // Step 2: Inform user about download starting
-        await conn.sendMessage(from, { 
-            text: `*🎶 Title:* ${title}\n*📁 Format:* MP3 (128kbps)\n\n*Sending audio file...*` 
+        const mp3Url = json.result.download;
+
+        // Send MP3
+        await conn.sendMessage(from, {
+            audio: { url: mp3Url },
+            fileName: `${json.result.title || "audio"}.mp3`
         }, { quoted: mek });
 
-        // Step 3: Send the Audio File
-        await conn.sendMessage(from, { 
-            audio: { url: downloadUrl }, 
-            mimetype: 'audio/mpeg',
-            fileName: `${title}.mp3`,
-            contextInfo: {
-                externalAdReply: {
-                    title: title,
-                    body: "DR KAMRAN - YouTube Downloader",
-                    thumbnailUrl: thumb,
-                    sourceUrl: ytUrl,
-                    mediaType: 1,
-                    renderLargerThumbnail: true
-                }
-            }
-        }, { quoted: mek });
+        await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
 
     } catch (e) {
-        console.error("YTMP3 Error:", e);
-        reply(`❌ *Error:* ${e.message || "Failed to download audio."}`);
+        console.error("YTMP3 ERROR:", e);
+        await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
+        reply("❌ Error while downloading MP3.");
     }
 });
-                    
