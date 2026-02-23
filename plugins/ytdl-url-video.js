@@ -35,8 +35,8 @@ async function fetchAudioData(url) {
 
 cmd(
   {
-    pattern: "dl",
-    alias: ["download", "play"],
+    pattern: "dl2",
+    alias: ["download", "play5"],
     react: "📥",
     desc: "Download YouTube Video or Audio with selection.",
     category: "download",
