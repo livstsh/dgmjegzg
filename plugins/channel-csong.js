@@ -1,58 +1,78 @@
-const { cmd } = require('../command');
+const { cmd } = require("../command");
+const axios = require("axios");
 
-// Note: global.botModes initialization check
-if (!global.botModes) global.botModes = {};
-if (!global.botModes.antitag) global.botModes.antitag = {};
+const FOOTER = "> *🤍ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ🤍*";
 
+// --- 1. XVIDEOS SEARCH ONLY ---
 cmd({
-    pattern: "antitag",
-    alias: ["anti-tag", "antitall"],
-    react: "🛡️",
-    desc: "Configure Anti-Tag system to prevent mass mentions.",
-    category: "group",
+    pattern: "xsearch",
+    alias: ["xvideo-search"],
+    desc: "Search videos on XVideos",
+    category: "search",
+    react: "🔍",
     filename: __filename
-},           
-async (conn, mek, m, { from, l, isGroup, participants, isAdmins, isBotAdmins, args, reply }) => {
+}, async (conn, mek, m, { from, q, reply }) => {
     try {
-        if (!isGroup) return reply("🚫 This command can only be used in groups.");
-        
-        // Admin Check
-        if (!isAdmins) return reply("🚫 ACCÈS REFUSÉ : Seul un Admin peut configurer la protection.");
+        if (!q) return reply("❌ Please provide a search query.");
 
-        const action = args[0]?.toLowerCase();
+        await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
 
-        if (!action) {
-            return reply(`🛡️ *SYSTÈME ANTI-TAG*\n\n` +
-                         `*.antitag on* -> Active la protection\n` +
-                         `*.antitag off* -> Désactive la protection\n\n` +
-                         `*Effet : Supprime automatiquement les tentatives de tagall (@everyone, @here, etc).*`);
+        const apiUrl = `https://arslan-apis.vercel.app/download/xvideosSearch?text=${encodeURIComponent(q)}`;
+        const res = await axios.get(apiUrl);
+
+        if (!res.data?.status || !res.data.result || res.data.result.length === 0) {
+            return reply("❌ No results found on XVideos.");
         }
 
-        if (action === "on") {
-            global.botModes.antitag[from] = true;
-            return conn.sendMessage(from, { 
-                image: { url: "https://files.catbox.moe/v7zea2.jpg" },
-                caption: "✅ *PROTECTION ACTIVÉE*\n\nLe Monarque surveille désormais les mentions de ce groupe.\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*" 
-            }, { quoted: mek });
+        let searchMsg = `🔍 *XVIDEOS SEARCH RESULTS*\n\n`;
+        res.data.result.slice(0, 10).forEach((vid, i) => {
+            searchMsg += `*${i + 1}.* 📌 *Title:* ${vid.title}\n`;
+            searchMsg += `⏳ *Duration:* ${vid.duration || "N/A"}\n`;
+            searchMsg += `🔗 *Link:* ${vid.url || vid.link}\n\n`;
+        });
 
-        } else if (action === "off") {
-            global.botModes.antitag[from] = false;
-            return reply("❌ *PROTECTION DÉSACTIVÉE*");
-        }
+        searchMsg += FOOTER;
+        await reply(searchMsg);
+        await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
 
-    } catch (err) {
-        console.error("Erreur Antitag :", err);
-        reply("⚠️ Error configuring Anti-Tag.");
+    } catch (e) {
+        reply("❌ Error fetching search results.");
     }
 });
 
-// 🛡️ PASSIVE DETECTION LOGIC (Place this in your main handler/index.js if needed)
-// Is logic ko aap apne message listener mein add kar sakte hain:
-/*
-    if (isGroup && global.botModes.antitag?.[from]) {
-        const isTagAll = m.body.includes('@everyone') || m.body.includes('@here') || (m.mentionedJid && m.mentionedJid.length > 10);
-        if (isTagAll && !isAdmins && isBotAdmins) {
-            await conn.sendMessage(from, { delete: mek.key });
+// --- 2. XNXX SEARCH ONLY ---
+cmd({
+    pattern: "xnxxsearch",
+    alias: ["nxsearch"],
+    desc: "Search videos on XNXX",
+    category: "search",
+    react: "🔍",
+    filename: __filename
+}, async (conn, mek, m, { from, q, reply }) => {
+    try {
+        if (!q) return reply("❌ Please provide a search query.");
+
+        await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
+
+        const apiUrl = `https://arslan-apis.vercel.app/download/xnxx?text=${encodeURIComponent(q)}`;
+        const res = await axios.get(apiUrl);
+
+        if (!res.data?.status || !res.data.result || res.data.result.length === 0) {
+            return reply("❌ No results found on XNXX.");
         }
+
+        let searchMsg = `🔍 *XNXX SEARCH RESULTS*\n\n`;
+        res.data.result.slice(0, 10).forEach((vid, i) => {
+            searchMsg += `*${i + 1}.* 📌 *Title:* ${vid.title}\n`;
+            searchMsg += `🔗 *Link:* ${vid.link}\n\n`;
+        });
+
+        searchMsg += FOOTER;
+        await reply(searchMsg);
+        await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
+
+    } catch (e) {
+        reply("❌ Error fetching search results.");
     }
-*/
+});
+              
