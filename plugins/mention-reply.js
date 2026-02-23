@@ -1,56 +1,68 @@
-const axios = require('axios');
+//---------------------------------------------------------------------------
+//           KAMRAN-MD - PHOTO EDITOR AI (GIFTED TECH)
+//---------------------------------------------------------------------------
+//  🎨 EDIT PHOTO USING PROMPT (Shirt color, background, etc.)
+//---------------------------------------------------------------------------
+
 const { cmd } = require('../command');
+const fetch = require('node-fetch');
+
+const GIFTED_API = "https://api.giftedtech.co.ke/api/tools/photoeditor";
+const API_KEY = "gifted"; // Apna premium key ho to yahan change kar dena
 
 cmd({
-    pattern: "photoeditor",
-    alias: ["editphoto", "aiimageedit", "editor"],
-    react: "🎨",
-    desc: "AI Photo Editor - Edit images using prompts (e.g., change shirt color).",
+    pattern: "photoedit",
+    alias: ["editphoto", "editimg2"],
+    desc: "Edit photo using AI prompt.",
     category: "ai",
-    filename: __filename
-},           
-async (conn, mek, m, { from, q, reply, quoted }) => {
+    use: ".photoedit <prompt>",
+    filename: __filename,
+}, async (conn, mek, m, { from, q, reply, prefix, command }) => {
     try {
-        // 1. Check if user replied to an image
+
+        const quoted = m.quoted ? m.quoted : m;
         const mime = (quoted.msg || quoted).mimetype || '';
-        if (!/image\/(png|jpe?g)/i.test(mime)) return reply("⚠️ Please reply to an *image* with a prompt.\n\n*Example:* .photoeditor change shirt color to navy");
 
-        // 2. Check for prompt
-        if (!q) return reply("❓ Please provide a prompt (instructions) to edit the photo.\n\n*Example:* .photoeditor change background to a beach");
-
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-        await reply("⏳ *AI is editing your photo... Please wait.*");
-
-        // 3. Download image and upload to Catbox (or get direct URL)
-        // Note: API needs a direct URL. If your bot has an uploader, use it here.
-        // Assuming we use your provided test URL or a public one.
-        let media = await quoted.download();
-        
-        // --- UPLOADER LOGIC ---
-        // (Yahan aapko image upload karke URL lena hoga, Example using catbox/telegra.ph)
-        const { uploadtoCatbox } = require('../lib/uploader'); // Make sure you have an uploader
-        const imageUrl = await uploadtoCatbox(media);
-        
-        const apiKey = "gifted"; // Your API Key
-        const apiUrl = `https://api.giftedtech.co.ke/api/tools/photoeditor?apikey=${apiKey}&url=${encodeURIComponent(imageUrl)}&prompt=${encodeURIComponent(q)}`;
-
-        // 4. Fetch the Edited Image
-        const response = await axios.get(apiUrl, { responseType: 'arraybuffer' });
-
-        if (response.data) {
-            await conn.sendMessage(from, { 
-                image: Buffer.from(response.data), 
-                caption: `✅ *Photo Edited Successfully!*\n\n*Prompt:* ${q}\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*` 
-            }, { quoted: mek });
-            
-            await conn.sendMessage(from, { react: { text: '✨', key: m.key } });
-        } else {
-            throw new Error("API did not return an image.");
+        if (!mime.startsWith('image/')) {
+            return reply(`📸 *Photo Editor AI*\n\nReply to an image with a prompt.\n\nExample:\n${prefix + command} Change his shirt color to navy blue`);
         }
 
-    } catch (err) {
-        console.error("PhotoEditor Error:", err);
-        reply(`❌ *Error:* ${err.message || "Failed to edit image. Make sure the prompt is clear."}`);
+        if (!q) return reply("❌ Please provide an editing prompt.");
+
+        await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
+        reply("_🤖 Editing image... Please wait..._");
+
+        // Download Image
+        const buffer = await quoted.download();
+        if (!buffer) throw "Image download failed.";
+
+        // Upload image to temp hosting (WhatsApp media direct use nahi hota)
+        const uploadRes = await conn.sendMessage(from, { 
+            document: buffer,
+            mimetype: "image/jpeg",
+            fileName: "temp.jpg"
+        });
+
+        const imageUrl = uploadRes?.message?.documentMessage?.url;
+        if (!imageUrl) throw "Failed to get image URL.";
+
+        // Encode URL & Prompt
+        const encodedUrl = encodeURIComponent(imageUrl);
+        const encodedPrompt = encodeURIComponent(q);
+
+        const apiUrl = `${GIFTED_API}?apikey=${API_KEY}&url=${encodedUrl}&prompt=${encodedPrompt}`;
+
+        // Send Result
+        await conn.sendMessage(from, {
+            image: { url: apiUrl },
+            caption: `✅ *Photo Edited Successfully!*\n🎨 *Prompt:* ${q}\n\n🚀 *Powered by KAMRAN-MD*`
+        }, { quoted: mek });
+
+        await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
+
+    } catch (e) {
+        console.error("Photo Editor Error:", e);
+        await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
+        reply("❌ Error while editing image.");
     }
 });
-                             
