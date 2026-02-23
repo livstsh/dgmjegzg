@@ -1,102 +1,102 @@
 const { cmd } = require('../command');
 const axios = require('axios');
-const cheerio = require('cheerio');
+const FormData = require('form-data');
+const fetch = require('node-fetch');
+const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
+
+// --- Configuration ---
+const TERMAI_API_KEY = "AIzaBj7z2z3xBjsk";
+const TERMAI_API_URL = "https://c.termai.cc/api/upload";
 
 /**
- * Hashing logic provided by user
+ * Helper: Upload buffer to Termai Storage
  */
-function generateHash(url, key) {
-    const base64Url = Buffer.from(url).toString('base64');
-    const base64Key = Buffer.from(key).toString('base64');
-    return base64Url + (url.length + 1000) + base64Key;
-}
-
-/**
- * Scraper function for anydownloader.com
- */
-async function anyDL(link) {
+async function uploadToTermai(buffer, mimeType, fileName) {
     try {
-        // Step 1: Get Token from Homepage
-        const homepage = await axios.get('https://anydownloader.com/en', {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-        });
-        
-        const $ = cheerio.load(homepage.data);
-        const tokenValue = $('input[name="token"]').val();
-        
-        if (!tokenValue) throw new Error('Token not found!');
+        const form = new FormData();
+        form.append("file", buffer, { filename: fileName, contentType: mimeType });
 
-        // Step 2: Prepare Hash & Data
-        const hashValue = generateHash(link, 'api');
-        const formData = new URLSearchParams();
-        formData.append('url', link);
-        formData.append('token', tokenValue);
-        formData.append('hash', hashValue);
-
-        // Step 3: Fetch Download Links
-        const res = await axios.post('https://anydownloader.com/wp-json/api/download/', formData.toString(), {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Referer': 'https://anydownloader.com/en',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+        const response = await fetch(`${TERMAI_API_URL}?key=${TERMAI_API_KEY}`, {
+            method: "POST",
+            body: form,
+            headers: form.getHeaders()
         });
 
-        return res.data;
+        const json = await response.json();
+        if (json.status && json.path) {
+            return json.path.startsWith('http') ? json.path : `https://c.termai.cc${json.path}`;
+        }
+        throw new Error("Path not found in response");
     } catch (e) {
-        throw e;
+        throw new Error(`Upload Failed: ${e.message}`);
     }
 }
 
-// --- Command Structure ---
+// --- Main Command ---
 cmd({
-    pattern: "aiopro",
-    alias: ["anydl", "down"],
-    react: "📥",
-    desc: "All-in-one media downloader using AnyDownloader API",
-    category: "download",
-    use: ".aiopro <link>",
+    pattern: "grokvideo",
+    alias: ["ai-video", "grokvid"],
+    react: "🎬",
+    desc: "Generate AI video from an image using Grok AI",
+    category: "ai",
+    use: ".grokvideo <reply/caption image + prompt>",
     filename: __filename
-}, async (conn, mek, m, { from, reply, q }) => {
+}, async (conn, mek, m, { from, reply, q, config }) => {
     try {
-        if (!q) return reply("❌ Please provide a valid link!");
-        if (!q.includes('http')) return reply("❌ Invalid link format!");
+        // Validation: Text check
+        if (!q) return reply("🎬 *GROK AI VIDEO GENERATOR*\n\nKirim/Reply gambar dengan caption:\n.grokvideo Anime girl running in rain");
+
+        // Media Detection
+        const quoted = m.quoted ? m.quoted : m;
+        const mime = (quoted.msg || quoted).mimetype || "";
+        
+        if (!mime.startsWith("image/")) return reply("❌ Please reply to or send an image with this command!");
 
         await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
+        const waitMsg = await reply("🎬 *Processing...*\n\n📤 Uploading image to AI server...");
 
-        const result = await anyDL(q);
-
-        if (!result || !result.video) {
-            return reply("❌ Media not found or platform not supported.");
+        // Download Image Buffer
+        const stream = await downloadContentFromMessage(quoted.msg || quoted, "image");
+        let buffer = Buffer.from([]);
+        for await (const chunk of stream) {
+            buffer = Buffer.concat([buffer, chunk]);
         }
 
-        // Title aur Quality info
-        let caption = `📥 *AIO PRO DOWNLOADER*\n\n`;
-        caption += `📌 *Title:* ${result.title || "No Title"}\n`;
-        caption += `🎬 *Source:* AnyDownloader\n\n`;
-        caption += `> © PROVA-MD- ❤️`;
+        // Upload to Termai
+        const fileName = `grok-${Date.now()}.jpg`;
+        const imageUrl = await uploadToTermai(buffer, mime, fileName);
 
-        // Video bhejte waqt quality check (High quality first)
-        const videoUrl = result.video[0]?.url || result.video;
+        // Edit waiting message
+        await conn.sendMessage(from, { 
+            text: `✅ *Image Uploaded!*\n🔄 Generating Video (2-5 mins)...\n📝 *Prompt:* ${q}`, 
+            edit: waitMsg.key 
+        });
 
-        if (videoUrl) {
-            await conn.sendMessage(from, {
-                video: { url: videoUrl },
-                caption: caption,
-                mimetype: "video/mp4"
-            }, { quoted: mek });
-        } else {
-            reply("❌ Could not find a downloadable video link.");
-        }
+        // Request to DyySilence API (Using your provided URL/Key)
+        const dyyKey = "dyy"; // Default key as per your snippet
+        const fullUrl = `https://api.dyysilence.biz.id/api/ai-video/grokai`;
+
+        const response = await axios.get(fullUrl, {
+            params: { url: imageUrl, prompt: q, apikey: dyyKey },
+            timeout: 300000 // 5 minutes
+        });
+
+        const resultUrl = response.data.result_url || response.data.url || response.data.data?.url;
+
+        if (!resultUrl) throw new Error("AI Server did not return a video link.");
+
+        // Send Final Video
+        await conn.sendMessage(from, {
+            video: { url: resultUrl },
+            caption: `🎬 *GROK AI VIDEO DONE*\n\n📝 *Prompt:* ${q}\n⏱️ Durasi: ~5s\n\n> © PROVA-MD ❤️`,
+            mimetype: 'video/mp4'
+        }, { quoted: mek });
 
         await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
 
     } catch (e) {
         console.error(e);
-        reply(`❌ Error: ${e.message}`);
+        const errType = e.message.includes("timeout") ? "⏱️ Timeout! Server busy." : `❌ Error: ${e.message}`;
+        reply(errType);
     }
 });
-  
