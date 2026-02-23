@@ -1,45 +1,77 @@
-// filename: movie.js
-const axios = require('axios');
 const { cmd } = require('../command');
+const axios = require('axios');
 
 cmd({
-  pattern: 'movie',
-  desc: 'Search any movie from TMDb',
-  use: '.movie <movie name>',
-  category: 'search',
-  filename: __filename
-}, async (conn, mek, m, { args, reply }) => {
-  try {
-    const query = args.join(' ');
-    if (!query) return reply('Please enter a movie name. Example: .movie Pathaan');
+    pattern: "pirate",
+    alias: ["movie", "piratedl"],
+    react: "🏴‍☠️",
+    desc: "Download movies via Pirate API",
+    category: "download",
+    use: ".pirate <movie_page_url>",
+    filename: __filename
+}, async (conn, mek, m, { from, reply, q }) => {
+    try {
+        // Validation
+        if (!q) return reply("❌ Please provide a valid movie link!\nExample: .pirate https://pirate-site.com/movie-id");
+        if (!q.includes("http")) return reply("❌ Invalid URL format!");
 
-    const apiKey = 'YOUR_TMDB_API_KEY'; // Replace with your TMDb API Key
-    const url = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en`;
+        await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
 
-    const { data } = await axios.get(url);
-    if (!data.results || data.results.length === 0)
-      return reply('No movie found 😔');
+        // API Call
+        const apiUrl = `https://arslan-apis.vercel.app/movie/pirate/movie?url=${encodeURIComponent(q.trim())}`;
+        const response = await axios.get(apiUrl);
+        const data = response.data;
 
-    const movie = data.results[0];
-    const msg = `
-🎬 Title: ${movie.title || 'Unknown'}
-📅 Year: ${movie.release_date ? movie.release_date.split('-')[0] : 'Unknown'}
-⭐ Rating: ${movie.vote_average || 'N/A'}/10
-📝 Overview: ${movie.overview || 'No details available'}
+        // Check if data is valid (Adjust based on actual API JSON structure)
+        if (!data || !data.status) {
+            return reply("❌ Failed to fetch movie details. Link expire ho sakta hai ya API down hai.");
+        }
 
-ᴘᴏᴡᴇʀᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ
-🔗 More info: https://www.themoviedb.org/movie/${movie.id}
-    `;
+        const movie = data.result;
+        
+        // Movie Details Caption
+        let movieInfo = `🎬 *PIRATE MOVIE DOWNLOADER*\n\n`;
+        movieInfo += `📌 *Title:* ${movie.title || "Unknown"}\n`;
+        movieInfo += `📅 *Year:* ${movie.year || "N/A"}\n`;
+        movieInfo += `⭐ *Rating:* ${movie.rating || "N/A"}\n`;
+        movieInfo += `🕒 *Runtime:* ${movie.runtime || "N/A"}\n`;
+        movieInfo += `🎭 *Genres:* ${movie.genres || "N/A"}\n\n`;
+        movieInfo += `📥 *Download Links:* \n`;
 
-    if (movie.poster_path) {
-      const image = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
-      await conn.sendMessage(m.chat, { image: { url: image }, caption: msg }, { quoted: mek });
-    } else {
-      await reply(msg);
+        // Loop through available qualities/links
+        if (movie.downloads && movie.downloads.length > 0) {
+            movie.downloads.forEach((dl, index) => {
+                movieInfo += `🔹 ${index + 1}. ${dl.quality} (${dl.size}) - [Link](${dl.url})\n`;
+            });
+        } else if (movie.download_url) {
+            movieInfo += `🔗 [Click Here to Download](${movie.download_url})\n`;
+        } else {
+            movieInfo += `❌ No direct download links found.`;
+        }
+
+        movieInfo += `\n> © PROVA-MD ❤️`;
+
+        // Send Movie Poster with Details
+        await conn.sendMessage(from, {
+            image: { url: movie.poster || movie.thumbnail || 'https://files.catbox.moe/d2n3fc.jpg' },
+            caption: movieInfo,
+            contextInfo: {
+                externalAdReply: {
+                    title: movie.title || "Movie Downloader",
+                    body: "PROVA-MD Pirate Service",
+                    thumbnailUrl: movie.poster || movie.thumbnail,
+                    sourceUrl: q,
+                    mediaType: 1,
+                    renderLargerThumbnail: true
+                }
+            }
+        }, { quoted: mek });
+
+        await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
+
+    } catch (e) {
+        console.error("Pirate API Error:", e);
+        reply("❌ An error occurred: " + (e.message || "API Timeout"));
     }
-
-  } catch (e) {
-    console.log(e);
-    reply('⚠️ Unable to fetch movie information.');
-  }
 });
+      
