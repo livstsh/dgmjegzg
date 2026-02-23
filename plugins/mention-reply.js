@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------
-//           KAMRAN-MD - PHOTO EDITOR AI (FIXED)
+// KAMRAN-MD - PHOTO EDITOR AI (FULL DEBUG FIX)
 //---------------------------------------------------------------------------
 
 const { cmd } = require('../command');
@@ -7,9 +7,8 @@ const fetch = require('node-fetch');
 const FormData = require('form-data');
 
 const API = "https://api.giftedtech.co.ke/api/tools/photoeditor";
-const API_KEY = "gifted";
+const API_KEY = "gifted"; // ⚠ Agar ye free key expired ho to apni key lagao
 
-// 🔹 Telegraph Uploader
 async function uploadToTelegraph(buffer) {
     const form = new FormData();
     form.append("file", buffer, "image.jpg");
@@ -20,12 +19,14 @@ async function uploadToTelegraph(buffer) {
     });
 
     const data = await res.json();
+
+    if (!data[0]?.src) throw "Telegraph upload failed";
+
     return "https://telegra.ph" + data[0].src;
 }
 
 cmd({
     pattern: "photoedit",
-    alias: ["editphoto", "editimg"],
     desc: "Edit photo using AI prompt.",
     category: "ai",
     use: ".photoedit <prompt>",
@@ -36,36 +37,47 @@ cmd({
         const quoted = m.quoted ? m.quoted : m;
         const mime = (quoted.msg || quoted).mimetype || '';
 
-        if (!mime.startsWith('image/')) {
-            return reply(`📸 Reply to an image with a prompt.\n\nExample:\n${prefix + command} change shirt color to black`);
-        }
+        if (!mime.startsWith('image/'))
+            return reply(`Reply to an image.\nExample:\n${prefix + command} change shirt color to black`);
 
-        if (!q) return reply("❌ Please provide an editing prompt.");
+        if (!q) return reply("Provide editing prompt.");
 
         await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
-        reply("🤖 Uploading & Editing... Please wait...");
+        reply("Uploading & Editing...");
 
-        // 1️⃣ Download Image
         const buffer = await quoted.download();
-        if (!buffer) throw "Image download failed.";
+        if (!buffer) throw "Image download failed";
 
-        // 2️⃣ Upload to Telegraph
+        // Upload
         const publicUrl = await uploadToTelegraph(buffer);
+        console.log("Public URL:", publicUrl);
 
-        // 3️⃣ Create API URL
+        // API URL
         const apiUrl = `${API}?apikey=${API_KEY}&url=${encodeURIComponent(publicUrl)}&prompt=${encodeURIComponent(q)}`;
 
-        // 4️⃣ Send Edited Image
+        console.log("API URL:", apiUrl);
+
+        // Check API response first
+        const check = await fetch(apiUrl);
+        const contentType = check.headers.get("content-type");
+
+        if (!contentType.startsWith("image")) {
+            const text = await check.text();
+            console.log("API Error:", text);
+            throw "API did not return image. Check API key.";
+        }
+
+        // Send image
         await conn.sendMessage(from, {
             image: { url: apiUrl },
-            caption: `✅ *Photo Edited Successfully!*\n🎨 *Prompt:* ${q}\n\n🚀 Powered by KAMRAN-MD`
+            caption: `✅ Edited Successfully\nPrompt: ${q}`
         }, { quoted: mek });
 
         await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
 
-    } catch (e) {
-        console.error("Photo Editor Error:", e);
+    } catch (err) {
+        console.error("PHOTO EDIT ERROR:", err);
         await conn.sendMessage(from, { react: { text: "❌", key: mek.key } });
-        reply("❌ Error while editing image.");
+        reply("❌ Error while editing image.\nCheck console for details.");
     }
 });
