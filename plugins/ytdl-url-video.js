@@ -1,103 +1,125 @@
-const { cmd } = require('../command');
-const axios = require('axios');
-const yts = require('yt-search');
+const { cmd } = require("../command");
+const yts = require("yt-search");
+const axios = require("axios");
 
-// Temporary storage for user choices
-let downloadSession = {};
+// --- Helper Functions ---
 
-const FOOTER = "⚡ POWERED BY PROVA-MD";
+function normalizeYouTubeUrl(url) {
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/.*[?&]v=)([a-zA-Z0-9_-]{11})/);
+  return match ? `https://youtube.com/watch?v=${match[1]}` : null;
+}
 
-// --- 1. SEARCH COMMAND ---
-cmd({
-    pattern: "song2",
-    alias: ["video2", "play5"],
-    desc: "Search and select download format",
+/**
+ * Fetch Video Link (Jawad-Tech API)
+ */
+async function fetchVideoData(url) {
+  try {
+    const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
+    const { data } = await axios.get(apiUrl);
+    return data.status && data.result ? data.result.mp4 : null;
+  } catch (e) { return null; }
+}
+
+/**
+ * Fetch Audio Link (Koyeb API)
+ */
+async function fetchAudioData(url) {
+  try {
+    const apiUrl = `https://arslan-apis.vercel.app/download/ytmp3?url=${encodeURIComponent(url)}`;
+    const { data } = await axios.get(apiUrl);
+    return data.status && data.data ? data.data.url : null;
+  } catch (e) { return null; }
+}
+
+// --- MAIN DOWNLOAD COMMAND ---
+
+cmd(
+  {
+    pattern: "dl",
+    alias: ["download", "play"],
+    react: "📥",
+    desc: "Download YouTube Video or Audio with selection.",
     category: "download",
-    react: "🔍",
-    filename: __filename
-}, async (sock, message, m, { q, from, reply }) => {
+    filename: __filename,
+  },
+  async (conn, mek, m, { from, q, reply, prefix }) => {
     try {
-        if (!q) return reply("❌ Please provide a name or link!");
+      if (!q) return reply(`❓ Usage: \`${prefix}dl <name/link>\``);
 
+      await conn.sendMessage(from, { react: { text: "🔍", key: mek.key } });
+
+      // Step 1: Search Video
+      let ytdata;
+      const url = normalizeYouTubeUrl(q);
+      if (url) {
+        const results = await yts({ videoId: url.split('v=')[1] });
+        ytdata = results;
+      } else {
         const search = await yts(q);
-        const video = search.videos[0];
-        if (!video) return reply("❌ No results found.");
+        if (!search.videos.length) return reply("❌ No results found!");
+        ytdata = search.videos[0];
+      }
 
-        // Video data ko session mein save karein
-        downloadSession[from] = {
-            url: video.url,
-            title: video.title,
-            thumbnail: video.thumbnail
-        };
+      const caption = `
+🎥 *YT DOWNLOADER* 🎥
 
-        const menuText = `*${video.title}*
+📌 *Title:* ${ytdata.title}
+⏱️ *Duration:* ${ytdata.timestamp}
+👁️ *Views:* ${ytdata.views.toLocaleString()}
+🔗 *Link:* ${ytdata.url}
 
-🎥 *Channel:* ${video.author.name}
-⏳ *Duration:* ${video.timestamp}
+*Inmein se koi ek select karen:*
+1️⃣ *Video (MP4)*
+2️⃣ *Audio (MP3)*
 
-*Reply with a number:*
-1️⃣ *Audio (MP3)*
-2️⃣ *Video (MP4)*
+> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ`;
 
-> ${FOOTER}`;
+      const sentMsg = await conn.sendMessage(from, { image: { url: ytdata.thumbnail || ytdata.image }, caption }, { quoted: mek });
+      const messageID = sentMsg.key.id;
 
-        await sock.sendMessage(from, {
-            image: { url: video.thumbnail },
-            caption: menuText
-        }, { quoted: message });
+      // Step 2: Handle Selection via Reply
+      conn.ev.on("messages.upsert", async (msgData) => {
+        const receivedMsg = msgData.messages[0];
+        if (!receivedMsg?.message) return;
+
+        const text = receivedMsg.message.conversation || receivedMsg.message.extendedTextMessage?.text;
+        const isReply = receivedMsg.message.extendedTextMessage?.contextInfo?.stanzaId === messageID;
+
+        if (isReply) {
+          await conn.sendMessage(from, { react: { text: "⏳", key: receivedMsg.key } });
+
+          if (text === "1") {
+            // Video Download
+            const videoUrl = await fetchVideoData(ytdata.url);
+            if (!videoUrl) return reply("❌ Video download failed!");
+            
+            await conn.sendMessage(from, { 
+              video: { url: videoUrl }, 
+              caption: `✅ *${ytdata.title}*\n\n> © KAMRAN-MD` 
+            }, { quoted: receivedMsg });
+
+          } else if (text === "2") {
+            // Audio Download
+            const audioUrl = await fetchAudioData(ytdata.url);
+            if (!audioUrl) return reply("❌ Audio download failed!");
+
+            await conn.sendMessage(from, { 
+              audio: { url: audioUrl }, 
+              mimetype: "audio/mpeg" 
+            }, { quoted: receivedMsg });
+
+          } else {
+            reply("❌ Invalid choice! Please reply with 1 or 2.");
+          }
+          
+          await conn.sendMessage(from, { react: { text: "✅", key: receivedMsg.key } });
+        }
+      });
 
     } catch (e) {
-        console.error(e);
-        reply("❌ Error during search.");
+      console.error(e);
+      reply("⚠️ Error occurred!");
     }
-});
-
-// --- 2. REPLY HANDLER ---
-// Ye part aapke message listener mein jayega
-cmd({
-    on: "text" 
-}, async (sock, message, m, { body, from, reply }) => {
-    const session = downloadSession[from];
-    
-    // Agar user ne '1' ya '2' likha hai aur session active hai
-    if (session && (body === "1" || body === "2")) {
-        
-        if (body === "1") {
-            // --- AUDIO DOWNLOAD (Arslan API) ---
-            await sock.sendMessage(from, { react: { text: "🎧", key: message.key } });
-            try {
-                const res = await axios.get(`https://arslan-apis.vercel.app/download/ytmp3?url=${encodeURIComponent(session.url)}`);
-                const downloadUrl = res.data.result.download.url;
-
-                await sock.sendMessage(from, {
-                    audio: { url: downloadUrl },
-                    mimetype: "audio/mpeg",
-                    fileName: `${session.title}.mp3`
-                }, { quoted: message });
-            } catch (err) {
-                reply("❌ Audio download failed.");
-            }
-        } 
-        
-        else if (body === "2") {
-            // --- VIDEO DOWNLOAD (Jawad API) ---
-            await sock.sendMessage(from, { react: { text: "🎬", key: message.key } });
-            try {
-                const res = await axios.get(`https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(session.url)}`);
-                const downloadUrl = res.data.result.mp4;
-
-                await sock.sendMessage(from, {
-                    video: { url: downloadUrl },
-                    mimetype: "video/mp4",
-                    caption: `*${session.title}*\n\n> ${FOOTER}`
-                }, { quoted: message });
-            } catch (err) {
-                reply("❌ Video download failed.");
-            }
-        }
-
-        // Kaam khatam hone ke baad session delete kar dein
-        delete downloadSession[from];
-    }
-});
+  }
+);
             
