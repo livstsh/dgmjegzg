@@ -1,142 +1,142 @@
 const { cmd } = require('../command');
-const { PassThrough } = require('stream');
-const ffmpeg = require('fluent-ffmpeg');
 const axios = require('axios');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
-// --- Helpers Functions ---
+// --- Auth Generator Class (Converted to CJS) ---
+class AuthGenerator {
+    static PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDa2oPxMZe71V4dw2r8rHWt59gH
+W5INRmlhepe6GUanrHykqKdlIB4kcJiu8dHC/FJeppOXVoKz82pvwZCmSUrF/1yr
+rnmUDjqUefDu8myjhcbio6CnG5TtQfwN2pz3g6yHkLgp8cFfyPSWwyOCMMMsTU9s
+snOjvdDb4wiZI8x3UwIDAQAB
+-----END PUBLIC KEY-----`;
 
-/**
- * Convert audio buffer to OGG/Opus (WhatsApp-compatible)
- */
-async function toVN(inputBuffer) {
-    return new Promise((resolve, reject) => {
-        const inStream = new PassThrough();
-        const outStream = new PassThrough();
-        const chunks = [];
-        inStream.end(inputBuffer);
+    static S = "NHGNy5YFz7HeFb";
 
-        ffmpeg(inStream)
-            .noVideo()
-            .audioCodec('libopus')
-            .format('ogg')
-            .audioBitrate('48k')
-            .audioChannels(1)
-            .audioFrequency(48000)
-            .outputOptions([
-                '-map_metadata', '-1',
-                '-application', 'voip',
-                '-compression_level', '10'
-            ])
-            .on('error', reject)
-            .on('end', () => resolve(Buffer.concat(chunks)))
-            .pipe(outStream, { end: true });
+    constructor(appId) {
+        this.appId = appId;
+    }
 
-        outStream.on('data', c => chunks.push(c));
-    });
+    aesEncrypt(data, key, iv) {
+        const cipher = crypto.createCipheriv("aes-128-cbc", Buffer.from(key), Buffer.from(iv));
+        let encrypted = cipher.update(data, "utf8", "base64");
+        encrypted += cipher.final("base64");
+        return encrypted;
+    }
+
+    generateRandomString(length) {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        const bytes = crypto.randomBytes(length);
+        return Array.from(bytes).map((b) => chars[b % chars.length]).join("");
+    }
+
+    generate() {
+        const t = Math.floor(Date.now() / 1000).toString();
+        const nonce = crypto.randomUUID();
+        const tempAesKey = this.generateRandomString(16);
+
+        const encryptedData = crypto.publicEncrypt({
+            key: AuthGenerator.PUBLIC_KEY,
+            padding: crypto.constants.RSA_PKCS1_PADDING,
+        }, Buffer.from(tempAesKey));
+
+        const secret_key = encryptedData.toString("base64");
+        const dataToSign = `${this.appId}:${AuthGenerator.S}:${t}:${nonce}:${secret_key}`;
+        const sign = this.aesEncrypt(dataToSign, tempAesKey, tempAesKey);
+
+        return { app_id: this.appId, t, nonce, sign, secret_key };
+    }
 }
 
-/**
- * Generate WhatsApp-style waveform
- */
-async function generateWaveform(inputBuffer, bars = 64) {
-    return new Promise((resolve, reject) => {
-        const inputStream = new PassThrough();
-        inputStream.end(inputBuffer);
-        const chunks = [];
-
-        ffmpeg(inputStream)
-            .audioChannels(1)
-            .audioFrequency(16000)
-            .format("s16le")
-            .on("error", reject)
-            .on("end", () => {
-                const rawData = Buffer.concat(chunks);
-                const samples = rawData.length / 2;
-                const amplitudes = [];
-                for (let i = 0; i < samples; i++) {
-                    let val = rawData.readInt16LE(i * 2);
-                    amplitudes.push(Math.abs(val) / 32768);
-                }
-                let blockSize = Math.floor(amplitudes.length / bars);
-                let avg = [];
-                for (let i = 0; i < bars; i++) {
-                    let block = amplitudes.slice(i * blockSize, (i + 1) * blockSize);
-                    avg.push(block.reduce((a, b) => a + b, 0) / (block.length || 1));
-                }
-                let max = Math.max(...avg);
-                let normalized = avg.map(v => Math.floor((v / (max || 1)) * 100));
-                resolve(Buffer.from(new Uint8Array(normalized)).toString("base64"));
-            })
-            .pipe(new PassThrough(), { end: true })
-            .on("data", chunk => chunks.push(chunk));
-    });
-}
-
-async function searchYT(q) {
-    const res = await axios.get(`https://test.flvto.online/search/?q=${encodeURIComponent(q)}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0', origin: 'https://v5.ytmp4.is' }
-    });
-    if (!res.data.items || !res.data.items.length) throw new Error('No results');
-    return res.data.items[0];
-}
-
-async function getDownloadLink(id) {
-    const res = await axios.post('https://ht.flvto.online/converter', { id, fileType: 'mp3' }, {
-        headers: { 'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json' }
-    });
-    return res.data.link;
-}
-
-// --- Main Command ---
-
+// --- Command Handler ---
 cmd({
-    pattern: "play2",
-    alias: ["music", "audio", "song"],
-    react: "🎶",
-    desc: "Advanced YT Play with Waveform",
-    category: "download",
+    pattern: "tofigure",
+    alias: ["nano", "banana", "reimage2"],
+    react: "🍌",
+    desc: "AI Image Transformation (Nano Banana AI)",
+    category: "ai",
+    use: ".tofigure <reply image + prompt>",
     filename: __filename
 }, async (conn, mek, m, { from, reply, q }) => {
     try {
-        if (!q) return reply("⚠ Masukan Judul Lagu!");
+        const quoted = m.quoted ? m.quoted : m;
+        const mime = (quoted.msg || quoted).mimetype || "";
+
+        if (!mime.startsWith("image/")) return reply("❌ Please reply to an image!");
+        if (!q) return reply("❌ Prompt missing! Example: .tofigure make it a superhero");
 
         await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
 
-        // Search & Get Data
-        const info = await searchYT(q);
-        const dlUrl = await getDownloadLink(info.id);
+        // 1. Prepare Auth & Data
+        const auth = new AuthGenerator("ai_df");
+        const authData = auth.generate();
+        const userId = auth.generateRandomString(64).toLowerCase();
+        const buffer = await quoted.download();
 
-        // Fetch Audio Buffer
-        const audioRes = await axios.get(dlUrl, { responseType: "arraybuffer" });
-        const buffer = Buffer.from(audioRes.data);
+        const instance = axios.create({
+            baseURL: "https://apiv1.deepfakemaker.io/api",
+            params: authData,
+            headers: {
+                "Content-Type": "application/json",
+                Referer: "https://deepfakemaker.io/nano-banana-ai/",
+            },
+        });
 
-        // Process Audio (Fixed Voice Note Issue)
-        const pttBuffer = await toVN(buffer);
-        const waveform = await generateWaveform(pttBuffer);
+        // 2. Upload Sign & S3 Upload
+        const file = await instance.post("/user/v2/upload-sign", {
+            filename: auth.generateRandomString(32) + ".jpg",
+            hash: crypto.createHash("sha256").update(buffer).digest("hex"),
+            user_id: userId,
+        }).then((res) => res.data);
 
-        // Send Voice Note with Waveform & AdReply
-        await conn.sendMessage(from, {
-            audio: pttBuffer,
-            waveform: Buffer.from(waveform, 'base64'),
-            mimetype: "audio/ogg; codecs=opus",
-            ptt: true,
-            contextInfo: {
-                externalAdReply: {
-                    title: info.title,
-                    body: `Duration: ${info.duration} | Views: ${info.viewCount}`,
-                    mediaType: 1,
-                    thumbnailUrl: info.thumbMedium,
-                    sourceUrl: `https://youtu.be/${info.id}`,
-                    renderLargerThumbnail: true
+        await axios.put(file.data.url, buffer, {
+            headers: { "content-type": "image/jpeg", "content-length": buffer.length }
+        });
+
+        // 3. Create Task
+        const task = await instance.post("/replicate/v1/free/nano/banana/task", {
+            prompt: q,
+            platform: "nano_banana",
+            images: ["https://cdn.deepfakemaker.io/" + file.data.object_name],
+            output_format: "png",
+            user_id: userId,
+        }).then((res) => res.data);
+
+        // 4. Polling for result
+        const resultUrl = await new Promise((resolve, reject) => {
+            let retry = 25;
+            const interval = setInterval(async () => {
+                try {
+                    const check = await instance.get("/replicate/v1/free/nano/banana/task", {
+                        params: { user_id: userId, ...task.data },
+                    }).then((res) => res.data);
+
+                    if (check.msg === "success") {
+                        clearInterval(interval);
+                        resolve(check.data.generate_url);
+                    }
+                } catch (e) { /* silent retry */ }
+
+                if (--retry <= 0) {
+                    clearInterval(interval);
+                    reject(new Error("AI Task Timeout! Process slow hai, baad mein try karein."));
                 }
-            }
+            }, 3000);
+        });
+
+        // 5. Send Final Image
+        await conn.sendMessage(from, {
+            image: { url: resultUrl },
+            caption: `🍌 *NANO BANANA AI DONE*\n\n📝 *Prompt:* ${q}\n\n> © WHITESHADOW-MD ❤️`
         }, { quoted: mek });
 
         await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
 
     } catch (e) {
         console.error(e);
-        reply("❌ Error: API limit ya network issue.");
+        reply(`❌ Error: ${e.message}`);
     }
 });
-                
+            
