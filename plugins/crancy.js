@@ -1,13 +1,16 @@
 const { cmd } = require("../command");
 const axios = require("axios");
 
+// Temporary storage for session handling
+let tempSessions = {};
+
 const FOOTER = "> *🤍ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ🤍*";
 
-// --- 1. Command to List Numbers ---
+// --- 1. COMMAND TO LIST NUMBERS ---
 cmd({
     pattern: "tempnum",
     alias: ["tempnumber", "otpnum"],
-    desc: "Get temporary phone numbers for OTP",
+    desc: "Get temporary phone numbers and fetch OTP",
     category: "tools",
     react: "📱",
     filename: __filename
@@ -24,67 +27,64 @@ cmd({
 
         const numbers = res.data.result;
         let responseMsg = `🌐 *VIRTUAL TEMP NUMBERS* 🌐\n\n`;
-        responseMsg += `*How to get OTP?*\nCopy the number and use command:\n*.getotp [number]*\n\n`;
+        responseMsg += `_Numbers select karein aur un par OTP bhejne ke baad isi message par us number ko reply karein taaki message show ho sake._\n\n`;
 
-        // Pehle 10 numbers dikhane ke liye
         numbers.slice(0, 10).forEach((item, index) => {
-            // Screenshot ke mutabiq 'number' field use ho rahi hai
             responseMsg += `*${index + 1}.* 📱 *Number:* \`${item.number}\`\n`;
             responseMsg += `🌍 *Country:* ${item.country}\n\n`;
         });
 
         responseMsg += FOOTER;
 
+        // Session mein numbers save kar rahe hain taaki reply handle ho sake
+        tempSessions[from] = numbers.slice(0, 10);
+
         await conn.sendMessage(from, { text: responseMsg }, { quoted: mek });
         await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
 
     } catch (e) {
-        reply("❌ Service is currently busy.");
+        reply("❌ Service error.");
     }
 });
 
-// --- 2. Command to Get OTP/Messages ---
+// --- 2. REPLY HANDLER TO SHOW MESSAGES/OTP ---
 cmd({
-    pattern: "getotp",
-    alias: ["checkotp", "readsm"],
-    desc: "Check incoming OTP/SMS for a temp number",
-    category: "tools",
-    react: "📩",
-    filename: __filename
-}, async (conn, mek, m, { from, q, reply }) => {
-    try {
-        if (!q) return reply("❌ Please provide the number to check OTP.\nExample: *.getotp 16142642074*");
-
-        await conn.sendMessage(from, { react: { text: "⏳", key: mek.key } });
-
-        // Clean number (remove + or spaces)
-        const cleanNumber = q.replace(/[^0-9]/g, '');
+    on: "text"
+}, async (conn, mek, m, { from, body, reply }) => {
+    // Check agar user ne kisi phone number ko reply kiya hai
+    if (tempSessions[from]) {
+        const cleanInput = body.replace(/[^0-9]/g, '');
         
-        // API endpoint to fetch messages for specific number
-        const apiUrl = `https://arslan-apis.vercel.app/more/tempnumber/messages?number=${cleanNumber}`;
-        const res = await axios.get(apiUrl);
+        // Agar input ek phone number jaisa hai
+        if (cleanInput.length > 5) {
+            await conn.sendMessage(from, { react: { text: "📩", key: mek.key } });
 
-        if (!res.data || !res.data.status || !res.data.result || res.data.result.length === 0) {
-            return reply("❌ No messages found yet. Please wait 1-2 minutes and try again.");
+            try {
+                // API to fetch messages for specific number
+                // Note: Agar aapki API ka link alag hai messages ke liye toh yahan change karein
+                const msgApi = `https://arslan-apis.vercel.app/more/tempnumber/messages?number=${cleanInput}`;
+                const res = await axios.get(msgApi);
+
+                if (!res.data || !res.data.result || res.data.result.length === 0) {
+                    return reply("❌ Abhi tak koi message nahi aaya. 1-2 minute baad dobara check karein.");
+                }
+
+                let otpDisplay = `📩 *LATEST MESSAGES FOR:* +${cleanInput}\n\n`;
+                
+                res.data.result.slice(0, 3).forEach((sms, i) => {
+                    otpDisplay += `*${i + 1}. From:* ${sms.from}\n`;
+                    otpDisplay += `💬 *Message:* ${sms.message}\n`;
+                    otpDisplay += `⏰ *Time:* ${sms.time}\n`;
+                    otpDisplay += `──────────────\n`;
+                });
+
+                otpDisplay += FOOTER;
+                await reply(otpDisplay);
+
+            } catch (err) {
+                // Agar direct messages API kaam nahi kar rahi, toh hum manual check ka mashwara denge
+                reply("❌ Messages fetch nahi ho sake. Please link par click karke check karein.");
+            }
         }
-
-        let otpMsg = `📩 *INCOMING MESSAGES FOR:* +${cleanNumber}\n\n`;
-
-        // Latest 5 messages dikhane ke liye
-        res.data.result.slice(0, 5).forEach((msg, index) => {
-            otpMsg += `*${index + 1}. FROM:* ${msg.from}\n`;
-            otpMsg += `💬 *MESSAGE:* ${msg.message}\n`;
-            otpMsg += `⏰ *TIME:* ${msg.time}\n`;
-            otpMsg += `──────────────\n`;
-        });
-
-        otpMsg += FOOTER;
-
-        await conn.sendMessage(from, { text: otpMsg }, { quoted: mek });
-        await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });
-
-    } catch (e) {
-        reply("❌ Error fetching messages. Make sure the number is correct.");
     }
 });
-            
