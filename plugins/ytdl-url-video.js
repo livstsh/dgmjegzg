@@ -1,77 +1,99 @@
-const axios = require('axios');
 const { cmd } = require('../command');
+const axios = require('axios');
+const yts = require('yt-search');
 
-// --- Helper Function: Gemini API ---
-async function fetchGemini(query, session = null) {
-    // aHR0cHM6Ly9keHotYWkudmVyY2VsLmFwcC9hcGkvZ2VtaW5p -> https://dxz-ai.vercel.app/api/gemini
-    const finalApiUrl = Buffer.from("aHR0cHM6Ly9keHotYWkudmVyY2VsLmFwcC9hcGkvZ2VtaW5p", 'base64').toString('utf8');
+// Temporary storage for selection
+let downloadSession = {};
 
-    const params = { text: query };
-    if (session) params.session = session;
+const FOOTER = "⚡ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ";
 
-    const { data } = await axios.get(finalApiUrl, {
-        params,
-        headers: { "User-Agent": "Postify/1.0.0" },
-        timeout: 30000
-    });
-
-    return data;
-}
-
-// Global object to store sessions per user
-if (!global.geminiSessions) global.geminiSessions = {};
-
-// --- Bot Command ---
+// --- 1. SEARCH & MENU COMMAND ---
 cmd({
-    pattern: "gemini",
-    alias: ["googleai", "ai2"],
-    react: "🧠",
-    desc: "Chat with Gemini AI (with session memory).",
-    category: "ai",
+    pattern: "song2",
+    alias: ["play5", "video3", "download2"],
+    desc: "Search and download audio/video",
+    category: "download",
+    react: "🔍",
     filename: __filename
-},           
-async (conn, mek, m, { from, q, reply, sender }) => {
+}, async (sock, message, m, { q, from, reply }) => {
     try {
-        if (!q) return reply("🤖 *Hai! Saya Gemini AI.*\n\nSilakan masukkan pertanyaan Anda.\n*Contoh:* .gemini cara membuat kopi");
+        if (!q) return reply("❌ Please provide a name or link!");
 
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+        const search = await yts(q);
+        const video = search.videos[0];
+        if (!video) return reply("❌ No results found.");
 
-        // Get existing session for this user
-        const userSession = global.geminiSessions[sender] || null;
+        // Session save kar rahe hain taaki reply handle ho sake
+        downloadSession[from] = {
+            url: video.url,
+            title: video.title,
+            thumbnail: video.thumbnail,
+            author: video.author.name
+        };
 
-        // Fetch response from API
-        const response = await fetchGemini(q, userSession);
+        const menuText = `*${video.title}*
 
-        if (response.ok) {
-            // Save/Update session for continuity
-            if (response.session) {
-                global.geminiSessions[sender] = response.session;
-            }
+🎥 Channel: ${video.author.name}
+⏳ Duration: ${video.timestamp}
 
-            const caption = `*✦ GEMINI AI RESPONSE ✦*\n\n${response.message.trim()}\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ DR KAMRAN*`;
+*Reply with a number:*
+1️⃣ *Audio (MP3)*
+2️⃣ *Video (MP4)*
 
-            await conn.sendMessage(from, {
-                text: caption,
-                contextInfo: {
-                    externalAdReply: {
-                        title: "GEMINI CHAT ASSISTANT",
-                        body: "Powered by Google Gemini Pro",
-                        thumbnailUrl: "https://files.catbox.moe/e4za15.jpg", // Aap apni choice ki image laga sakte hain
-                        sourceUrl: "https://github.com/KAMRAN-SMD",
-                        mediaType: 1,
-                        renderLargerThumbnail: true
-                    }
-                }
-            }, { quoted: mek });
+> ${FOOTER}`;
 
-            await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-        } else {
-            throw new Error(response.message || "API returned an error");
-        }
+        await sock.sendMessage(from, {
+            image: { url: video.thumbnail },
+            caption: menuText
+        }, { quoted: message });
 
     } catch (e) {
-        console.error("Gemini Error:", e.message);
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-        reply(`❌ *Gemini API Error:* ${e.message}`);
+        console.error(e);
+        reply("❌ Search error.");
     }
 });
+
+// --- 2. REPLY HANDLER (1 or 2) ---
+// Note: Ye logic aapke 'index.js' ya 'message-handler' mein hona chahiye
+// Lekin yahan main template de raha hoon jo aapke 'cmd' structure mein fit ho sake
+
+cmd({
+    on: "text" // Har text message par check karega agar session active hai
+}, async (sock, message, m, { body, from, reply }) => {
+    const session = downloadSession[from];
+    if (!session) return; // Agar koi active download request nahi hai toh ignore karein
+
+    if (body === "1") {
+        // AUDIO DOWNLOAD (Arslan API)
+        await sock.sendMessage(from, { react: { text: "🎧", key: message.key } });
+        try {
+            const res = await axios.get(`https://arslan-apis.vercel.app/download/ytmp3?url=${encodeURIComponent(session.url)}`);
+            const audioUrl = res.data.result.download.url;
+            
+            await sock.sendMessage(from, {
+                audio: { url: audioUrl },
+                mimetype: "audio/mpeg",
+                fileName: `${session.title}.mp3`
+            }, { quoted: message });
+            
+            delete downloadSession[from]; // Kaam khatam, session clear
+        } catch { reply("❌ Audio API error."); }
+
+    } else if (body === "2") {
+        // VIDEO DOWNLOAD (Jawad API)
+        await sock.sendMessage(from, { react: { text: "🎬", key: message.key } });
+        try {
+            const res = await axios.get(`https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(session.url)}`);
+            const videoUrl = res.data.result.mp4;
+
+            await sock.sendMessage(from, {
+                video: { url: videoUrl },
+                mimetype: "video/mp4",
+                caption: `*${session.title}*\n\n> ${FOOTER}`
+            }, { quoted: message });
+
+            delete downloadSession[from]; // Session clear
+        } catch { reply("❌ Video API error."); }
+    }
+});
+            
