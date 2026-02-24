@@ -4,6 +4,7 @@ const FormData = require('form-data');
 const fetch = require('node-fetch');
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 
+// --- Configuration ---
 const TERMAI_API_KEY = "AIzaBj7z2z3xBjsk";
 const TERMAI_API_URL = "https://c.termai.cc/api/upload";
 
@@ -34,9 +35,10 @@ cmd({
     filename: __filename
 }, async (conn, mek, m, { from, reply, q, config }) => {
     try {
-        // FIX 1: Safe Message Key detection to avoid "reading key" error
-        const msgKey = mek ? mek.key : (m ? m.key : null);
-        if (!msgKey) throw new Error("Message key not found");
+        // FIX 1: Safe Message Key detection (No more 'undefined' error)
+        // Hum 'm.key' ya 'mek.key' ka safe check lagate hain
+        const msgKey = (m && m.key) ? m.key : (mek ? mek.key : null);
+        if (!msgKey) throw new Error("Message key could not be detected.");
 
         if (!q) return reply("🎬 *GROK AI VIDEO GENERATOR*\n\nReply image with prompt:\n.grokvid Anime girl dancing");
 
@@ -44,12 +46,13 @@ cmd({
         const mime = (quoted.msg || quoted).mimetype || "";
         if (!mime.startsWith("image/")) return reply("❌ Please reply to an image!");
 
-        // FIX 2: Safe API Key Handling
-        const dyyKey = (config && config.dyysilence) ? config.dyysilence.key : "dyy";
+        // FIX 2: Safe API Key Handling (Fallback logic)
+        // Agar config mein key nahi hai toh direct 'dyy' use karega crash hone ke bajaye
+        const dyyKey = (config && config.dyysilence && config.dyysilence.key) ? config.dyysilence.key : "dyy";
         const fullUrl = `https://api.dyysilence.biz.id/api/ai-video/grokai`;
 
         await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
-        const waitMsg = await reply("🎬 *Processing...*\n\n📤 Uploading image...");
+        const waitMsg = await reply("🎬 *Processing...*\n\n📤 Uploading image to AI server...");
 
         const stream = await downloadContentFromMessage(quoted.msg || quoted, "image");
         let buffer = Buffer.from([]);
@@ -57,19 +60,22 @@ cmd({
 
         const imageUrl = await uploadToTermai(buffer, mime, `grok-${Date.now()}.jpg`);
 
+        // Update progress
         await conn.sendMessage(from, { 
-            text: `✅ *Uploaded!*\n🔄 Generating Video (2-5 mins)...\n📝 *Prompt:* ${q}`, 
+            text: `✅ *Image Uploaded!*\n🔄 Generating Video (2-5 mins)...\n📝 *Prompt:* ${q}`, 
             edit: waitMsg.key 
         });
 
+        // AI Request
         const response = await axios.get(fullUrl, {
             params: { url: imageUrl, prompt: q, apikey: dyyKey },
             timeout: 300000 
         });
 
         const resultUrl = response.data.result_url || response.data.url || response.data.data?.url;
-        if (!resultUrl) throw new Error("AI Server did not return video.");
+        if (!resultUrl) throw new Error("AI Server did not return video link. Try again later.");
 
+        // Send Result
         await conn.sendMessage(from, {
             video: { url: resultUrl },
             caption: `🎬 *GROK AI VIDEO DONE*\n\n📝 *Prompt:* ${q}\n\n> © PROVA-MD ❤️`,
@@ -80,10 +86,9 @@ cmd({
 
     } catch (e) {
         console.error(e);
-        // FIX 3: Safe error reporting
-        const fallbackKey = mek ? mek.key : (m ? m.key : null);
-        if (fallbackKey) await conn.sendMessage(from, { react: { text: '❌', key: fallbackKey } });
+        const safeKey = (m && m.key) ? m.key : (mek ? mek.key : null);
+        if (safeKey) await conn.sendMessage(from, { react: { text: '❌', key: safeKey } });
         reply(`❌ *Failed:* ${e.message}`);
     }
 });
-    
+            
