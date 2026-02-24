@@ -36,6 +36,9 @@ cmd({
     filename: __filename
 }, async (conn, mek, m, { from, reply, q }) => {
     try {
+        // FIX: Ensuring 'msgKey' is always available even if 'mek' is undefined
+        const msgKey = mek ? mek.key : m.key; 
+        
         const quoted = m.quoted ? m.quoted : m;
         const mime = (quoted.msg || quoted).mimetype || "";
         const isVideo = mime.startsWith("video/");
@@ -43,8 +46,9 @@ cmd({
 
         if (!isVideo && !isLink) return reply("❌ Please reply to a video or provide a video link!");
 
-        await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
-        const waitMsg = await reply("🎬 *AI VIDEO ENHANCER*\n\nStep 1: Downloading & Initializing Session...");
+        // FIX: Using safe msgKey for reaction
+        await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
+        const waitMsg = await conn.sendMessage(from, { text: "🎬 *AI VIDEO ENHANCER*\n\nStep 1: Downloading & Initializing Session..." }, { quoted: m });
 
         // 1. Session Setup
         const serial = await getSerial();
@@ -95,13 +99,12 @@ cmd({
 
         // 5. Polling Result
         let resultUrl = null;
-        for (let i = 0; i < 60; i++) { // Max 5 mins
+        for (let i = 0; i < 60; i++) { 
             const poll = await axios.get(`${API}/api/upscaler/v2/ai-video-enhancer/get-job/${jobId}`, { headers: commonHeaders });
             if (poll.data?.result?.output_url) {
                 resultUrl = poll.data.result.output_url;
                 break;
             }
-            process.stdout.write('.'); // Server console logging
             await sleep(5000);
         }
 
@@ -110,15 +113,15 @@ cmd({
         // 6. Send Final Result
         await conn.sendMessage(from, {
             video: { url: resultUrl },
-            caption: `🎬 *AI VIDEO ENHANCED*\n\n📈 *Resolution:* ${resType}\n🛠️ *Model:* UnblurImage AI\n\n> © PROVA-MD ❤️`,
+            caption: `🎬 *AI VIDEO ENHANCED*\n\n📈 *Resolution:* ${resType}\n\n> © PROVA-MD ❤️`,
             mimetype: 'video/mp4'
-        }, { quoted: mek });
+        }, { quoted: m });
 
-        await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
+        await conn.sendMessage(from, { react: { text: '✅', key: msgKey } });
 
     } catch (e) {
         console.error(e);
         reply(`❌ *Failed:* ${e.message}`);
     }
 });
-            
+    
