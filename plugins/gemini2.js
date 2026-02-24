@@ -1,127 +1,103 @@
 const { cmd } = require('../command');
 const axios = require('axios');
-const crypto = require('crypto');
 const FormData = require('form-data');
+const fetch = require('node-fetch');
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 
-// --- Configuration & Helpers ---
-const API = 'https://api.unblurimage.ai';
-const SITE = 'https://unblurimage.ai';
-const CDN = 'https://cdn.unblurimage.ai';
+// --- Configuration ---
+const TERMAI_API_KEY = "AIzaBj7z2z3xBjsk";
+const TERMAI_API_URL = "https://c.termai.cc/api/upload";
 
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-async function getSerial() {
+/**
+ * Helper: Upload buffer to Termai Storage
+ */
+async function uploadToTermai(buffer, mimeType, fileName) {
     try {
-        const { data: html } = await axios.get(SITE + '/ai-unblur-video/', { timeout: 15000 });
-        const sm = html.match(/src="([^"]*app\.[a-z0-9]+\.js)"/);
-        if (sm) {
-            let jsUrl = sm[1].startsWith('http') ? sm[1] : SITE + sm[1];
-            const { data: js } = await axios.get(jsUrl, { timeout: 15000 });
-            const m = js.match(/"product-serial"\s*:\s*"([a-f0-9]{32})"/i);
-            if (m) return m[1];
+        const form = new FormData();
+        form.append("file", buffer, { filename: fileName, contentType: mimeType });
+
+        const response = await fetch(`${TERMAI_API_URL}?key=${TERMAI_API_KEY}`, {
+            method: "POST",
+            body: form,
+            headers: form.getHeaders()
+        });
+
+        const json = await response.json();
+        if (json.status && json.path) {
+            return json.path.startsWith('http') ? json.path : `https://c.termai.cc${json.path}`;
         }
-    } catch (e) { console.error("Serial Fetch Error:", e.message); }
-    return crypto.createHash('md5').update(Date.now().toString()).digest('hex');
+        throw new Error("Path not found in response");
+    } catch (e) {
+        throw new Error(`Upload Failed: ${e.message}`);
+    }
 }
 
 // --- Main Command ---
 cmd({
-    pattern: "unblur",
-    alias: ["enhancevid", "hdvideo", "upscalevid"],
+    pattern: "grokvideo",
+    alias: ["ai-video", "grokvid"],
     react: "🎬",
-    desc: "AI Video Enhancer (Unblur & Upscale to 2K/4K)",
+    desc: "Generate AI video from an image using Grok AI",
     category: "ai",
-    use: ".unblur <reply video | link> [2k/4k]",
+    use: ".grokvideo <reply/caption image + prompt>",
     filename: __filename
-}, async (conn, mek, m, { from, reply, q }) => {
+}, async (conn, mek, m, { from, reply, q, config }) => {
     try {
-        // FIX: Ensuring 'msgKey' is always available even if 'mek' is undefined
-        const msgKey = mek ? mek.key : m.key; 
-        
+        // Validation: Text check
+        if (!q) return reply("🎬 *GROK AI VIDEO GENERATOR*\n\nKirim/Reply gambar dengan caption:\n.grokvideo Anime girl running in rain");
+
+        // Media Detection
         const quoted = m.quoted ? m.quoted : m;
         const mime = (quoted.msg || quoted).mimetype || "";
-        const isVideo = mime.startsWith("video/");
-        const isLink = q && q.match(/https?:\/\/[^\s]+/);
-
-        if (!isVideo && !isLink) return reply("❌ Please reply to a video or provide a video link!");
-
-        // FIX: Using safe msgKey for reaction
-        await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
-        const waitMsg = await conn.sendMessage(from, { text: "🎬 *AI VIDEO ENHANCER*\n\nStep 1: Downloading & Initializing Session..." }, { quoted: m });
-
-        // 1. Session Setup
-        const serial = await getSerial();
-        const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36';
-        const commonHeaders = { 'product-serial': serial, 'user-agent': ua, 'Referer': SITE + '/' };
-
-        // 2. Get Video Buffer
-        let videoBuffer, ext;
-        if (isVideo) {
-            const stream = await downloadContentFromMessage(quoted.msg || quoted, "video");
-            let chunks = [];
-            for await (const chunk of stream) chunks.push(chunk);
-            videoBuffer = Buffer.concat(chunks);
-            ext = mime.split('/')[1] || 'mp4';
-        } else {
-            const res = await axios.get(isLink[0], { responseType: 'arraybuffer' });
-            videoBuffer = Buffer.from(res.data);
-            ext = isLink[0].split('.').pop().split('?')[0] || 'mp4';
-        }
-
-        // 3. Register & Upload to OSS
-        const fileName = `${crypto.randomBytes(3).toString('hex')}_video.${ext}`;
-        const formReg = new FormData();
-        formReg.append('video_file_name', fileName);
         
-        const regRes = await axios.post(`${API}/api/upscaler/v1/ai-video-enhancer/upload-video`, formReg, {
-            headers: { ...commonHeaders, ...formReg.getHeaders() }
-        });
+        if (!mime.startsWith("image/")) return reply("❌ Please reply to or send an image with this command!");
 
-        const { url: ossUrl, object_name: objectName } = regRes.data.result;
-        await axios.put(ossUrl, videoBuffer, { headers: { 'Content-Type': `video/${ext}` } });
+        await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
+        const waitMsg = await reply("🎬 *Processing...*\n\n📤 Uploading image to AI server...");
 
-        // 4. Create Job
-        const resType = q.includes('4k') ? '4k' : '2k';
-        await conn.sendMessage(from, { text: `✅ Uploaded! Starting AI Enhancement (${resType})...`, edit: waitMsg.key });
-
-        const formJob = new FormData();
-        formJob.append('original_video_file', `${CDN}/${objectName}`);
-        formJob.append('resolution', resType);
-        formJob.append('is_preview', 'false');
-
-        const jobRes = await axios.post(`${API}/api/upscaler/v2/ai-video-enhancer/create-job`, formJob, {
-            headers: { ...commonHeaders, ...formJob.getHeaders() }
-        });
-
-        const jobId = jobRes.data.result.job_id;
-        if (!jobId) throw new Error("Failed to create Job ID");
-
-        // 5. Polling Result
-        let resultUrl = null;
-        for (let i = 0; i < 60; i++) { 
-            const poll = await axios.get(`${API}/api/upscaler/v2/ai-video-enhancer/get-job/${jobId}`, { headers: commonHeaders });
-            if (poll.data?.result?.output_url) {
-                resultUrl = poll.data.result.output_url;
-                break;
-            }
-            await sleep(5000);
+        // Download Image Buffer
+        const stream = await downloadContentFromMessage(quoted.msg || quoted, "image");
+        let buffer = Buffer.from([]);
+        for await (const chunk of stream) {
+            buffer = Buffer.concat([buffer, chunk]);
         }
 
-        if (!resultUrl) throw new Error("Enhancement Timeout! AI server is taking too long.");
+        // Upload to Termai
+        const fileName = `grok-${Date.now()}.jpg`;
+        const imageUrl = await uploadToTermai(buffer, mime, fileName);
 
-        // 6. Send Final Result
+        // Edit waiting message
+        await conn.sendMessage(from, { 
+            text: `✅ *Image Uploaded!*\n🔄 Generating Video (2-5 mins)...\n📝 *Prompt:* ${q}`, 
+            edit: waitMsg.key 
+        });
+
+        // Request to DyySilence API (Using your provided URL/Key)
+        const dyyKey = "dyy"; // Default key as per your snippet
+        const fullUrl = `https://api.dyysilence.biz.id/api/ai-video/grokai`;
+
+        const response = await axios.get(fullUrl, {
+            params: { url: imageUrl, prompt: q, apikey: dyyKey },
+            timeout: 300000 // 5 minutes
+        });
+
+        const resultUrl = response.data.result_url || response.data.url || response.data.data?.url;
+
+        if (!resultUrl) throw new Error("AI Server did not return a video link.");
+
+        // Send Final Video
         await conn.sendMessage(from, {
             video: { url: resultUrl },
-            caption: `🎬 *AI VIDEO ENHANCED*\n\n📈 *Resolution:* ${resType}\n\n> © PROVA-MD ❤️`,
+            caption: `🎬 *GROK AI VIDEO DONE*\n\n📝 *Prompt:* ${q}\n⏱️ Durasi: ~5s\n\n> © PROVA-MD ❤️`,
             mimetype: 'video/mp4'
-        }, { quoted: m });
+        }, { quoted: mek });
 
-        await conn.sendMessage(from, { react: { text: '✅', key: msgKey } });
+        await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
 
     } catch (e) {
         console.error(e);
-        reply(`❌ *Failed:* ${e.message}`);
+        const errType = e.message.includes("timeout") ? "⏱️ Timeout! Server busy." : `❌ Error: ${e.message}`;
+        reply(errType);
     }
 });
-    
+            
