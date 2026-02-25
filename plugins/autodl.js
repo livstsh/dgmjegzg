@@ -1,115 +1,132 @@
 const { cmd } = require('../command');
-const fetch = require('node-fetch');
-const { fileTypeFromBuffer } = require('file-type');
+const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
+const fs = require('fs');
+const FormData = require('form-data');
+const path = require('path');
+const cheerio = require('cheerio');
+const axios = require('axios');
 
+// --- API Configuration ---
+const headers = {
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+    'Content-Type': 'application/json',
+    'origin': 'https://pixwith.ai',
+    'referer': 'https://pixwith.ai/',
+};
+
+const models = {
+    'kling': { model_id: '1-34', options: { prompt_optimization: true, num_outputs: 1, aspect_ratio: 'auto', resolution: '1K' } },
+    'nano': { model_id: '1-10', options: { prompt_optimization: true, num_outputs: 1, aspect_ratio: '0' } },
+    'flux': { model_id: '1-28', options: { prompt_optimization: true, num_outputs: 1, aspect_ratio: '0' } },
+    'dream': { model_id: '1-32', options: { prompt_optimization: true, num_outputs: 1, aspect_ratio: '1:1', resolution: '2K' } }
+};
+
+// --- Helper Functions ---
+function gensesi() { return Array.from({length: 32}, () => Math.floor(Math.random()*16).toString(16)).join('') + '0'; }
+function genmail() { return Math.random().toString(36).substring(2, 14) + '@akunlama.com'; }
+
+async function getPixWithSession() {
+    const tempSession = gensesi();
+    const email = genmail();
+    const username = email.split('@')[0];
+
+    await axios.post('https://api.pixwith.ai/api/user/send_email_code', { email }, { headers: { ...headers, 'x-session-token': tempSession } });
+
+    let otp = null;
+    for (let i = 0; i < 15; i++) {
+        await new Promise(r => setTimeout(r, 4000));
+        const res = await axios.get(`https://akunlama.com/api/v1/mail/list?recipient=${username}`);
+        if (res.data?.length > 0) {
+            const r = await axios.get(`https://akunlama.com/api/v1/mail/getHtml?region=${res.data[0].storage.region}&key=${res.data[0].storage.key}`);
+            const $ = cheerio.load(r.data);
+            const match = $('body').text().match(/Verification code:\s*([A-Z0-9]+)/);
+            if (match) { otp = match[1]; break; }
+        }
+    }
+    if (!otp) throw new Error("OTP Timeout");
+
+    const v = await axios.post('https://api.pixwith.ai/api/user/verify_email_code', { email, code: otp }, { headers: { ...headers, 'x-session-token': tempSession } });
+    const ex = await axios.post('https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=AIzaSyAoRsni0q79r831sDrUjUTynjAEG2ai-EY', { token: v.data.data.custom_token, returnSecureToken: true });
+    const l = await axios.post('https://api.pixwith.ai/api/user/get_user', { token: ex.data.idToken, ref: "-1" }, { headers: { ...headers, 'x-session-token': tempSession } });
+    
+    return l.data.data.session_token;
+}
+
+// --- Bot Command ---
 cmd({
-    pattern: "aio",
-    alias: ["dl", "aiodl"],
-    react: "📥",
-    desc: "All-in-one downloader for Instagram, TikTok, etc.",
-    category: "downloader",
-    use: ".aio <link>",
+    pattern: "pixwith",
+    alias: ["img2img", "editai"],
+    react: "🎨",
+    desc: "AI Image to Image transformation",
+    category: "ai",
+    use: ".pixwith <reply image + prompt>",
     filename: __filename
-}, async (conn, mek, m, { from, reply, text, usedPrefix, command }) => {
-    // FIX 1: Safe Message Key to prevent "undefined reading key" crash
-    const msgKey = (m && m.key) ? m.key : (mek && mek.key ? mek.key : null);
-
+}, async (conn, mek, m, { from, reply, q }) => {
+    const msgKey = (m && m.key) ? m.key : (mek ? mek.key : null);
+    
     try {
-        if (!text) return reply(`*Contoh: ${usedPrefix + command} https://instagram.com/...*`);
+        const quoted = m.quoted ? m.quoted : m;
+        const mime = (quoted.msg || quoted).mimetype || "";
+        if (!mime.startsWith("image/")) return reply("❌ Please reply to an image!");
+        if (!q) return reply("📝 Please provide a prompt (e.g., change clothes to purple)");
 
         if (msgKey) await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
+        const waitMsg = await reply("🎨 *AI EDITING...*\n\nStep 1: Authenticating & Generating Session...");
 
-        const api = `https://api.apocalypse.web.id/download/aio?url=${encodeURIComponent(text)}`;
+        // 1. Session Setup
+        const sessionToken = await getPixWithSession();
+        
+        // 2. Download Image
+        const stream = await downloadContentFromMessage(quoted.msg || quoted, "image");
+        let buffer = Buffer.from([]);
+        for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
+        const tempPath = `./temp_edit_${Date.now()}.jpg`;
+        fs.writeFileSync(tempPath, buffer);
 
-        let res;
-        let attempts = 0;
-        const maxAttempts = 3;
+        await conn.sendMessage(from, { text: "Step 2: Uploading image & creating job...", edit: waitMsg.key });
 
-        // Retry logic
-        while (attempts < maxAttempts) {
-            try {
-                res = await fetch(api);
-                if (res.ok) break;
-            } catch (e) {}
-            attempts++;
-            if (attempts < maxAttempts) await new Promise(r => setTimeout(r, 1000));
+        // 3. Upload to S3
+        const preUrlRes = await axios.post('https://api.pixwith.ai/api/chats/pre_url', { image_name: 'input.jpg', content_type: 'image/jpeg' }, { headers: { ...headers, 'x-session-token': sessionToken } });
+        const uploadData = preUrlRes.data.data.url;
+        
+        const form = new FormData();
+        Object.entries(uploadData.fields).forEach(([k, v]) => form.append(k, v));
+        form.append('file', fs.createReadStream(tempPath));
+        await axios.post(uploadData.url, form, { headers: form.getHeaders() });
+
+        // 4. Create Job
+        await axios.post('https://api.pixwith.ai/api/items/create', {
+            images: { image1: uploadData.fields.key },
+            prompt: q,
+            options: models.nano.options,
+            model_id: models.nano.model_id
+        }, { headers: { ...headers, 'x-session-token': sessionToken } });
+
+        // 5. Polling Result
+        let result;
+        for (let i = 0; i < 20; i++) {
+            await new Promise(r => setTimeout(r, 5000));
+            const history = await axios.post('https://api.pixwith.ai/api/items/history', { tool_type: "1", tag: "", page: 0, page_size: 5 }, { headers: { ...headers, 'x-session-token': sessionToken } });
+            result = history.data.data.items[0];
+            if (result && result.status === 2) break;
         }
 
-        if (!res || !res.ok) {
-            return reply(`🍂 * Server API tidak merespon. (Coba lagi nanti)*`);
-        }
+        if (!result || result.status !== 2) throw new Error("Processing failed or timeout.");
 
-        const json = await res.json();
-        const data = json?.result;
+        const finalImageUrl = result.result_urls.find(u => !u.is_input).hd;
 
-        if (!data || !Array.isArray(data.medias)) {
-            return reply(`🍂 *Media tidak ditemukan.*`);
-        }
+        // 6. Send Result
+        await conn.sendMessage(from, {
+            image: { url: finalImageUrl },
+            caption: `🎨 *AI TRANSFORMATION DONE*\n\n📝 *Prompt:* ${q}\n🛠 *Model:* NanoBanana\n\n> © PROVA-MD ❤️`
+        }, { quoted: m });
 
-        const caption = `*AIO DOWNLOADER BY PROVA-MD*\n\n` +
-            `*Source:* ${data.source || '-'}\n` +
-            `*Author:* ${data.author || data.owner?.username || '-'}\n` +
-            `*Title:* ${data.title ? data.title.trim() : '-'}\n` +
-            `*URL:* ${text}\n\n` +
-            `> © Powered by Gemini AI ❤️`;
-
-        const medias = data.medias.filter(v => v.url);
-        const images = medias.filter(v => v.type === 'image');
-
-        // Video selection logic
-        let video = medias.find(v =>
-            v.type === 'video' &&
-            (v.quality === 'no_watermark' || v.quality === 'hd_no_watermark')
-        );
-        if (!video) video = medias.find(v => v.type === 'video');
-
-        let audio = medias.find(v => v.type === 'audio');
-
-        // Sending Media
-        if (images.length > 0) {
-            for (let i = 0; i < images.length; i++) {
-                await conn.sendMessage(from, {
-                    image: { url: images[i].url },
-                    caption: i === 0 ? caption : ''
-                }, { quoted: m });
-            }
-        }
-
-        if (video) {
-            await conn.sendMessage(from, {
-                video: { url: video.url },
-                caption: caption,
-                mimetype: 'video/mp4'
-            }, { quoted: m });
-        } else if (audio) {
-            try {
-                await conn.sendMessage(from, {
-                    audio: { url: audio.url },
-                    mimetype: 'audio/mpeg',
-                    ptt: false
-                }, { quoted: m });
-            } catch (e) {
-                const audioRes = await fetch(audio.url);
-                const buffer = Buffer.from(await audioRes.arrayBuffer());
-                const type = await fileTypeFromBuffer(buffer);
-                await conn.sendMessage(from, {
-                    audio: buffer,
-                    mimetype: type?.mime || 'audio/mpeg',
-                    ptt: false
-                }, { quoted: m });
-            }
-        }
-
-        if (!video && images.length === 0 && !audio) {
-            await reply(caption);
-        }
-
+        fs.unlinkSync(tempPath);
         if (msgKey) await conn.sendMessage(from, { react: { text: '✅', key: msgKey } });
 
     } catch (e) {
         console.error(e);
-        reply(`🍂 *Terjadi kesalahan saat memproses URL.*`);
-        if (msgKey) await conn.sendMessage(from, { react: { text: '❌', key: msgKey } });
+        reply(`❌ *Failed:* ${e.message}`);
     }
 });
-    
+                                       
