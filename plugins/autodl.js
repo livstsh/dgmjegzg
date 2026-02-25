@@ -1,102 +1,115 @@
 const { cmd } = require('../command');
-const axios = require('axios');
-const FormData = require('form-data');
 const fetch = require('node-fetch');
-const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
+const { fileTypeFromBuffer } = require('file-type');
 
-// --- Configuration ---
-const TERMAI_API_KEY = "AIzaBj7z2z3xBjsk";
-const TERMAI_API_URL = "https://c.termai.cc/api/upload";
-
-/**
- * Helper: Upload buffer to Termai Storage
- */
-async function uploadToTermai(buffer, mimeType, fileName) {
-    try {
-        const form = new FormData();
-        form.append("file", buffer, { filename: fileName, contentType: mimeType });
-
-        const response = await fetch(`${TERMAI_API_URL}?key=${TERMAI_API_KEY}`, {
-            method: "POST",
-            body: form,
-            headers: form.getHeaders()
-        });
-
-        const json = await response.json();
-        if (json.status && json.path) {
-            return json.path.startsWith('http') ? json.path : `https://c.termai.cc${json.path}`;
-        }
-        throw new Error("Path not found in response");
-    } catch (e) {
-        throw new Error(`Upload Failed: ${e.message}`);
-    }
-}
-
-// --- Main Command ---
 cmd({
-    pattern: "grokvideo",
-    alias: ["ai-video", "grokvid"],
-    react: "🎬",
-    desc: "Generate AI video from an image using Grok AI",
-    category: "ai",
-    use: ".grokvideo <reply/caption image + prompt>",
+    pattern: "aio",
+    alias: ["dl", "aiodl"],
+    react: "📥",
+    desc: "All-in-one downloader for Instagram, TikTok, etc.",
+    category: "downloader",
+    use: ".aio <link>",
     filename: __filename
-}, async (conn, mek, m, { from, reply, q, config }) => {
+}, async (conn, mek, m, { from, reply, text, usedPrefix, command }) => {
+    // FIX 1: Safe Message Key to prevent "undefined reading key" crash
+    const msgKey = (m && m.key) ? m.key : (mek && mek.key ? mek.key : null);
+
     try {
-        // Validation: Text check
-        if (!q) return reply("🎬 *GROK AI VIDEO GENERATOR*\n\nKirim/Reply gambar dengan caption:\n.grokvideo Anime girl running in rain");
+        if (!text) return reply(`*Contoh: ${usedPrefix + command} https://instagram.com/...*`);
 
-        // Media Detection
-        const quoted = m.quoted ? m.quoted : m;
-        const mime = (quoted.msg || quoted).mimetype || "";
-        
-        if (!mime.startsWith("image/")) return reply("❌ Please reply to or send an image with this command!");
+        if (msgKey) await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
 
-        await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
-        const waitMsg = await reply("🎬 *Processing...*\n\n📤 Uploading image to AI server...");
+        const api = `https://api.apocalypse.web.id/download/aio?url=${encodeURIComponent(text)}`;
 
-        // Download Image Buffer
-        const stream = await downloadContentFromMessage(quoted.msg || quoted, "image");
-        let buffer = Buffer.from([]);
-        for await (const chunk of stream) {
-            buffer = Buffer.concat([buffer, chunk]);
+        let res;
+        let attempts = 0;
+        const maxAttempts = 3;
+
+        // Retry logic
+        while (attempts < maxAttempts) {
+            try {
+                res = await fetch(api);
+                if (res.ok) break;
+            } catch (e) {}
+            attempts++;
+            if (attempts < maxAttempts) await new Promise(r => setTimeout(r, 1000));
         }
 
-        // Upload to Termai
-        const fileName = `grok-${Date.now()}.jpg`;
-        const imageUrl = await uploadToTermai(buffer, mime, fileName);
+        if (!res || !res.ok) {
+            return reply(`🍂 * Server API tidak merespon. (Coba lagi nanti)*`);
+        }
 
-        // Edit waiting message
-        await conn.sendMessage(from, { 
-            text: `✅ *Image Uploaded!*\n🔄 Generating Video (2-5 mins)...\n📝 *Prompt:* ${q}`, 
-            edit: waitMsg.key 
-        });
+        const json = await res.json();
+        const data = json?.result;
 
-        // Request to DyySilence API (Using your provided URL/Key)
-        const dyyKey = "dyy"; // Default key as per your snippet
-        const fullUrl = `https://api.dyysilence.biz.id/api/ai-video/grokai`;
+        if (!data || !Array.isArray(data.medias)) {
+            return reply(`🍂 *Media tidak ditemukan.*`);
+        }
 
-        const response = await axios.get(fullUrl, {
-            params: { url: imageUrl, prompt: q, apikey: dyyKey },
-            timeout: 300000 // 5 minutes
-        });
+        const caption = `*AIO DOWNLOADER BY PROVA-MD*\n\n` +
+            `*Source:* ${data.source || '-'}\n` +
+            `*Author:* ${data.author || data.owner?.username || '-'}\n` +
+            `*Title:* ${data.title ? data.title.trim() : '-'}\n` +
+            `*URL:* ${text}\n\n` +
+            `> © Powered by Gemini AI ❤️`;
 
-        const resultUrl = response.data.result_url || response.data.url || response.data.data?.url;
+        const medias = data.medias.filter(v => v.url);
+        const images = medias.filter(v => v.type === 'image');
 
-        if (!resultUrl) throw new Error("AI Server did not return a video link.");
+        // Video selection logic
+        let video = medias.find(v =>
+            v.type === 'video' &&
+            (v.quality === 'no_watermark' || v.quality === 'hd_no_watermark')
+        );
+        if (!video) video = medias.find(v => v.type === 'video');
 
-        // Send Final Video
-        await conn.sendMessage(from, {
-            video: { url: resultUrl },
-            caption: `🎬 *GROK AI VIDEO DONE*\n\n📝 *Prompt:* ${q}\n⏱️ Durasi: ~5s\n\n> © PROVA-MD ❤️`,
-            mimetype: 'video/mp4'
-        }, { quoted: mek });
+        let audio = medias.find(v => v.type === 'audio');
 
-        await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
+        // Sending Media
+        if (images.length > 0) {
+            for (let i = 0; i < images.length; i++) {
+                await conn.sendMessage(from, {
+                    image: { url: images[i].url },
+                    caption: i === 0 ? caption : ''
+                }, { quoted: m });
+            }
+        }
+
+        if (video) {
+            await conn.sendMessage(from, {
+                video: { url: video.url },
+                caption: caption,
+                mimetype: 'video/mp4'
+            }, { quoted: m });
+        } else if (audio) {
+            try {
+                await conn.sendMessage(from, {
+                    audio: { url: audio.url },
+                    mimetype: 'audio/mpeg',
+                    ptt: false
+                }, { quoted: m });
+            } catch (e) {
+                const audioRes = await fetch(audio.url);
+                const buffer = Buffer.from(await audioRes.arrayBuffer());
+                const type = await fileTypeFromBuffer(buffer);
+                await conn.sendMessage(from, {
+                    audio: buffer,
+                    mimetype: type?.mime || 'audio/mpeg',
+                    ptt: false
+                }, { quoted: m });
+            }
+        }
+
+        if (!video && images.length === 0 && !audio) {
+            await reply(caption);
+        }
+
+        if (msgKey) await conn.sendMessage(from, { react: { text: '✅', key: msgKey } });
 
     } catch (e) {
         console.error(e);
-        const errType = e.message.includes("timeout") ? "⏱️ Timeout! Server busy." : `❌ Error: ${e.message}`;
-        reply(errType);
+        reply(`🍂 *Terjadi kesalahan saat memproses URL.*`);
+        if (msgKey) await conn.sendMessage(from, { react: { text: '❌', key: msgKey } });
     }
 });
+    
