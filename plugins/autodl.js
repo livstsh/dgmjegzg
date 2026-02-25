@@ -48,7 +48,7 @@ async function getPixWithSession() {
 // --- Main Command ---
 cmd({
     pattern: "pixwith",
-    alias: ["img2img", "editai"],
+    alias: ["reimage", "editai"],
     react: "🎨",
     desc: "AI Image to Image transformation",
     category: "ai",
