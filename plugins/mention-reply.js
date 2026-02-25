@@ -72,7 +72,7 @@ async function getAuth() {
 // --- Command Handler ---
 cmd({
     pattern: "editimg",
-    alias: ["nanana", "reimage"],
+    alias: ["nanana", "reimage3"],
     react: "🪄",
     desc: "Edit image using AI prompt (Nanana AI)",
     category: "ai",
