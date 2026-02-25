@@ -2,7 +2,7 @@ const { cmd } = require('../command');
 const axios = require('axios');
 
 cmd({
-    pattern: "ping5",
+    pattern: "ping",
     alias: ["speed3", "latency7"],
     react: "⚡",
     desc: "Check bot and API response speed",
@@ -25,8 +25,8 @@ cmd({
         let caption = `⚡ *PROVA-MD SPEED* ⚡\n\n`;
         caption += `🚀 *Latency:* ${pingTime}ms\n`;
         caption += `📡 *API Status:* ${apiStatus}\n`;
-        caption += `🛰️ *Server:* NeoApis Public\n\n`;
-        caption += `> © Powered by Gemini AI ❤️`;
+        caption += `🛰️ *Server:* DR KAMRAN Public\n\n`;
+        caption += `> © Powered by DR KAMRAN ❤️`;
 
         await conn.sendMessage(from, { text: caption }, { quoted: m });
 
