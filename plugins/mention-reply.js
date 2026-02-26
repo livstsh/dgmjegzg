@@ -4,7 +4,6 @@ const axios = require('axios');
 const crypto = require('crypto');
 const FormData = require('form-data');
 const fs = require('fs');
-const path = require('path');
 
 // --- Helper: Upload to Catbox ---
 async function uploadToCatbox(imagePath) {
@@ -61,7 +60,7 @@ async function noteGptAnswer(imagePath, prompt = "Explain this image in detail."
                 }
             }
         });
-        response.data.on('error', reject);
+        response.data.on('error', (err) => reject(err));
         response.data.on('end', () => fullText ? resolve(fullText) : reject(new Error('No data received')));
     });
 }
@@ -76,19 +75,23 @@ cmd({
     use: ".scan <reply image + question>",
     filename: __filename
 }, async (conn, mek, m, { from, reply, q }) => {
-    // FIX: Safe Key to prevent the 'undefined reading key' error
-    const msgKey = (m && m.key) ? m.key : (mek && mek.key ? mek.key : null);
+    // FIX 1: Ultimate Safe Key detection
+    const msgKey = m?.key || mek?.key || null;
     
     try {
-        const quoted = m.quoted ? m.quoted : (m.message?.extendedTextMessage?.contextInfo?.quotedMessage ? m.message.extendedTextMessage.contextInfo.quotedMessage : m);
-        const mime = (m.quoted ? m.quoted.mimetype : m.mimetype) || (quoted.imageMessage ? "image/jpeg" : "");
+        // Safe Media Detection
+        const quoted = m.quoted ? m.quoted : (m.message?.extendedTextMessage?.contextInfo?.quotedMessage || m.message?.imageMessage || m);
+        const mime = (m.quoted ? m.quoted.mimetype : m.mimetype) || (quoted.mimetype) || "";
 
-        if (!mime || !mime.includes("image")) return reply("❌ Please reply to an image to scan!");
+        if (!mime.includes("image")) return reply("❌ Please reply to an image to scan!");
 
+        // Step 1: React
         if (msgKey) await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
-        const waitMsg = await reply("🔍 *Scanning image... please wait.*");
+        
+        // Step 2: Send Loading Message (Stored in variable)
+        const waitMsg = await conn.sendMessage(from, { text: "🔍 *Scanning image... please wait.*" }, { quoted: m });
 
-        // Download Image
+        // Step 3: Download Media
         const stream = await downloadContentFromMessage(m.quoted ? m.quoted : m.message.imageMessage, "image");
         let buffer = Buffer.from([]);
         for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
@@ -96,23 +99,28 @@ cmd({
         const tempPath = `./scan_${Date.now()}.jpg`;
         fs.writeFileSync(tempPath, buffer);
 
-        // Get AI Answer
+        // Step 4: Get AI Answer
         const aiResponse = await noteGptAnswer(tempPath, q || "What is in this image?");
 
-        // Send Result
-        await conn.sendMessage(from, { 
-            text: `🔍 *IMAGE ANALYSIS*\n\n${aiResponse}\n\n> © PROVA MD ❤️`,
-            edit: waitMsg.key 
-        });
+        // Step 5: Send/Edit Result (With safety check for waitMsg.key)
+        if (waitMsg && waitMsg.key) {
+            await conn.sendMessage(from, { 
+                text: `🔍 *IMAGE ANALYSIS*\n\n${aiResponse}\n\n> © PROVA MD ❤️`,
+                edit: waitMsg.key 
+            });
+        } else {
+            await reply(`🔍 *IMAGE ANALYSIS*\n\n${aiResponse}\n\n> © PROVA MD ❤️`);
+        }
 
         // Cleanup
         if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
         if (msgKey) await conn.sendMessage(from, { react: { text: '✅', key: msgKey } });
 
     } catch (e) {
-        console.error(e);
-        reply(`❌ *Analysis Failed:* ${e.message}`);
+        console.error("Scan Command Error:", e);
+        // Direct reply in case of failure to avoid 'key' issues
+        await conn.sendMessage(from, { text: `❌ *Analysis Failed:* ${e.message}` }, { quoted: m });
         if (msgKey) await conn.sendMessage(from, { react: { text: '❌', key: msgKey } });
     }
 });
-            
+                                                   
