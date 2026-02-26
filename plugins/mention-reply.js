@@ -66,7 +66,7 @@ async function noteGptAnswer(imagePath, prompt = "Explain this image in detail."
     });
 }
 
-// --- WHITESHADOW-MD Command ---
+// --- PROVA-MD Command ---
 cmd({
     pattern: "scan",
     alias: ["identify", "whatis"],
