@@ -79,7 +79,7 @@ ${translatedTafsirEnglish.text}`;
       await conn.sendMessage(from, {
         audio: { url: json.data.recitation.full },
         mimetype: 'audio/mpeg',  
-        ptt: true
+        ptt: false
       }, { quoted: mek });
     }
 
