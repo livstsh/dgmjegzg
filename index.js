@@ -195,67 +195,43 @@ const port = process.env.PORT || 9090;
 
 
   //============================== 
-//=============readstatus=======
 
-conn.ev.on('messages.upsert', async(mek) => {
-mek = mek.messages[0]
-if (!mek.message) return
-mek.message = (getContentType(mek.message) === 'ephemeralMessage')
-? mek.message.ephemeralMessage.message
-: mek.message;
-console.log("New Message Detected:", JSON.stringify(mek, null, 2));
-if (config.READ_MESSAGE === 'true') {
-await conn.readMessages([mek.key]);  // Mark message as read
-console.log(Marked message from ${mek.key.remoteJid} as read.);
-}
-if(mek.message.viewOnceMessageV2)
-mek.message = (getContentType(mek.message) === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message
-if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_SEEN === "true"){
-await conn.readMessages([mek.key])
-}
-if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_REACT === "true"){
-const jawadlike = await conn.decodeJid(conn.user.id);
-const emojis = ['❤️', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👀', '🙌', '🙆', '🚩', '🥰', '💐', '😎', '🤎', '✅', '🫀', '🧡', '😁', '😄', '🌸', '🕊️', '🌷', '⛅', '🌟', '🗿', '🇵🇰', '💜', '💙', '🌝', '🖤', '💚'];
-const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-await conn.sendMessage(mek.key.remoteJid, {
-react: {
-text: randomEmoji,
-key: mek.key,
-}
-}, { statusJidList: [mek.key.participant] });
-}
-if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_REPLY === "true"){
-const user = mek.key.participant
-const text = ${config.AUTO_STATUS_MSG}
-await conn.sendMessage(user, { text: text, react: { text: '💜', key: mek.key } }, { quoted: mek })
-}
-
-Yah react nahin de rahi ismein kya changing Karen official wali baileys hai
   conn.ev.on("group-participants.update", (update) => GroupEvents(conn, update));	  
 	  
-  // ================= STATUS SYSTEM =================
-
-conn.ev.on('messages.upsert', async ({ messages }) => {
-  try {
-    const mek = messages[0];
-    if (!mek || !mek.message) return;
-
-    // Handle Ephemeral
-    if (mek.message?.ephemeralMessage) {
-      mek.message = mek.message.ephemeralMessage.message;
+  //=============readstatus=======
+        
+  conn.ev.on('messages.upsert', async(mek) => {
+    mek = mek.messages[0]
+    if (!mek.message) return
+    mek.message = (getContentType(mek.message) === 'ephemeralMessage') 
+    ? mek.message.ephemeralMessage.message 
+    : mek.message;
+    console.log("New Message Detected:", JSON.stringify(mek, null, 2));
+  if (config.READ_MESSAGE === 'true') {
+    await conn.readMessages([mek.key]);  // Mark message as read
+    console.log(`Marked message from ${mek.key.remoteJid} as read.`);
+  }
+    if(mek.message.viewOnceMessageV2)
+    mek.message = (getContentType(mek.message) === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message
+    if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_SEEN === "true"){
+      await conn.readMessages([mek.key])
     }
-
-    // Handle ViewOnce
-    if (mek.message?.viewOnceMessageV2) {
-      mek.message = mek.message.viewOnceMessageV2.message;
-    }
-
-    // Only For Status
-    if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-
-      console.log("✅ Status Detected");
-
-
+  if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_REACT === "true"){
+    const jawadlike = await conn.decodeJid(conn.user.id);
+    const emojis = ['❤️', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👀', '🙌', '🙆', '🚩', '🥰', '💐', '😎', '🤎', '✅', '🫀', '🧡', '😁', '😄', '🌸', '🕊️', '🌷', '⛅', '🌟', '🗿', '🇵🇰', '💜', '💙', '🌝', '🖤', '💚'];
+    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+    await conn.sendMessage(mek.key.remoteJid, {
+      react: {
+        text: randomEmoji,
+        key: mek.key,
+      } 
+    }, { statusJidList: [mek.key.participant] });
+  }                       
+  if (mek.key && mek.key.remoteJid === 'status@broadcast' && config.AUTO_STATUS_REPLY === "true"){
+  const user = mek.key.participant
+  const text = `${config.AUTO_STATUS_MSG}`
+  await conn.sendMessage(user, { text: text, react: { text: '💜', key: mek.key } }, { quoted: mek })
+            }
             await Promise.all([
               saveMessage(mek),
             ]);
