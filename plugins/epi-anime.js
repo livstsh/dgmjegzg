@@ -1,131 +1,53 @@
 const { cmd } = require('../command');
 const axios = require('axios');
-const cheerio = require('cheerio');
 
-const BASE = 'https://oploverz.ch';
-
-// Optimized Axios Instance
-const http = axios.create({
-    baseURL: BASE,
-    timeout: 25000,
-    headers: { 
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
-    }
-});
-
-const abs = (href) => href && (href.startsWith('http') ? href : BASE + (href.startsWith('/') ? '' : '/') + href);
-
-// --- SEARCH COMMAND ---
 cmd({
-    pattern: "oplo",
-    alias: ["anime", "oploverz"],
-    react: "📺",
-    desc: "Search anime from Oploverz.",
+    pattern: "media",
+    alias: ["video5", "yt2", "fb7", "ig4"],
+    react: "📥",
+    desc: "Download media from various social platforms.",
     category: "download",
-    use: ".oplo naruto",
+    use: ".media <url>",
     filename: __filename
 }, async (conn, mek, m, { from, reply, text }) => {
+    
+    // SAFE KEY: Crash rokne ke liye
     const msgKey = m?.key || mek?.key || null;
 
     try {
-        if (!text) return reply("🔍 Please provide an anime name!\nExample: .oplo one piece");
+        if (!text) return reply("🔗 Please provide a social media link (YouTube/FB/IG)!");
 
         if (msgKey) await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
         
-        // Step 1: Send Wait Message
-        const waitMsg = await conn.sendMessage(from, { text: "📺 *Searching Oploverz...*" }, { quoted: m });
+        // Step 1: Loading Message
+        const waitMsg = await conn.sendMessage(from, { text: "🔄 *Fetching media info from Movanest...*" }, { quoted: m });
 
-        const res = await http.get(`/?s=${encodeURIComponent(text)}`);
-        const $ = cheerio.load(res.data);
-        const results = [];
+        // Note: Direct API of movanest is needed here. 
+        // For now, using a general scraper logic as per site structure
+        const apiUrl = `https://api.movanest.xyz/download?url=${encodeURIComponent(text)}`;
+        const res = await axios.get(apiUrl).catch(() => null);
 
-        $('article.bs').each((_, el) => {
-            const title = $(el).find('h2').text().trim();
-            const link = abs($(el).find('a').attr('href'));
-            const eps = $(el).find('.epx').text().trim() || 'N/A';
-            if (title && link) results.push({ title, link, eps });
-        });
+        if (!res || !res.data || res.data.status !== 'success') {
+            throw new Error("Could not fetch media. Please check the URL or try again later.");
+        }
 
-        if (results.length === 0) throw new Error("Anime not found. Try another keyword.");
+        const media = res.data.result;
+        let resultMsg = `📥 *MEDIA DOWNLOADER*\n\n`;
+        resultMsg += `📝 *Title:* ${media.title || "N/A"}\n`;
+        resultMsg += `🎥 *Quality:* ${media.quality || "720p"}\n\n`;
+        resultMsg += `🔗 *Download Link:* ${media.download_url}\n\n`;
+        resultMsg += `> © PROVA MD ❤️`;
 
-        let resultMsg = `📺 *OPLOVERZ SEARCH RESULTS*\n\n`;
-        results.slice(0, 10).forEach((v, i) => {
-            resultMsg += `*${i + 1}. ${v.title}*\n   ✨ Eps: ${v.eps}\n   🔗 ${v.link}\n\n`;
-        });
-        resultMsg += `\n> Use *.oplodl <link>* to get downloads.\n> © PROVA MD ❤️`;
-
-        // SAFE EDIT
+        // Safe Edit
         if (waitMsg && waitMsg.key) {
             await conn.sendMessage(from, { text: resultMsg, edit: waitMsg.key });
         } else {
             await reply(resultMsg);
         }
 
-        if (msgKey) await conn.sendMessage(from, { react: { text: '✅', key: msgKey } });
-
-    } catch (e) {
-        console.error(e);
-        reply(`❌ *Search Failed:* ${e.message}`);
-        if (msgKey) await conn.sendMessage(from, { react: { text: '❌', key: msgKey } });
-    }
-});
-
-// --- DOWNLOAD COMMAND ---
-cmd({
-    pattern: "oplodl",
-    react: "📥",
-    desc: "Extract download links from Oploverz.",
-    category: "download",
-    use: ".oplodl <url>",
-    filename: __filename
-}, async (conn, mek, m, { from, reply, text }) => {
-    const msgKey = m?.key || mek?.key || null;
-    try {
-        if (!text || !text.includes('oploverz.ch')) return reply("🔗 Invalid link! Please provide an Oploverz URL.");
-
-        if (msgKey) await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
-        const waitMsg = await conn.sendMessage(from, { text: "📥 *Extracting Links...*" }, { quoted: m });
-
-        const res = await http.get(text);
-        const $ = cheerio.load(res.data);
-        const title = $('h1.entry-title').text().trim() || 'Anime Download';
-        
-        let dlMsg = `📥 *DOWNLOAD LINKS:* ${title}\n\n`;
-        let found = false;
-
-        // Try different selectors for better link extraction
-        $('.soraddlx, .sora_load, .dl-block').each((_, block) => {
-            const quality = $(block).find('.resolutiontext, strong').first().text().trim() || "HD";
-            dlMsg += `*Quality: ${quality}*\n`;
-            
-            $(block).find('a').each((__, a) => {
-                const srv = $(a).text().trim() || "Server";
-                const link = $(a).attr('href');
-                if (link && link.startsWith('http')) {
-                    dlMsg += `  ▸ ${srv}: ${link}\n`;
-                    found = true;
-                }
-            });
-            dlMsg += `\n`;
-        });
-
-        if (!found) {
-            // Fallback for single links
-            $('.dllink a').each((_, a) => {
-                dlMsg += `▸ ${$(a).text().trim()}: ${$(a).attr('href')}\n`;
-                found = true;
-            });
-        }
-
-        if (!found) throw new Error("No download links found on this page.");
-
-        dlMsg += `\n> © PROVA MD ❤️`;
-
-        if (waitMsg && waitMsg.key) {
-            await conn.sendMessage(from, { text: dlMsg, edit: waitMsg.key });
-        } else {
-            await reply(dlMsg);
+        // Optional: Send the file directly if size is small
+        if (media.download_url) {
+            await conn.sendMessage(from, { video: { url: media.download_url }, caption: media.title }, { quoted: m });
         }
 
         if (msgKey) await conn.sendMessage(from, { react: { text: '✅', key: msgKey } });
@@ -135,4 +57,4 @@ cmd({
         if (msgKey) await conn.sendMessage(from, { react: { text: '❌', key: msgKey } });
     }
 });
-    
+            
