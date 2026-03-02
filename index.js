@@ -157,14 +157,22 @@ const port = process.env.PORT || 9090;
   conn.ev.on('creds.update', saveCreds)
 //============================== 
 
-  conn.ev.on('messages.update', async updates => {
+  conn.ev.on('messages.update', async (updates) => {
     for (const update of updates) {
-      if (update.update.message === null) {
-        console.log("Delete Detected:", JSON.stringify(update, null, 2));
-        await AntiDelete(conn, updates);
-      }
+        // 1. Agar message DELETE hua hai (message null hota hai)
+        if (update.update.message === null) {
+            console.log("🗑️ Delete Detected");
+            await AntiDelete(conn, updates);
+        } 
+        
+        // 2. Agar message EDIT hua hai (editedMessage property milti hai)
+        else if (update.update.editedMessage) {
+            console.log("📝 Edit Detected");
+            await AntiEdit(conn, updates);
+        }
     }
-  });
+});
+
 
   // Anti Call
   conn.ev.on("call", async (json) => {
