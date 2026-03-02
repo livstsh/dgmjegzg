@@ -1,73 +1,57 @@
-const axios = require('axios');
 const { cmd } = require('../command');
+const axios = require('axios');
 
-// --- Helper Function for GPT-4 API ---
-async function fetchGPT4(prompt) {
-    const modelData = {
-        api: 'https://stablediffusion.fr/gpt4/predict2',
-        referer: 'https://stablediffusion.fr/chatgpt4'
-    };
-
-    // Pehle referer page se cookies lene ke liye GET request
-    const hmm = await axios.get(modelData.referer);
-    const cookies = hmm.headers['set-cookie'] ? hmm.headers['set-cookie'].join('; ') : '';
-
-    const { data } = await axios.post(modelData.api, { prompt }, {
-        headers: {
-            'accept': '*/*',
-            'content-type': 'application/json',
-            'origin': 'https://stablediffusion.fr',
-            'referer': modelData.referer,
-            'cookie': cookies,
-            'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Mobile Safari/537.36'
-        }
-    });
-
-    return data.message;
-}
-
-// --- Bot Command ---
 cmd({
     pattern: "ai",
-    alias: ["gpt4", "chatgpt"],
-    react: "✨",
-    desc: "Chat with GPT-4 AI.",
+    alias: ["blackbox", "chatgpt", "ask"],
+    react: "🧠",
+    desc: "Ask anything from AI (Blackbox v4).",
     category: "ai",
+    use: ".ai what is javascript?",
     filename: __filename
-},           
-async (conn, mek, m, { from, q, reply }) => {
+}, async (conn, mek, m, { from, reply, text }) => {
+    
+    // SAFE KEY: Crash rokne ke liye
+    const msgKey = m?.key || mek?.key || null;
+
     try {
-        if (!q) return reply("Contoh penggunaan: .gpt Apa itu machine learning?");
+        if (!text) return reply("❓ Please provide a question!\nExample: .ai write a short poem.");
 
-        // Initial reaction and message
-        await reply("✨ *Processing your request...*");
+        if (msgKey) await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
+        
+        // Step 1: Send Loading Message
+        let waitMsg = await conn.sendMessage(from, { text: "🔍 *AI is thinking...*" }, { quoted: m });
 
-        // Fetch response from GPT API
-        const content = await fetchGPT4(q);
+        // Step 2: API Call (Using Blackbox v4 as it's usually faster)
+        const apiUrl = `https://arslan-apis.vercel.app/ai/blackboxv4?q=${encodeURIComponent(text)}`;
+        const res = await axios.get(apiUrl, { timeout: 30000 });
 
-        // Success reply with Ad-Reply style and branding
-        await conn.sendMessage(from, {
-            text: `*✦ GPT-4 AI RESPONSE ✦*\n\n${content}\n\n*© ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ*`,
-            contextInfo: {
-                externalAdReply: {
-                    title: 'GPT-4 CHAT ASSISTANT',
-                    body: 'Powered by ᴘʀᴏᴠᴀ-ᴍᴅ',
-                    mediaType: 1,
-                    thumbnailUrl: 'https://files.catbox.moe/4rnbtb.jpg',
-                    sourceUrl: 'https://github.com/KAMRAN-SMD', // Aapka link yahan aa sakta hai
-                    renderLargerThumbnail: true,
-                    showAdAttribution: true
-                }
-            }
-        }, { quoted: mek });
+        if (!res.data || !res.data.status) {
+            // Fallback to Blackbox v1 if v4 fails
+            const fallbackUrl = `https://arslan-apis.vercel.app/ai/blackbox?q=${encodeURIComponent(text)}`;
+            const fallbackRes = await axios.get(fallbackUrl);
+            if (!fallbackRes.data?.status) throw new Error("AI service is currently unavailable.");
+            
+            var aiResponse = fallbackRes.data.result;
+        } else {
+            var aiResponse = res.data.result;
+        }
 
-        // Update reaction to Success
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+        let resultMsg = `🤖 *AI RESPONSE (Blackbox)*\n\n${aiResponse}\n\n> © ᴘʀᴏᴠᴀ-ᴍᴅ ❤️`;
+
+        // Step 3: SAFE EDIT Logic
+        if (waitMsg && waitMsg.key) {
+            await conn.sendMessage(from, { text: resultMsg, edit: waitMsg.key });
+        } else {
+            await reply(resultMsg);
+        }
+
+        if (msgKey) await conn.sendMessage(from, { react: { text: '✅', key: msgKey } });
 
     } catch (e) {
-        console.error("GPT-4 Error:", e);
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-        reply(`❌ *Gagal mengambil respons:* ${e.message || e}`);
+        console.error("AI Error:", e);
+        reply(`❌ *AI Error:* ${e.message || "Failed to get response."}`);
+        if (msgKey) await conn.sendMessage(from, { react: { text: '❌', key: msgKey } });
     }
 });
-                      
+        
