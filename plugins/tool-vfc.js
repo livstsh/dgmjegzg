@@ -1,51 +1,80 @@
-const fs = require('fs');
-const config = require('../config')
-const { cmd, commands } = require('../command')
-const { getBuffer, getGroupAdmins, getRandom, h2k, isUrl, Json, runtime, sleep, fetchJson} = require('../lib/functions')
-
-
-
-//vcf//
+const { cmd } = require('../command');
+const axios = require('axios');
 
 cmd({
-    pattern: 'savecontact',
-    alias: ["vcf","scontact","savecontacts"],
-    desc: 'gc vcard',
-    category: 'tools',
+    pattern: "cekimei",
+    alias: ["imeicheck", "imei"],
+    react: "📱",
+    desc: "Check mobile IMEI details.",
+    category: "tools",
+    use: ".cekimei 35461XXXXXXXXXX",
     filename: __filename
-}, async (conn, mek, m, { from, quoted, body, isCmd, command, args, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply }) => {
-    try {
-        if (!isGroup) return reply("This command is for groups only.");
-        if (!isOwner) return reply("*_This command is for the owner only_*");
+}, async (conn, mek, m, { from, reply, text }) => {
+    
+    // SAFE KEY: Crash rokne ke liye
+    const msgKey = m?.key || mek?.key || null;
 
-        let card = quoted || m; // Handle if quoted message exists
-        let cmiggc = groupMetadata;
-        const { participants } = groupMetadata;
-        
-        let orgiggc = participants.map(a => a.id);
-        let vcard = '';
-        let noPort = 0;
-        
-        for (let a of cmiggc.participants) {
-            vcard += `BEGIN:VCARD\nVERSION:3.0\nFN:[${noPort++}] +${a.id.split("@")[0]}\nTEL;type=CELL;type=VOICE;waid=${a.id.split("@")[0]}:+${a.id.split("@")[0]}\nEND:VCARD\n`;
+    try {
+        if (!text) return reply("🔍 Please provide a 14-16 digit IMEI number!\nExample: .cekimei 354610000000000");
+
+        // Validation for 14-16 digits
+        if (!/^\d{14,16}$/.test(text)) {
+            return reply("❌ *Invalid IMEI.* Enter 14–16 digits without spaces.");
         }
 
-        let nmfilect = './contacts.vcf';
-        reply('Saving ' + cmiggc.participants.length + ' participants contact');
+        if (msgKey) await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
+        
+        // Step 1: Loading Message
+        let waitMsg = await conn.sendMessage(from, { text: "🔄 *Fetching IMEI details from API...*" }, { quoted: m });
 
-        fs.writeFileSync(nmfilect, vcard.trim());
-        await sleep(2000);
+        const res = await axios.get(`https://api-varhad.my.id/tools/cekimei?q=${encodeURIComponent(text)}`);
+        const json = res.data;
 
-        await conn.sendMessage(from, {
-            document: fs.readFileSync(nmfilect), 
-            mimetype: 'text/vcard', 
-            fileName: 'Adeel-md.vcf', 
-            caption: `\nDone saving.\nGroup Name: *${cmiggc.subject}*\nContacts: *${cmiggc.participants.length}*\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ`}, { quoted: mek });
+        if (!json.status) throw new Error("Failed to fetch IMEI data from server.");
 
-        fs.unlinkSync(nmfilect); // Cleanup the file after sending
-    } catch (err) {
-        reply(err.toString());
+        const data = json.result?.result;
+        if (!data || !data.header) throw new Error("IMEI details not found.");
+
+        const { header, items = [] } = data;
+
+        let caption = `📱 *IMEI CHECK RESULT*\n\n`;
+        caption += `*Brand:* ${header.brand}\n`;
+        caption += `*Model:* ${header.model}\n`;
+        caption += `*IMEI:* ${header.imei}\n\n`;
+
+        // Parsing nested items from API
+        items.forEach(item => {
+            if (item.role === 'header') {
+                caption += `\n🔎 *${item.title}*\n`;
+            } else if (item.role === 'item' || item.role === 'button') {
+                caption += `• *${item.title}:* ${item.content}\n`;
+            } else if (item.role === 'group' && Array.isArray(item.items)) {
+                item.items.forEach(sub => {
+                    if (sub.role === 'button') caption += `• *${sub.title}:* ${sub.content}\n`;
+                });
+            }
+        });
+
+        caption += `\n*Status:* ${json.result.status}\n`;
+        caption += `\n> © ᴘʀᴏᴠᴀ-ᴍᴅ ❤️`;
+
+        // Step 2: Final Delivery (With Image or Text)
+        if (header.photo) {
+            await conn.sendMessage(from, { image: { url: header.photo }, caption }, { quoted: m });
+        } else {
+            if (waitMsg && waitMsg.key) {
+                await conn.sendMessage(from, { text: caption, edit: waitMsg.key });
+            } else {
+                await reply(caption);
+            }
+        }
+
+        if (msgKey) await conn.sendMessage(from, { react: { text: '✅', key: msgKey } });
+
+    } catch (e) {
+        console.error("IMEI Check Error:", e);
+        reply(`❌ *Error:* ${e.message || "Something went wrong."}`);
+        if (msgKey) await conn.sendMessage(from, { react: { text: '❌', key: msgKey } });
     }
 });
-
-
+        
