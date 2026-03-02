@@ -152,6 +152,7 @@ const port = process.env.PORT || 9090;
   
   let up = `*Hello there KAMRAN-MD User! \ud83d\udc4b\ud83c\udffb* \n\n> Simple , Straight Forward But Loaded With Features \ud83c\udf8a, Meet PROVA-MD WhatsApp Bot.\n\n *Thanks for using PROVA-MD \ud83d\udea9* \n\n> Join WhatsApp Channel :- ⤵️\n \nhttps://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O \n\n- *YOUR PREFIX:* = ${prefix}\n\nDont forget to give star to repo ⬇️\n\nhttps://github.com/PakTechX/PROVA-MD\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ ❣️ \ud83d\udda4`;
     conn.sendMessage(conn.user.id, { image: { url: `https://files.catbox.moe/e4za15.jpg` }, caption: up })
+	const BOT = conn.user.id.split(':')[0] + '@s.whatsapp.net';
   }
   })
   conn.ev.on('creds.update', saveCreds)
