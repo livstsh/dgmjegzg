@@ -1,48 +1,92 @@
-const axios = require("axios");
-const { cmd } = require("../command");
+const { cmd } = require('../command');
+const axios = require('axios');
 
 cmd({
-    pattern: "sora",
-    alias: ["soravideo", "txt2video", "genvid"],
-    desc: "Generate AI video from text prompt using Okatsu AI",
-    category: "ai",
-    react: "🎬",
+    pattern: "ipcheck",
+    alias: ["cekip", "ipinfo"],
+    react: "🌐",
+    desc: "Check detailed information about an IP address.",
+    category: "tools",
+    use: ".ipcheck 8.8.8.8",
     filename: __filename
-},
-async (conn, mek, m, { from, q, reply }) => {
+}, async (conn, mek, m, { from, reply, text }) => {
+    
+    // SAFE KEY: Crash rokne ke liye
+    const msgKey = m?.key || mek?.key || null;
+
     try {
-        // Get prompt from user message or quoted text
-        const rawText = q?.trim() ||
-            m?.message?.conversation?.trim() ||
-            m?.message?.extendedTextMessage?.text?.trim() ||
-            m?.message?.imageMessage?.caption?.trim() ||
-            m?.message?.videoMessage?.caption?.trim() || "";
+        if (!text) return reply("🔍 Please provide an IP address!\nExample: .ipcheck 36.83.91.230");
 
-        const quoted = m?.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-        const quotedText = quoted?.conversation || quoted?.extendedTextMessage?.text || "";
-        const input = rawText || quotedText;
+        if (msgKey) await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
+        
+        // Step 1: Loading Message
+        let waitMsg = await conn.sendMessage(from, { text: "📡 *Fetching IP data from IP2Location...*" }, { quoted: m });
 
-        if (!input) return reply("🧠 Provide a prompt.\n\nExample: *.sora anime girl with blue hair*");
-
-        // Call API
-        const apiUrl = `https://okatsu-rolezapiiz.vercel.app/ai/txt2video?text=${encodeURIComponent(input)}`;
-        const { data } = await axios.get(apiUrl, {
-            timeout: 60000,
-            headers: { "User-Agent": "Mozilla/5.0" }
+        const res = await axios.get(`https://www.ip2location.com/${encodeURIComponent(text)}`, {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            timeout: 15000 // Timeout handling
         });
 
-        const videoUrl = data?.videoUrl || data?.result || data?.data?.videoUrl;
-        if (!videoUrl) throw new Error("No videoUrl found in API response");
+        const html = res.data;
 
-        // Send generated video
-        await conn.sendMessage(from, {
-            video: { url: videoUrl },
-            mimetype: "video/mp4",
-            caption: `🎥 *AI Video Generated!*\n\n📝 *Prompt:* ${input}`
-        }, { quoted: mek });
+        // Scraper Helper Function
+        const extract = (label) => {
+            const regex = new RegExp(
+                `<strong>\\s*${label}[\\s\\S]*?<\\/strong>[\\s\\S]*?<td[^>]*>(.*?)<\\/td>`,
+                "i"
+            );
+            const match = html.match(regex);
+            return match ? match[1].replace(/<.*?>/g, "").trim() : "N/A";
+        };
 
-    } catch (error) {
-        console.error("[SORA CMD ERROR]", error?.message || error);
-        reply("❌ Failed to generate video. Try again later.");
+        const ipData = {
+            country: extract("Country"),
+            region: extract("Region"),
+            city: extract("City"),
+            coords: extract("Coordinates"),
+            isp: extract("ISP"),
+            domain: extract("Domain"),
+            asn: extract("ASN"),
+            time: extract("Local Time"),
+            zip: extract("ZIP Code")
+        };
+
+        if (ipData.country === "N/A" || !ipData.country) {
+            throw new Error("IP not valid or data not found on the server.");
+        }
+
+        const caption = `
+🌐 *IP INFORMATION*
+
+🔎 *IP:* ${text}
+🌍 *Country:* ${ipData.country}
+🗺 *Region:* ${ipData.region}
+🏙 *City:* ${ipData.city}
+📌 *Coordinates:* ${ipData.coords}
+
+📡 *ISP:* ${ipData.isp}
+🏢 *Domain:* ${ipData.domain}
+🧾 *ASN:* ${ipData.asn}
+⏰ *Local Time:* ${ipData.time}
+📮 *ZIP Code:* ${ipData.zip}
+
+> © ᴘʀᴏᴠᴀ-ᴍᴅ ❤️`.trim();
+
+        // Step 2: SAFE EDIT Logic
+        if (waitMsg && waitMsg.key) {
+            await conn.sendMessage(from, { text: caption, edit: waitMsg.key });
+        } else {
+            await reply(caption);
+        }
+
+        if (msgKey) await conn.sendMessage(from, { react: { text: '✅', key: msgKey } });
+
+    } catch (e) {
+        console.error("IP Check Error:", e);
+        reply(`❌ *Failed:* ${e.message}`);
+        if (msgKey) await conn.sendMessage(from, { react: { text: '❌', key: msgKey } });
     }
 });
+                    
