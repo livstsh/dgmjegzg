@@ -3,77 +3,75 @@ const axios = require('axios');
 const FormData = require('form-data');
 
 cmd({
-    pattern: "fakedev",
-    alias: ["fakedev1", "fakedev2", "fakedev3"],
-    react: "🎨",
-    desc: "Generate a fake developer profile image.",
-    category: "maker",
-    use: ".fakedev1 Name true (reply image)",
+    pattern: "hdvideo2",
+    alias: ["hdv2", "enhance2"],
+    react: "🎬",
+    desc: "Enhance video quality to HD/4K.",
+    category: "tools",
+    use: ".hdvideo 4k (reply video)",
     filename: __filename
-}, async (conn, mek, m, { from, reply, text, command, prefix }) => { // 'prefix' instead of 'usedPrefix'
+}, async (conn, mek, m, { from, reply, text, command, prefix }) => {
     
     const msgKey = m?.key || mek?.key || null;
 
     try {
-        // Menu showing if only .fakedev is typed or wrong params
-        if (command === 'fakedev' || (!text && !m.quoted)) {
-            const p = prefix || "."; // Default to dot if prefix is missing
-            return reply(`*🎨 FAKE DEV GENERATOR*\n\n*Usage:*\n${p}fakedev1 <name> <true/false>\n${p}fakedev2 <name>\n${p}fakedev3 <name> <true/false>\n\n*Note:* Reply to an image or provide a URL.`);
-        }
+        const q = m.quoted ? m.quoted : m;
+        const mime = (q.msg || q).mimetype || '';
+        const p = prefix || ".";
 
-        if (msgKey) await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
-        
-        let args = text ? text.trim().split(/\s+/) : [];
-        let name = args[0] || "Prova-MD";
-        let verified = (args[1] || 'false').toLowerCase();
-        let imageUrl = args[2] || null;
+        // Logic for extracting resolution and URL from text
+        const args = text ? text.trim().split(/\s+/) : [];
+        const urlArg = args.find(v => /^https?:\/\//i.test(v)) || "";
+        const resolusi = (args.find(v => /^(hd|full-hd|2k|4k)$/i.test(v)) || "hd").toLowerCase();
 
-        // Image Handling (Media Download & Upload)
-        if (!imageUrl) {
-            let q = m.quoted ? m.quoted : m;
-            let mime = (q.msg || q).mimetype || '';
+        let videoUrl = urlArg;
 
-            if (!/image/.test(mime)) return reply("📸 Please reply to an image or provide a direct image URL!");
+        if (!videoUrl) {
+            if (!/video/.test(mime)) {
+                return reply(`*🎬 HD VIDEO ENHANCER*\n\nReply to a *video* or provide a URL.\n\n*Usage:* ${p}${command} <resolusi>\n*Resolutions:* hd, full-hd, 2k, 4k`);
+            }
 
-            let media = await q.download();
+            if (msgKey) await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
+            let waitMsg = await conn.sendMessage(from, { text: "📥 *Downloading and uploading video...*" }, { quoted: m });
+
+            // Media Download
+            const buffer = await q.download();
             
-            // Upload to Uguu.se for temporary URL
-            let form = new FormData();
-            form.append('files[]', media, { filename: 'image.jpg' });
+            // Upload to Uguu.se
+            const form = new FormData();
+            form.append('files[]', buffer, { filename: 'video.mp4' });
 
             const upRes = await axios.post('https://uguu.se/upload.php', form, {
                 headers: { ...form.getHeaders() }
             });
 
-            if (!upRes.data?.files?.[0]?.url) throw new Error("Image upload failed. Try again.");
-            imageUrl = upRes.data.files[0].url;
+            if (!upRes.data?.files?.[0]?.url) throw new Error("Video upload failed. Try again.");
+            videoUrl = upRes.data.files[0].url;
+            
+            if (waitMsg && waitMsg.key) await conn.sendMessage(from, { delete: waitMsg.key });
         }
 
-        // API URL Selection
-        let apiUrl;
-        const base = "https://kayzzidgf.my.id/api/maker";
-        const apiKey = "FreeLimit";
+        if (msgKey) await conn.sendMessage(from, { react: { text: '⚙️', key: msgKey } });
+        await conn.sendMessage(from, { text: `🚀 *Enhancing to ${resolusi.toUpperCase()}...* This may take a while.` }, { quoted: m });
 
-        if (command === 'fakedev1') {
-            apiUrl = `${base}/fakedev?text=${encodeURIComponent(name)}&image=${encodeURIComponent(imageUrl)}&verified=${verified}&apikey=${apiKey}`;
-        } else if (command === 'fakedev3') {
-            apiUrl = `${base}/fakedev3?text=${encodeURIComponent(name)}&image=${encodeURIComponent(imageUrl)}&verified=${verified}&apikey=${apiKey}`;
-        } else {
-            apiUrl = `${base}/fakedev2?url=${encodeURIComponent(imageUrl)}&text=${encodeURIComponent(name)}&apikey=${apiKey}`;
-        }
+        // API Call to Nexray
+        const apiUrl = `https://api.nexray.web.id/tools/v1/hdvideo?url=${encodeURIComponent(videoUrl)}&resolusi=${encodeURIComponent(resolusi)}`;
+        const res = await axios.get(apiUrl, { timeout: 300000 }); // 5 min timeout for heavy processing
 
-        // Final Delivery
-        const finalImg = await axios.get(apiUrl, { responseType: 'arraybuffer' });
+        if (!res.data?.status || !res.data?.result) throw new Error("API failed to process video.");
+
+        // Sending Result
         await conn.sendMessage(from, { 
-            image: Buffer.from(finalImg.data), 
-            caption: `✅ *Generated by Prova-MD*` 
+            video: { url: res.data.result }, 
+            caption: `✅ *HD VIDEO SUCCESS*\n\n*Resolution:* ${resolusi.toUpperCase()}\n\n> © ᴘʀᴏᴠᴀ-ᴍᴅ ❤️` 
         }, { quoted: m });
 
         if (msgKey) await conn.sendMessage(from, { react: { text: '✅', key: msgKey } });
 
     } catch (e) {
-        reply(`❌ *Error:* ${e.message}`);
+        console.error(e);
+        reply(`❌ *Failed:* ${e.message}`);
         if (msgKey) await conn.sendMessage(from, { react: { text: '❌', key: msgKey } });
     }
 });
-                
+                          
