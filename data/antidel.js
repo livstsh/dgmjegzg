@@ -9,9 +9,13 @@ const AntiDelDB = DATABASE.define('AntiDelete', {
         autoIncrement: false,
         defaultValue: 1,
     },
-    status: {
+    status: { // Yeh Anti-Delete ke liye hai
         type: DataTypes.BOOLEAN,
         defaultValue: config.ANTI_DELETE || false,
+    },
+    edit_status: { // Naya field: Yeh Anti-Edit ke liye hai
+        type: DataTypes.BOOLEAN,
+        defaultValue: config.ANTI_EDIT || false, // Make sure config mein ANTI_EDIT define ho
     },
 }, {
     tableName: 'antidelete',
@@ -27,59 +31,54 @@ let isInitialized = false;
 async function initializeAntiDeleteSettings() {
     if (isInitialized) return;
     try {
-        // First sync the model to ensure table exists
-        await AntiDelDB.sync();
+        await AntiDelDB.sync(); // Naya column 'edit_status' apne aap add ho jayega
         
-        // Check if old schema exists
-        const tableInfo = await DATABASE.getQueryInterface().describeTable('antidelete');
-        if (tableInfo.gc_status) {
-            // Migrate from old schema to new schema
-            const oldRecord = await DATABASE.query('SELECT * FROM antidelete WHERE id = 1', { type: DATABASE.QueryTypes.SELECT });
-            if (oldRecord && oldRecord.length > 0) {
-                const newStatus = oldRecord[0].gc_status || oldRecord[0].dm_status;
-                await DATABASE.query('DROP TABLE antidelete');
-                await AntiDelDB.sync();
-                await AntiDelDB.create({ id: 1, status: newStatus });
-            }
-        } else {
-            // Create new record if doesn't exist
-            await AntiDelDB.findOrCreate({
-                where: { id: 1 },
-                defaults: { status: config.ANTI_DELETE || false },
-            });
-        }
+        await AntiDelDB.findOrCreate({
+            where: { id: 1 },
+            defaults: { 
+                status: config.ANTI_DELETE || false,
+                edit_status: config.ANTI_EDIT || false 
+            },
+        });
+        
         isInitialized = true;
     } catch (error) {
-        console.error('Error initializing anti-delete settings:', error);
-        // If table doesn't exist at all, create it
-        if (error.original && error.original.code === 'SQLITE_ERROR' && error.original.message.includes('no such table')) {
-            await AntiDelDB.sync();
-            await AntiDelDB.create({ id: 1, status: config.ANTI_DELETE || false });
-            isInitialized = true;
-        }
+        console.error('Error initializing anti-settings:', error);
     }
 }
 
+// --- Anti-Delete Set/Get ---
 async function setAnti(status) {
     try {
         await initializeAntiDeleteSettings();
         const [affectedRows] = await AntiDelDB.update({ status }, { where: { id: 1 } });
         return affectedRows > 0;
-    } catch (error) {
-        console.error('Error setting anti-delete status:', error);
-        return false;
-    }
+    } catch (error) { return false; }
 }
 
 async function getAnti() {
     try {
         await initializeAntiDeleteSettings();
         const record = await AntiDelDB.findByPk(1);
-        return record ? record.status : (config.ANTI_DELETE || false);
-    } catch (error) {
-        console.error('Error getting anti-delete status:', error);
-        return config.ANTI_DELETE || false;
-    }
+        return record ? record.status : false;
+    } catch (error) { return false; }
+}
+
+// --- Anti-Edit Set/Get (Naya Logic) ---
+async function setAntiEdit(status) {
+    try {
+        await initializeAntiDeleteSettings();
+        const [affectedRows] = await AntiDelDB.update({ edit_status: status }, { where: { id: 1 } });
+        return affectedRows > 0;
+    } catch (error) { return false; }
+}
+
+async function getAntiEdit() {
+    try {
+        await initializeAntiDeleteSettings();
+        const record = await AntiDelDB.findByPk(1);
+        return record ? record.edit_status : false;
+    } catch (error) { return false; }
 }
 
 module.exports = {
@@ -87,4 +86,7 @@ module.exports = {
     initializeAntiDeleteSettings,
     setAnti,
     getAnti,
+    setAntiEdit, // Export naya function
+    getAntiEdit, // Export naya function
 };
+                
