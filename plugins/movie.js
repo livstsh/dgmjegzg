@@ -2,7 +2,7 @@ const { cmd } = require("../command");
 const axios = require("axios");
 const yts = require("yt-search"); // Pehle 'npm install yt-search' kar lein
 
-const commands = ["mp3url", "ytmp3", "audio", "song"]; // 'song' command bhi add kar di
+const commands = ["mp3url", "ytmp3", "play", "song"]; // 'song' command bhi add kar di
 
 commands.forEach(command => {
   cmd({
