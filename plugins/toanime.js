@@ -2,94 +2,91 @@ const { cmd } = require('../command');
 const axios = require('axios');
 const FormData = require('form-data');
 
-/**
- * Uploads buffer to Uguu.se to get a public URL
- */
-async function uploadToUguu(buffer, filename) {
-    try {
-        const form = new FormData();
-        form.append('files[]', buffer, { filename });
-
-        const res = await axios.post('https://uguu.se/upload.php', form, {
-            headers: { ...form.getHeaders() }
-        });
-
-        if (!res.data.files || !res.data.files[0]) throw new Error('Upload failed.');
-        return res.data.files[0].url;
-    } catch (e) {
-        throw new Error(`Upload error: ${e.message}`);
-    }
-}
-
 cmd({
-    pattern: "toanime",
-    alias: ["animerender", "img2anime"],
+    pattern: "fakedev",
+    alias: ["fakedev1", "fakedev2", "fakedev3"],
     react: "🎨",
-    desc: "Convert your image into an Anime style using AI.",
-    category: "ai",
+    desc: "Generate a fake developer profile image.",
+    category: "maker",
+    use: ".fakedev1 Name true (reply image)",
     filename: __filename
-},           
-async (conn, mek, m, { from, reply, isQuotedImage, isImage }) => {
+}, async (conn, mek, m, { from, reply, text, command, usedPrefix }) => {
+    
+    const msgKey = m?.key || mek?.key || null;
+
     try {
-        // --- VALIDATION ---
-        const isImg = isImage || (m.quoted && (m.quoted.mtype === 'imageMessage'));
-        if (!isImg) return reply("⚠️ Please reply to an image or send an image with the command.");
-
-        // --- TRUE LID FIX ---
-        const targetChat = conn.decodeJid(from);
-
-        await conn.sendMessage(targetChat, { react: { text: "⏳", key: m.key } });
-        reply("⏳ *Processing your image...* Converting to Anime style. Please wait.");
-
-        // 1. Download Media
-        const quoted = m.quoted ? m.quoted : m;
-        const buffer = await conn.downloadMediaMessage(quoted);
-        const mime = (quoted.msg || quoted).mimetype || 'image/jpeg';
-        const ext = mime.split('/')[1];
-
-        // 2. Upload to Uguu for URL
-        const imageUrl = await uploadToUguu(buffer, `img_${Date.now()}.${ext}`);
-
-        // 3. Initiate AI Transformation
-        // Note: Replace 'APIKEYMU' with your actual API key if required
-        const initRes = await axios.get(`https://fgsi.dpdns.org/api/ai/image/img2anime?apikey=APIKEYMU&url=${encodeURIComponent(imageUrl)}`);
-        
-        if (!initRes.data || !initRes.data.data || !initRes.data.data.pollUrl) {
-            throw new Error("AI service initialization failed.");
+        // Menu showing if only .fakedev is typed
+        if (command === 'fakedev') {
+            return reply(`*🎨 FAKE DEV GENERATOR*\n\nUsage:\n${usedPrefix}fakedev1 <name> <true/false>\n${usedPrefix}fakedev2 <name>\n${usedPrefix}fakedev3 <name> <true/false>\n\n*Note:* Reply to an image or provide a URL.`);
         }
 
-        const pollUrl = initRes.data.data.pollUrl;
-        let resultUrl = null;
-        let attempts = 0;
-        const maxAttempts = 20; // Max 60 seconds
+        if (!text) return reply(`❌ Example: *${usedPrefix}${command} Prova true* (Reply to an image)`);
 
-        // 4. Polling for Result
-        while (!resultUrl && attempts < maxAttempts) {
-            const checkRes = await axios.get(pollUrl);
-            const status = checkRes.data.data.status;
+        if (msgKey) await conn.sendMessage(from, { react: { text: '⏳', key: msgKey } });
+        let waitMsg = await conn.sendMessage(from, { text: "🖌️ *Creating your profile...*" }, { quoted: m });
 
-            if (status === 'Success') {
-                resultUrl = checkRes.data.data.result.url;
-            } else if (status === 'Failed') {
-                throw new Error("AI failed to process this image.");
-            } else {
-                await new Promise(r => setTimeout(r, 3000)); // Wait 3 seconds
-                attempts++;
-            }
+        let args = text.trim().split(/\s+/);
+        let name = args[0];
+        let verified = 'false';
+        let imageUrl = null;
+
+        // Logic for different fakedev versions
+        if (command === 'fakedev1' || command === 'fakedev3') {
+            verified = (args[1] || 'false').toLowerCase();
+            imageUrl = args[2] || null;
+        } else {
+            imageUrl = args[1] || null;
         }
 
-        if (!resultUrl) throw new Error("Processing timed out.");
+        // Image Handling (Media Download & Upload)
+        if (!imageUrl) {
+            let q = m.quoted ? m.quoted : m;
+            let mime = (q.msg || q).mimetype || '';
 
-        // 5. Send Result
-        await conn.sendMessage(targetChat, { 
-            image: { url: resultUrl }, 
-            caption: `✨ *Anime AI Transformation* ✨\n\n*Style:* Default Anime\n*LID Fix Active - Knight Bot*` 
-        }, { quoted: mek });
+            if (!/image/.test(mime)) return reply("📸 Please reply to an image or provide a URL!");
 
-        await conn.sendMessage(targetChat, { react: { text: "✅", key: m.key } });
+            let media = await q.download();
+            
+            // Upload to Uguu.se for temporary URL
+            let form = new FormData();
+            form.append('files[]', media, { filename: 'image.jpg' });
+
+            const upRes = await axios.post('https://uguu.se/upload.php', form, {
+                headers: { ...form.getHeaders() }
+            });
+
+            if (!upRes.data?.files?.[0]?.url) throw new Error("Image upload failed.");
+            imageUrl = upRes.data.files[0].url;
+        }
+
+        // API URL Selection
+        let apiUrl;
+        const base = "https://kayzzidgf.my.id/api/maker";
+        const key = "FreeLimit";
+
+        if (command === 'fakedev1') {
+            apiUrl = `${base}/fakedev?text=${encodeURIComponent(name)}&image=${encodeURIComponent(imageUrl)}&verified=${verified}&apikey=${key}`;
+        } else if (command === 'fakedev3') {
+            apiUrl = `${base}/fakedev3?text=${encodeURIComponent(name)}&image=${encodeURIComponent(imageUrl)}&verified=${verified}&apikey=${key}`;
+        } else {
+            apiUrl = `${base}/fakedev2?url=${encodeURIComponent(imageUrl)}&text=${encodeURIComponent(name)}&apikey=${key}`;
+        }
+
+        // Fetching Resulting Image
+        const finalImg = await axios.get(apiUrl, { responseType: 'arraybuffer' });
+
+        await conn.sendMessage(from, { 
+            image: Buffer.from(finalImg.data), 
+            caption: `✅ *Fake Dev Profile Generated!*` 
+        }, { quoted: m });
+
+        if (waitMsg && waitMsg.key) await conn.sendMessage(from, { delete: waitMsg.key });
+        if (msgKey) await conn.sendMessage(from, { react: { text: '✅', key: msgKey } });
 
     } catch (e) {
-        console.error("ToAnime Error:", e);
-        reply(`❌ *Error:* ${e.message || "Failed to generate Anime image."}`);
+        console.error(e);
+        reply(`❌ *Error:* ${e.message}`);
+        if (msgKey) await conn.sendMessage(from, { react: { text: '❌', key: msgKey } });
     }
 });
+    
