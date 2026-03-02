@@ -25,7 +25,7 @@ return data.status && data.data ? data.data.url : null;
 cmd(
 {
 pattern: "dl",
-alias: ["play", "audio"],
+alias: ["play2", "audio"],
 react: "🎧",
 desc: "Download YouTube Audio (MP3).",
 category: "download",
