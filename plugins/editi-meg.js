@@ -1,57 +1,37 @@
 const { cmd } = require('../command');
-const { 
-    setAnti, getAnti, 
-    setAntiEdit, getAntiEdit 
-} = require('../data'); // Check karein path 'data/index.js' hai
+const { setAntiStatus, getAntiStatus } = require('../data');
 
 cmd({
-    pattern: "antiset",
-    alias: ["antidelete2", "antiedit", "antimsg"],
+    pattern: "antiedit",
+    alias: ["antidelete", "antimsg"],
     react: "🛡️",
-    desc: "Manage Anti-Delete and Anti-Edit settings.",
+    desc: "Manage Anti-Edit & Anti-Delete.",
     category: "config",
-    use: ".antiset delete on | .antiset edit off",
+    use: ".antiedit delete on | .antiedit edit off",
     filename: __filename
 }, async (conn, mek, m, { from, reply, text, isAdmins, isOwner }) => {
     
-    // Check Permission (Sirf Admin/Owner)
-    if (!isAdmins && !isOwner) return reply("❌ This command is only for Admins or Owner.");
+    if (!isAdmins && !isOwner) return reply("❌ Admins only.");
 
-    // Current Status fetch karna
-    const delStatus = await getAnti();
-    const editStatus = await getAntiEdit();
-
-    // Menu dikhana agar text na ho
-    if (!text) {
-        return reply(
-            `🛡️ *KAMRAN-MD PROTECTION SETTINGS*\n\n` +
-            `🗑️ *Anti-Delete:* ${delStatus ? "✅ ON" : "❌ OFF"}\n` +
-            `📝 *Anti-Edit:* ${editStatus ? "✅ ON" : "❌ OFF"}\n\n` +
-            `*Commands:*\n` +
-            `◈ .antiset delete on/off\n` +
-            `◈ .antiset edit on/off\n\n` +
-            `> © ᴘʀᴏᴠᴀ-ᴍᴅ ꜱʏꜱᴛᴇᴍ`
-        );
+    const args = text ? text.toLowerCase().split(" ") : [];
+    
+    if (args.length < 2) {
+        const dStat = await getAntiStatus('delete');
+        const eStat = await getAntiStatus('edit');
+        return reply(`🛡️ *PROVA-MD PROTECTION*\n\n` +
+                     `🗑️ *Anti-Delete:* ${dStat ? "ON" : "OFF"}\n` +
+                     `📝 *Anti-Edit:* ${eStat ? "ON" : "OFF"}\n\n` +
+                     `*Usage:*\n.antiedit delete on/off\n.antiedit edit on/off`);
     }
 
-    const args = text.toLowerCase().split(" ");
-    const feature = args[0]; // 'delete' or 'edit'
-    const action = args[1];  // 'on' or 'off'
+    const target = args[0]; // 'delete' ya 'edit'
+    const status = args[1] === 'on';
 
-    if (!action || (action !== "on" && action !== "off")) {
-        return reply("❌ Use: *.antiset delete on* or *.antiset edit off*");
-    }
-
-    const status = action === "on";
-
-    if (feature === "delete") {
-        await setAnti(status);
-        reply(`✅ *Anti-Delete* has been turned *${action.toUpperCase()}*.`);
-    } else if (feature === "edit") {
-        await setAntiEdit(status);
-        reply(`✅ *Anti-Edit* has been turned *${action.toUpperCase()}*.`);
+    if (target === 'delete' || target === 'edit') {
+        await setAntiStatus(target, status);
+        reply(`✅ *Anti-${target}* is now *${status ? "ENABLED" : "DISABLED"}*.`);
     } else {
-        reply("❌ Invalid feature! Use *delete* or *edit*.");
+        reply("❌ Invalid type! Use 'delete' or 'edit'.");
     }
 });
-
+    
