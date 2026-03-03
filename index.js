@@ -150,13 +150,54 @@ const port = process.env.PORT || 9090;
   console.log('Plugins installed successful ✅')
   console.log('Bot connected to whatsapp ✅')
   
-  let up = `*Hello there KAMRAN-MD User! \ud83d\udc4b\ud83c\udffb* \n\n> Simple , Straight Forward But Loaded With Features \ud83c\udf8a, Meet PROVA-MD WhatsApp Bot.\n\n *Thanks for using PROVA-MD \ud83d\udea9* \n\n> Join WhatsApp Channel :- ⤵️\n \nhttps://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O \n\n- *YOUR PREFIX:* = ${prefix}\n\nDont forget to give star to repo ⬇️\n\nhttps://github.com/PROVA-MD/PROVA-MD\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ ❣️ \ud83d\udda4`;
-    conn.sendMessage(conn.user.id, { image: { url: `https://files.catbox.moe/e4za15.jpg` }, caption: up })
-  }
-  })
-  const BOT = conn.user.id.split(':')[0] + '@s.whatsapp.net';
-  
-  conn.ev.on('creds.update', saveCreds)
+  // Send connection message
+try {
+    const username = config.REPO.split('/').slice(3, 4)[0] || 'KAMRAN-SMD';
+    const prefix = config.PREFIX || '.'; // Ensure prefix is defined
+
+    const upMessage = `╭─〔 *🤖KAMRAN-MD BOT* 〕  
+├─▸ *Ultra Super Fast Powerfull ⚠️*
+│   *World Best BOT KAMRAN-MD* ╰─➤ *Your Smart WhatsApp Bot is Ready To use 🍁!*
+
+- *🖤 Thank You for Choosing KAMRAN-MD!* ╭──〔 🔗 *Information* 〕  
+├─ 🧩 *Prefix:* = ${prefix}
+├─ 📢 *Join Channel:* │    https://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O  
+├─ 🌟 *Star the Repo:* │    https://github.com/KAMRAN-SMD/KAMRAN-MD  
+╰─🚀 *Powered by DR KAMRAN*`;
+
+    // --- NEW BOT IDENTIFIER ADDED HERE ---
+    const BOT = conn.user.id.split(':')[0] + '@s.whatsapp.net';
+
+    // Connection stable hone ke liye 5 second ka wait
+    setTimeout(async () => {
+        try {
+            // Sabse pehle 'BOT' path par message bhejne ki koshish
+            await conn.sendMessage(BOT, { 
+                image: { url: `https://files.catbox.moe/ly6553.jpg` }, 
+                caption: upMessage 
+            });
+            console.log('[✅] Connection message sent to BOT ID successfully.');
+        } catch (innerError) {
+            // Fallback: Agar BOT fail ho toh original conn.user.id use karein
+            console.log('[⚠️] BOT ID failed, trying original user ID...');
+            await conn.sendMessage(conn.user.id, { 
+                image: { url: `https://files.catbox.moe/ly6553.jpg` }, 
+                caption: upMessage 
+            });
+        }
+    }, 5000); 
+
+            } catch (sendError) {
+                console.error('[🔰] Error sending messages to IB:', sendError);
+            }
+        }
+
+        if (qr) {
+            console.log('[🔰] Scan the QR code to connect or use session ID');
+        }
+    });
+
+    conn.ev.on('creds.update', saveCreds);
 //============================== 
 
   conn.ev.on('messages.update', async updates => {
