@@ -150,21 +150,12 @@ const port = process.env.PORT || 9090;
   console.log('Plugins installed successful ✅')
   console.log('Bot connected to whatsapp ✅')
   
-  let up = `*Hello there KAMRAN-MD User! 👋🏻* \n\n> Simple , Straight Forward But Loaded With Features 🎊, Meet PROVA-MD WhatsApp Bot.\n\n *Thanks for using KAMRAN-MD 🚩* \n\n> Join WhatsApp Channel :- ⤵️\n \nhttps://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O \n\n- *YOUR PREFIX:* = ${prefix}\n\nDont forget to give star to repo ⬇️\n\nhttps://github.com/PROVA-MD/PROVA-MD\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ ❣️ 🖤`;
-
-    // --- NEW BOT IDENTIFIER ADDED HERE ---
+  let up = `*Hello there KAMRAN-MD User! \ud83d\udc4b\ud83c\udffb* \n\n> Simple , Straight Forward But Loaded With Features \ud83c\udf8a, Meet PROVA-MD WhatsApp Bot.\n\n *Thanks for using ADEEL-MD \ud83d\udea9* \n\n> Join WhatsApp Channel :- ⤵️\n \nhttps://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O \n\n- *YOUR PREFIX:* = ${prefix}\n\nDont forget to give star to repo ⬇️\n\nhttps://github.com/PROVA-MD/PROVA-MD\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ ❣️ \ud83d\udda4`;
     const BOT = conn.user.id.split(':')[0] + '@s.whatsapp.net';
-
-    // Sending message to the formatted BOT ID
-    await conn.sendMessage(BOT, { 
-        image: { url: `https://files.catbox.moe/e4za15.jpg` }, 
-        caption: up 
-    });
-
+    conn.sendMessage(conn.user.id, { image: { url: `https://files.catbox.moe/e4za15.jpg` }, caption: up })
   }
-})
-conn.ev.on('creds.update', saveCreds)
-
+  })
+  conn.ev.on('creds.update', saveCreds)
 //============================== 
 
   conn.ev.on('messages.update', async updates => {
