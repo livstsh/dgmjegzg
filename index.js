@@ -167,37 +167,12 @@ try {
 
     // --- NEW BOT IDENTIFIER ADDED HERE ---
     const BOT = conn.user.id.split(':')[0] + '@s.whatsapp.net';
-
-    // Connection stable hone ke liye 5 second ka wait
-    setTimeout(async () => {
-        try {
-            // Sabse pehle 'BOT' path par message bhejne ki koshish
-            await conn.sendMessage(BOT, { 
-                image: { url: `https://files.catbox.moe/ly6553.jpg` }, 
-                caption: upMessage 
-            });
-            console.log('[✅] Connection message sent to BOT ID successfully.');
-        } catch (innerError) {
-            // Fallback: Agar BOT fail ho toh original conn.user.id use karein
-            console.log('[⚠️] BOT ID failed, trying original user ID...');
-            await conn.sendMessage(conn.user.id, { 
-                image: { url: `https://files.catbox.moe/ly6553.jpg` }, 
-                caption: upMessage 
-            });
-        }
-    }, 5000); 
-
-            } catch (sendError) {
-                console.error('[🔰] Error sending messages to IB:', sendError);
-            }
-        }
-
-        if (qr) {
-            console.log('[🔰] Scan the QR code to connect or use session ID');
-        }
-    });
-
-    conn.ev.on('creds.update', saveCreds);
+    conn.sendMessage(conn.user.id, { image: { url: `https://files.catbox.moe/e4za15.jpg` }, caption: up })
+  }
+  })
+  const BOT = conn.user.id.split(':')[0] + '@s.whatsapp.net';
+  
+  conn.ev.on('creds.update', saveCreds)
 //============================== 
 
   conn.ev.on('messages.update', async updates => {
