@@ -68,7 +68,7 @@ const {
 //===================SESSION-AUTH============================
 if (!fs.existsSync(__dirname + '/sessions/creds.json')) {
     if (config.SESSION_ID && config.SESSION_ID.trim() !== "") {
-        const sessdata = config.SESSION_ID.replace("IK~", '');
+        const sessdata = config.SESSION_ID.replace("PROVA-1MD~", '');
         try {
             // Decode base64 string
             const decodedData = Buffer.from(sessdata, 'base64').toString('utf-8');
@@ -150,30 +150,31 @@ const port = process.env.PORT || 9090;
   console.log('Plugins installed successful ✅')
   console.log('Bot connected to whatsapp ✅')
   
-  let up = `*Hello there KAMRAN-MD User! \ud83d\udc4b\ud83c\udffb* \n\n> Simple , Straight Forward But Loaded With Features \ud83c\udf8a, Meet PROVA-MD WhatsApp Bot.\n\n *Thanks for using PROVA-MD \ud83d\udea9* \n\n> Join WhatsApp Channel :- ⤵️\n \nhttps://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O \n\n- *YOUR PREFIX:* = ${prefix}\n\nDont forget to give star to repo ⬇️\n\nhttps://github.com/PakTechX/PROVA-MD\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ ❣️ \ud83d\udda4`;
-    conn.sendMessage(conn.user.id, { image: { url: `https://files.catbox.moe/e4za15.jpg` }, caption: up })
-	const BOT = conn.user.id.split(':')[0] + '@s.whatsapp.net';
+  let up = `*Hello there KAMRAN-MD User! 👋🏻* \n\n> Simple , Straight Forward But Loaded With Features 🎊, Meet PROVA-MD WhatsApp Bot.\n\n *Thanks for using KAMRAN-MD 🚩* \n\n> Join WhatsApp Channel :- ⤵️\n \nhttps://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O \n\n- *YOUR PREFIX:* = ${prefix}\n\nDont forget to give star to repo ⬇️\n\nhttps://github.com/PROVA-MD/PROVA-MD\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ ❣️ 🖤`;
+
+    // --- NEW BOT IDENTIFIER ADDED HERE ---
+    const BOT = conn.user.id.split(':')[0] + '@s.whatsapp.net';
+
+    // Sending message to the formatted BOT ID
+    await conn.sendMessage(BOT, { 
+        image: { url: `https://files.catbox.moe/e4za15.jpg` }, 
+        caption: up 
+    });
+
   }
-  })
-  conn.ev.on('creds.update', saveCreds)
+})
+conn.ev.on('creds.update', saveCreds)
+
 //============================== 
 
-  conn.ev.on('messages.update', async (updates) => {
+  conn.ev.on('messages.update', async updates => {
     for (const update of updates) {
-        // 1. Agar message DELETE hua hai (message null hota hai)
-        if (update.update.message === null) {
-            console.log("🗑️ Delete Detected");
-            await AntiDelete(conn, updates);
-        } 
-        
-        // 2. Agar message EDIT hua hai (editedMessage property milti hai)
-        else if (update.update.editedMessage) {
-            console.log("📝 Edit Detected");
-            await AntiEdit(conn, updates);
-        }
+      if (update.update.message === null) {
+        console.log("Delete Detected:", JSON.stringify(update, null, 2));
+        await AntiDelete(conn, updates);
+      }
     }
-});
-
+  });
 
   // Anti Call
   conn.ev.on("call", async (json) => {
