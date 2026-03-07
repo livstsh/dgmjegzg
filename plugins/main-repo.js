@@ -14,7 +14,7 @@ cmd({
     filename: __filename,
 },
 async (conn, mek, m, { from, reply }) => {
-    const githubRepoURL = 'https://github.com/PROVA-MD/PROVA-MD';
+    const githubRepoURL = 'https://github.com/BAGGA-SHER-MD/PROVA-MD';
 
     try {
         // GitHub API fetch logic
@@ -28,14 +28,14 @@ async (conn, mek, m, { from, reply }) => {
 
         // 1. Send Image
         await conn.sendMessage(from, {
-            image: { url: `https://files.catbox.moe/e4za15.jpg` },
+            image: { url: `https://files.catbox.moe/7qfwan.jpg` },
             caption: formattedInfo,
             contextInfo: { 
                 mentionedJid: [m.sender],
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363418144382782@newsletter',
+                    newsletterJid: '120363422931946639@newsletter',
                     newsletterName: 'PROVA-𝐌𝐃',
                     serverMessageId: 143
                 }
@@ -60,7 +60,7 @@ async (conn, mek, m, { from, reply }) => {
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363418144382782@newsletter',
+                        newsletterJid: '120363422931946639@newsletter',
                         newsletterName: 'PROVA-𝐌𝐃',
                         serverMessageId: 143
                     }
