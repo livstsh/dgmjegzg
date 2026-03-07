@@ -17,7 +17,7 @@ const botNameStyles = [
 let currentStyleIndex = 0;
 
 cmd({
-    pattern: "ping4",
+    pattern: "ping",
     alias: ["speed", "pong"],
     react: "⚡",
     filename: __filename
