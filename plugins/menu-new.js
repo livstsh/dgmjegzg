@@ -16,7 +16,7 @@ cmd({
         const totalCommands = Object.keys(commands).length;
         
         const menuCaption = `╭━━━〔 *🧚‍♂️ᴘʀᴏᴠᴀ-ᴍᴅ 𝐁ᴏᴛ🧚‍♂️* 〕━━━┈⊷
-│ ✓ 𝐎ᴡɴᴇʀ : *DR KAMRAN*
+│ ✓ 𝐎ᴡɴᴇʀ : *BAGGA SHER*
 │ ✓ 𝐁ᴀɪʟᴇʏꜱ : *Multi Device*
 │ ✓ 𝐓ʏᴘᴇ : *NodeJs*
 │ ✓ 𝐏ʟᴀᴛꜰᴏʀᴍ : *Heroku*
@@ -44,7 +44,7 @@ cmd({
             forwardingScore: 999,
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363418144382782@newsletter',
+                newsletterJid: '120363422931946639@newsletter',
                 newsletterName: config.OWNER_NAME,
                 serverMessageId: 143
             }
@@ -56,7 +56,7 @@ cmd({
                 return await conn.sendMessage(
                     from,
                     {
-                        image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/e4za15.jpg' },
+                        image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/7qfwan.jpg' },
                         caption: menuCaption,
                         contextInfo: contextInfo
                     },
@@ -401,7 +401,7 @@ cmd({
                                 await conn.sendMessage(
                                     senderID,
                                     {
-                                        image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/e4za15.jpg' },
+                                        image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/7qfwan.jpg' },
                                         caption: selectedMenu.content,
                                         contextInfo: contextInfo
                                     },
