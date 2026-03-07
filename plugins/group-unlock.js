@@ -110,7 +110,7 @@ async (conn, mek, m, { from, isGroup, reply }) => {
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363418144382782@newsletter',
+                    newsletterJid: 'https://files.catbox.moe/7qfwan.jpg',
                     newsletterName: 'PROVA-MD',
                     serverMessageId: 143
                 }
