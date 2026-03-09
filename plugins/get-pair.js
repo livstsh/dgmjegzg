@@ -7,7 +7,7 @@ cmd({
     react: "✅",
     desc: "Get pairing code for PROVA-MD bot",
     category: "download",
-    use: ".pair 923147168309",
+    use: ".pair 9231xxxxxx",
     filename: __filename
 }, async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, senderNumber, reply }) => {
     try {
@@ -18,10 +18,10 @@ cmd({
         }
 
         if (!phoneNumber || phoneNumber.length < 10 || phoneNumber.length > 15) {
-            return await reply("❌ Please provide a valid phone number without `+`\nExample: `.pair 923147168309`");
+            return await reply("❌ Please provide a valid phone number without `+`\nExample: `.pair 9231xxxxxxx`");
         }
 
-        const response = await axios.get(`https://prova-md.onrender.com/code?number=${encodeURIComponent(phoneNumber)}`);
+        const response = await axios.get(`https://bagga-sher-md-223dd7b701a6.herokuapp.com/code?number=${encodeURIComponent(phoneNumber)}`);
 
         if (!response.data || !response.data.code) {
             return await reply("❌ Failed to retrieve pairing code. Please try again later.");
