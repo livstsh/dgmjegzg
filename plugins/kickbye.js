@@ -145,7 +145,7 @@ cmd({
         // Send Result
         await conn.sendMessage(from, { 
             image: { url: url }, 
-            caption: `✅ *Hairstyle Changed Successfully!*\n🎨 *Prompt:* ${q}\n\n*🚀 Powered by KAMRAN-MD*` 
+            caption: `✅ *Hairstyle Changed Successfully!*\n🎨 *Prompt:* ${q}\n\n*🚀 Powered by PROVA-MD*` 
         }, { quoted: mek });
 
         await conn.sendMessage(from, { react: { text: "✅", key: mek.key } });

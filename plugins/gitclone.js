@@ -55,7 +55,7 @@ cmd({
         forwardingScore: 999,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
-          newsletterJid: '120363418144382782@newsletter',
+          newsletterJid: '120363422931946639@newsletter',
           newsletterName: 'ᴘʀᴏᴠᴀ-ᴍᴅ',
           serverMessageId: 143
         }

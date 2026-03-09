@@ -11,7 +11,7 @@ const fakevCard = {
   message: {
     contactMessage: {
       displayName: "© PROVA MD 𝐁𝐎𝐓",
-      vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:PROVA MD 𝐁𝐎𝐓\nORG:PROVA-MD;\nTEL;type=CELL;type=VOICE;waid=923195068309:+923195068309\nEND:VCARD`
+      vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:PROVA MD 𝐁𝐎𝐓\nORG:PROVA-MD;\nTEL;type=CELL;type=VOICE;waid=923195068309:+92319 506 8309\nEND:VCARD`
     }
   }
 };
@@ -22,7 +22,7 @@ const getContextInfo = (m) => {
         forwardingScore: 999,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363418144382782@newsletter',
+            newsletterJid: '120363422931946639@newsletter',
             newsletterName: '© ᴘʀᴏᴠᴀ-ᴍᴅ',
             serverMessageId: 143,
         },

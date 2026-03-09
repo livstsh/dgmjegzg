@@ -60,8 +60,8 @@ async(conn, mek, m, {from, l, quoted, body, isCmd, command, args, q, isGroup, se
                     forwardingScore: 999,
                     isForwarded: true,
                     forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363403380688821@newsletter',
-                        newsletterName: '𝐀𝐃𝐄𝐄𝐋-𝐌𝐃',
+                        newsletterJid: '120363422931946639@newsletter',
+                        newsletterName: 'BAGGA-𝐌𝐃',
                         serverMessageId: 143
                     }
                 }
