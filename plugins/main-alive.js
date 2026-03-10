@@ -18,7 +18,7 @@ async (conn, mek, m, { from, sender, reply }) => {
 │✨ *Bot is Active & Online!*
 │
 │🧠 *Owner:* ${config.OWNER_NAME}
-│⚡ *Version:* 4.0.0
+│⚡ *Version:* 9.0.0
 │📝 *Prefix:* [${config.PREFIX}]
 │📳 *Mode:* [${config.MODE}]
 │💾 *RAM:* ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB / ${(os.totalmem() / 1024 / 1024).toFixed(2)}MB
@@ -35,7 +35,7 @@ async (conn, mek, m, { from, sender, reply }) => {
                 forwardingScore: 1000,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363418144382782@newsletter',
+                    newsletterJid: '120363422931946639@newsletter',
                     newsletterName: 'ᴘʀᴏᴠᴀ-ᴍᴅ',
                     serverMessageId: 143
                 }
