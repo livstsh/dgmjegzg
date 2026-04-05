@@ -93,7 +93,7 @@ async (conn, mek, m, { from, q, reply, prefix }) => {
                         if (data.mp4 || data.mp4_hd) {
                             await conn.sendMessage(targetChat, {
                                 video: { url: data.mp4_hd || data.mp4 },
-                                caption: `✅ *${data.title}*\n\n> © KAMRAN-MD`,
+                                caption: `✅ *${data.title}*\n\n> © PROVA-MD`,
                                 mimetype: "video/mp4"
                             }, { quoted: receivedMsg });
                         } else reply("❌ Video not available.");
