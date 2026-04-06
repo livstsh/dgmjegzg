@@ -1,132 +1,118 @@
-const l = console.log
-const { getBuffer, getGroupAdmins, getRandom, h2k, isUrl, Json, runtime, sleep, fetchJson } = require('./lib/functions')
-const { AntiDelDB, initializeAntiDeleteSettings, setAnti, getAnti, getAllAntiDeleteSettings, saveContact, loadMessage, getName, getChatSummary, saveGroupMetadata, getGroupMetadata, saveMessageCount, getInactiveGroupMembers, getGroupMembersMessageCount, saveMessage } = require('./data')
-const fs = require('fs')
-const ff = require('fluent-ffmpeg')
-const P = require('pino')
-const config = require('./config')
-const GroupEvents = require('./lib/groupevents');
-const qrcode = require('qrcode-terminal')
-const StickersTypes = require('wa-sticker-formatter')
-const util = require('util')
-const { sms, downloadMediaMessage, AntiDelete } = require('./lib')
-const FileType = require('file-type');
-const axios = require('axios')
-const { File } = require('megajs')
-const bodyparser = require('body-parser')
-const os = require('os')
-const Crypto = require('crypto')
-const path = require('path')
-const prefix = config.PREFIX
+const {
+  default: makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason,
+    jidNormalizedUser,
+    isJidBroadcast,
+    getContentType,
+    proto,
+    generateWAMessageContent,
+    generateWAMessage,
+    AnyMessageContent,
+    prepareWAMessageMedia,
+    areJidsSameUser,
+    downloadContentFromMessage,
+    MessageRetryMap,
+    generateForwardMessageContent,
+    generateWAMessageFromContent,
+    generateMessageID, makeInMemoryStore,
+    jidDecode,
+    fetchLatestBaileysVersion,
+    Browsers
+  } = require('@whiskeysockets/baileys')
+  
+  
+  const l = console.log
+  const { getBuffer, getGroupAdmins, getRandom, h2k, isUrl, Json, runtime, sleep, fetchJson } = require('./lib/functions')
+  const { AntiDelDB, initializeAntiDeleteSettings, setAnti, getAnti, getAllAntiDeleteSettings, saveContact, loadMessage, getName, getChatSummary, saveGroupMetadata, getGroupMetadata, saveMessageCount, getInactiveGroupMembers, getGroupMembersMessageCount, saveMessage } = require('./data')
+  const fs = require('fs')
+  const ff = require('fluent-ffmpeg')
+  const P = require('pino')
+  const config = require('./config')
+  const GroupEvents = require('./lib/groupevents');
+  const qrcode = require('qrcode-terminal')
+  const StickersTypes = require('wa-sticker-formatter')
+  const util = require('util')
+  const { sms, downloadMediaMessage, AntiDelete } = require('./lib')
+  const FileType = require('file-type');
+  const axios = require('axios')
+  const { File } = require('megajs')
+  const { fromBuffer } = require('file-type')
+  const bodyparser = require('body-parser')
+  const os = require('os')
+  const Crypto = require('crypto')
+  const path = require('path')
+  const prefix = config.PREFIX
+  
+  const ownerNumber = ['923195068309']
+  
+  const tempDir = path.join(os.tmpdir(), 'cache-temp')
+  if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir)
+  }
+  
+  const clearTempDir = () => {
+      fs.readdir(tempDir, (err, files) => {
+          if (err) throw err;
+          for (const file of files) {
+              fs.unlink(path.join(tempDir, file), err => {
+                  if (err) throw err;
+              });
+          }
+      });
+  }
+  
+  // Clear the temp directory every 5 minutes
+  setInterval(clearTempDir, 5 * 60 * 1000);
+  
+//===================SESSION-AUTH============================
+if (!fs.existsSync(__dirname + '/sessions/creds.json')) {
+    if (config.SESSION_ID && config.SESSION_ID.trim() !== "") {
+        const sessdata = config.SESSION_ID.replace("IK~", '');
+        try {
+            // Decode base64 string
+            const decodedData = Buffer.from(sessdata, 'base64').toString('utf-8');
+            
+            // Write decoded data to creds.json
+            fs.writeFileSync(__dirname + '/sessions/creds.json', decodedData);
+            console.log("✅ Session loaded from SESSION_ID");
+        } catch (err) {
+            console.error("❌ Error decoding session data:", err);
+            throw err;
+        }
+    } else {
+        // Agar SESSION_ID nahi hai to pairing system
+        console.log("⚡ No SESSION_ID found → Using Pairing System");
 
-const ownerNumber = ['923035512967']
-
-const tempDir = path.join(os.tmpdir(), 'cache-temp')
-if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir)
-}
-
-const clearTempDir = () => {
-    fs.readdir(tempDir, (err, files) => {
-        if (err) return;
-        for (const file of files) {
-            fs.unlink(path.join(tempDir, file), err => {
-                if (err) return;
+        (async () => {
+            const { state, saveCreds } = await useMultiFileAuthState(__dirname + '/sessions');
+            const sock = makeWASocket({
+                auth: state,
+                printQRInTerminal: false,
             });
-        }
-    });
-}
-setInterval(clearTempDir, 5 * 60 * 1000);
 
-// =================== MAIN BOT LOGIC (FIXED) ============================
-async function startBot() {
-    // Dynamic import to fix ESM error
-    const {
-        default: makeWASocket,
-        useMultiFileAuthState,
-        DisconnectReason,
-        jidNormalizedUser,
-        isJidBroadcast,
-        getContentType,
-        proto,
-        generateWAMessageContent,
-        generateWAMessage,
-        AnyMessageContent,
-        prepareWAMessageMedia,
-        areJidsSameUser,
-        downloadContentFromMessage,
-        MessageRetryMap,
-        generateForwardMessageContent,
-        generateWAMessageFromContent,
-        generateMessageID, 
-        makeInMemoryStore,
-        jidDecode,
-        fetchLatestBaileysVersion,
-        Browsers
-    } = await import('@whiskeysockets/baileys');
-
-    //=================== SESSION-AUTH ============================
-    if (!fs.existsSync(__dirname + '/sessions/creds.json')) {
-        if (config.SESSION_ID && config.SESSION_ID.trim() !== "") {
-            const sessdata = config.SESSION_ID.replace("IK~", '');
-            try {
-                const decodedData = Buffer.from(sessdata, 'base64').toString('utf-8');
-                if (!fs.existsSync(__dirname + '/sessions')) fs.mkdirSync(__dirname + '/sessions');
-                fs.writeFileSync(__dirname + '/sessions/creds.json', decodedData);
-                console.log("✅ Session loaded from SESSION_ID");
-            } catch (err) {
-                console.error("❌ Error decoding session data:", err);
-            }
-        } else {
-            console.log("⚡ No SESSION_ID found → Using Pairing System");
-        }
-    }
-
-    async function connectToWA() {
-        console.log("Connecting to WhatsApp ⏳️...");
-        const { state, saveCreds } = await useMultiFileAuthState(__dirname + '/sessions/');
-        const { version } = await fetchLatestBaileysVersion();
-
-        const conn = makeWASocket({
-            logger: P({ level: 'silent' }),
-            printQRInTerminal: true,
-            browser: Browsers.macOS("Firefox"),
-            syncFullHistory: true,
-            auth: state,
-            version
-        });
-
-        conn.ev.on('connection.update', (update) => {
-            const { connection, lastDisconnect } = update;
-            if (connection === 'close') {
-                if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
-                    console.log("🔄 Reconnecting...");
-                    connectToWA();
-                }
-            } else if (connection === 'open') {
-                console.log('🧬 Installing Plugins');
-                fs.readdirSync("./plugins/").forEach((plugin) => {
-                    if (path.extname(plugin).toLowerCase() == ".js") {
-                        require("./plugins/" + plugin);
+            if (!state.creds?.me) {
+                rl.question("📱 Enter your WhatsApp number with country code: ", async (number) => {
+                    try {
+                        const code = await sock.requestPairingCode(number);
+                        console.log("🔑 Your Pairing Code:", code);
+                        console.log("➡️ Enter this code in WhatsApp to link your bot device.");
+                    } catch (err) {
+                        console.error("❌ Error generating pairing code:", err);
                     }
                 });
-                console.log('Plugins installed successful ✅');
-                console.log('Bot connected to whatsapp ✅');
             }
-        });
 
-        conn.ev.on('creds.update', saveCreds);
-
-        // Add message handling here if needed
-        conn.ev.on('messages.upsert', async (mek) => {
-            // Message logic goes here
-        });
+            sock.ev.on("creds.update", saveCreds);
+            sock.ev.on("connection.update", ({ connection }) => {
+                if (connection === "open") {
+                    console.log("✅ Bot Connected Successfully via Pairing!");
+                }
+            });
+        })();
     }
-
-    connectToWA();
 }
 
-// =================== SERVER CONFIG ============================
 const express = require("express");
 const app = express();
 const port = process.env.PORT || 9090;
@@ -147,39 +133,51 @@ const port = process.env.PORT || 9090;
           version
           })
       
-  conn.ev.on('connection.update', (update) => {
-  const { connection, lastDisconnect } = update
-  if (connection === 'close') {
-  if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
-    connectToWA();
-  }
-  } else if (connection === 'open') {
-  console.log('🧬 Installing Plugins')
-  const path = require('path');
-  fs.readdirSync("./plugins/").forEach((plugin) => {
-  if (path.extname(plugin).toLowerCase() == ".js") {
-  require("./plugins/" + plugin);
-  }
-  });
-  console.log('Plugins installed successful ✅')
-  console.log('Bot connected to whatsapp ✅')
-  
-  const BOT = conn.user.id.split(':')[0] + '@s.whatsapp.net';
-  
-  let up = `*Hello there KAMRAN-MD User! \ud83d\udc4b\ud83c\udffb* \n\n> Simple , Straight Forward But Loaded With Features \ud83c\udf8a, Meet PROVA-MD WhatsApp Bot.\n\n *Thanks for using PROVA-MD \ud83d\udea9* \n\n> Join WhatsApp Channel :- ⤵️\n \nhttps://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O \n\n- *YOUR PREFIX:* = ${prefix}\n\nDont forget to give star to repo ⬇️\n\nhttps://github.com/PROVA-MD/PROVA-MD\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ ❣️ \ud83d\udda4`;
-    conn.sendMessage(conn.user.id, { image: { url: `https://files.catbox.moe/e4za15.jpg` }, caption: up })
-  }
-  })
-  const BOT = conn.user.id.split(':')[0] + '@s.whatsapp.net';
-  
-  conn.ev.on('creds.update', saveCreds)
-//============================== 
+      conn.ev.on('connection.update', async (update) => {
+    const { connection, lastDisconnect } = update
+    if (connection === 'close') {
+      if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
+        connectToWA();
+      }
+    } else if (connection === 'open') {
+      console.log('🧬 Installing Plugins')
+      const path = require('path');
+      fs.readdirSync("./plugins/").forEach((plugin) => {
+        if (path.extname(plugin).toLowerCase() == ".js") {
+          require("./plugins/" + plugin);
+        }
+      });
+      console.log('Plugins installed successful ✅')
+      console.log('Bot connected to whatsapp ✅')
+      
+      const myJid = jidNormalizedUser(conn.user.id);
 
-  conn.ev.on('messages.update', async updates => {
-    for (const update of updates) {
-      if (update.update.message === null) {
-        console.log("Delete Detected:", JSON.stringify(update, null, 2));
-        await AntiDelete(conn, updates);
+      let up = `*HELLO THERE ADEEL-MD USER*
+
+> *sɪᴍᴘʟᴇ sᴛʀᴀɪɢʜᴛ ғᴏʀᴡᴀʀᴅ ʙᴜᴛ ʟᴏᴀᴅᴇᴅ ᴡɪᴛʜ ғᴇᴀᴛᴜʀᴇs 🎊 ᴍᴇᴇᴛ ᴀᴅᴇᴇʟ-ᴍᴅ ᴡʜᴀᴛsᴀᴘᴘ ʙᴏᴛ*
+
+- *THANKS FOR USING ADEEL-MD 🚩*
+
+> *ᴊᴏɪɴ ᴡʜᴀᴛsᴀᴘᴘ ᴄʜᴀɴɴᴇʟ* ⤵️
+ 
+https://whatsapp.com/channel/0029Vb7XEKLFCCocATbz3a1L 
+
+- *YOUR PREFIX:* = ${prefix}
+
+> *ᴅᴏɴᴛ ғᴏʀɢᴇᴛ ᴛᴏ ɢɪᴠᴇ sᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ* ⬇️
+
+https://github.com/BAGGA-SHER-MD/PROVA-MD
+
+> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ PROVA-MD 🍨`;
+
+      try {
+        await conn.sendMessage(myJid, { 
+          image: { url: `https://files.catbox.moe/sx07qa.jpg` }, 
+          caption: up 
+        })
+      } catch (error) {
+        console.error("Connection Message Error:", error);
+        await conn.sendMessage(myJid, { text: up })
       }
     }
   });
@@ -284,10 +282,10 @@ const port = process.env.PORT || 9090;
   conn.sendMessage(from, { text: teks }, { quoted: mek })
   }
   const udp = botNumber.split(`@`)[0]
-const qadeer = ['923147168309','923219300532'] 
+const Adeel = ['923195068309','923195068309'] 
 const dev = [] 
 
-let isCreator = [udp, ...qadeer, ...dev]
+let isCreator = [udp, ...Adeel, ...dev]
     .map(v => v.replace(/[^0-9]/g, '') + '@s.whatsapp.net')
     .includes(sender);
 
@@ -333,7 +331,7 @@ let isCreator = [udp, ...qadeer, ...dev]
 				}
  //================ownerreact==============
     
-if (senderNumber.includes("923219200532") && !isReact) {
+if (senderNumber.includes("923195068309") && !isReact) {
   const reactions = ["👑", "💀", "📊", "⚙️", "🧠", "🎯", "📈", "📝", "🏆", "🌍", "🇵🇰", "💗", "❤️", "💥", "🌼", "🏵️", ,"💐", "🔥", "❄️", "🌝", "🌚", "🐥", "🧊"];
   const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
   m.react(randomReaction);
@@ -367,8 +365,8 @@ if (!isReact && config.AUTO_REACT === 'true') {
           
 // custum react settings        
 const newsletterJids = [
-  "120363418144382782@newsletter",
-  "120363418144382782@newsletter"
+  "120363424268743982@newsletter",
+  "120363424268743982@newsletter"
 ];
 const emojis = ["❤️", "💚", "🤍", "🩵", "🩷", "🪷", "🪸", "🍷", "🍬", "🌎", "🍨", "🌸", "🪄"];
 
@@ -829,7 +827,7 @@ if (!isReact && config.CUSTOM_REACT === 'true') {
                         global.email
                     }\nitem2.X-ABLabel:GitHub\nitem3.URL:https://github.com/${
                         global.github
-                    }/khan-xmd\nitem3.X-ABLabel:GitHub\nitem4.ADR:;;${
+                    }/ADEEL-MD\nitem3.X-ABLabel:GitHub\nitem4.ADR:;;${
                         global.location
                     };;;;\nitem4.X-ABLabel:Region\nEND:VCARD`,
                 });
