@@ -44,7 +44,7 @@ const {
   const path = require('path')
   const prefix = config.PREFIX
   
-  const ownerNumber = ['923195068309']
+  const ownerNumber = ['923035512967']
   
   const tempDir = path.join(os.tmpdir(), 'cache-temp')
   if (!fs.existsSync(tempDir)) {
@@ -68,7 +68,7 @@ const {
 //===================SESSION-AUTH============================
 if (!fs.existsSync(__dirname + '/sessions/creds.json')) {
     if (config.SESSION_ID && config.SESSION_ID.trim() !== "") {
-        const sessdata = config.SESSION_ID.replace("IK~", '');
+        const sessdata = config.SESSION_ID.replace("ADEEL-MD~", '');
         try {
             // Decode base64 string
             const decodedData = Buffer.from(sessdata, 'base64').toString('utf-8');
@@ -133,51 +133,35 @@ const port = process.env.PORT || 9090;
           version
           })
       
-      conn.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect } = update
-    if (connection === 'close') {
-      if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
-        connectToWA();
-      }
-    } else if (connection === 'open') {
-      console.log('🧬 Installing Plugins')
-      const path = require('path');
-      fs.readdirSync("./plugins/").forEach((plugin) => {
-        if (path.extname(plugin).toLowerCase() == ".js") {
-          require("./plugins/" + plugin);
-        }
-      });
-      console.log('Plugins installed successful ✅')
-      console.log('Bot connected to whatsapp ✅')
-      
-      const myJid = jidNormalizedUser(conn.user.id);
+  conn.ev.on('connection.update', (update) => {
+  const { connection, lastDisconnect } = update
+  if (connection === 'close') {
+  if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
+    connectToWA();
+  }
+  } else if (connection === 'open') {
+  console.log('🧬 Installing Plugins')
+  const path = require('path');
+  fs.readdirSync("./plugins/").forEach((plugin) => {
+  if (path.extname(plugin).toLowerCase() == ".js") {
+  require("./plugins/" + plugin);
+  }
+  });
+  console.log('Plugins installed successful ✅')
+  console.log('Bot connected to whatsapp ✅')
+  
+  let up = `*Hello there ADEEL-MD User! \ud83d\udc4b\ud83c\udffb* \n\n> Simple , Straight Forward But Loaded With Features \ud83c\udf8a, Meet ADEEL-MD WhatsApp Bot.\n\n *Thanks for using ADEEL-MD \ud83d\udea9* \n\n> Join WhatsApp Channel :- ⤵️\n \nhttps://whatsapp.com/channel/0029VbBmz4V5vKAIaWfYPT0C \n\n- *YOUR PREFIX:* = ${prefix}\n\nDont forget to give star to repo ⬇️\n\nhttps://github.com/Adeel-Xtech/ADEEL-MD\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ ❣️ \ud83d\udda4`;
+    conn.sendMessage(conn.user.id, { image: { url: `https://files.catbox.moe/hg5hj6.jpg` }, caption: up })
+  }
+  })
+  conn.ev.on('creds.update', saveCreds)
+//============================== 
 
-      let up = `*HELLO THERE ADEEL-MD USER*
-
-> *sɪᴍᴘʟᴇ sᴛʀᴀɪɢʜᴛ ғᴏʀᴡᴀʀᴅ ʙᴜᴛ ʟᴏᴀᴅᴇᴅ ᴡɪᴛʜ ғᴇᴀᴛᴜʀᴇs 🎊 ᴍᴇᴇᴛ ᴀᴅᴇᴇʟ-ᴍᴅ ᴡʜᴀᴛsᴀᴘᴘ ʙᴏᴛ*
-
-- *THANKS FOR USING ADEEL-MD 🚩*
-
-> *ᴊᴏɪɴ ᴡʜᴀᴛsᴀᴘᴘ ᴄʜᴀɴɴᴇʟ* ⤵️
- 
-https://whatsapp.com/channel/0029Vb7XEKLFCCocATbz3a1L 
-
-- *YOUR PREFIX:* = ${prefix}
-
-> *ᴅᴏɴᴛ ғᴏʀɢᴇᴛ ᴛᴏ ɢɪᴠᴇ sᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ* ⬇️
-
-https://github.com/BAGGA-SHER-MD/PROVA-MD
-
-> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ PROVA-MD 🍨`;
-
-      try {
-        await conn.sendMessage(myJid, { 
-          image: { url: `https://files.catbox.moe/sx07qa.jpg` }, 
-          caption: up 
-        })
-      } catch (error) {
-        console.error("Connection Message Error:", error);
-        await conn.sendMessage(myJid, { text: up })
+  conn.ev.on('messages.update', async updates => {
+    for (const update of updates) {
+      if (update.update.message === null) {
+        console.log("Delete Detected:", JSON.stringify(update, null, 2));
+        await AntiDelete(conn, updates);
       }
     }
   });
@@ -282,10 +266,10 @@ https://github.com/BAGGA-SHER-MD/PROVA-MD
   conn.sendMessage(from, { text: teks }, { quoted: mek })
   }
   const udp = botNumber.split(`@`)[0]
-const Adeel = ['923195068309','923195068309'] 
+const qadeer = ['923035512967','923035512967'] 
 const dev = [] 
 
-let isCreator = [udp, ...Adeel, ...dev]
+let isCreator = [udp, ...qadeer, ...dev]
     .map(v => v.replace(/[^0-9]/g, '') + '@s.whatsapp.net')
     .includes(sender);
 
@@ -331,7 +315,7 @@ let isCreator = [udp, ...Adeel, ...dev]
 				}
  //================ownerreact==============
     
-if (senderNumber.includes("923195068309") && !isReact) {
+if (senderNumber.includes("923035512967") && !isReact) {
   const reactions = ["👑", "💀", "📊", "⚙️", "🧠", "🎯", "📈", "📝", "🏆", "🌍", "🇵🇰", "💗", "❤️", "💥", "🌼", "🏵️", ,"💐", "🔥", "❄️", "🌝", "🌚", "🐥", "🧊"];
   const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
   m.react(randomReaction);
@@ -365,8 +349,8 @@ if (!isReact && config.AUTO_REACT === 'true') {
           
 // custum react settings        
 const newsletterJids = [
-  "120363424268743982@newsletter",
-  "120363424268743982@newsletter"
+  "120363315182578784@newsletter",
+  "120363403380688821@newsletter"
 ];
 const emojis = ["❤️", "💚", "🤍", "🩵", "🩷", "🪷", "🪸", "🍷", "🍬", "🌎", "🍨", "🌸", "🪄"];
 
@@ -827,7 +811,7 @@ if (!isReact && config.CUSTOM_REACT === 'true') {
                         global.email
                     }\nitem2.X-ABLabel:GitHub\nitem3.URL:https://github.com/${
                         global.github
-                    }/ADEEL-MD\nitem3.X-ABLabel:GitHub\nitem4.ADR:;;${
+                    }/khan-xmd\nitem3.X-ABLabel:GitHub\nitem4.ADR:;;${
                         global.location
                     };;;;\nitem4.X-ABLabel:Region\nEND:VCARD`,
                 });
@@ -868,7 +852,7 @@ if (!isReact && config.CUSTOM_REACT === 'true') {
   }
   
   app.get("/", (req, res) => {
-  res.send("PROVA-MD STARTED ✅");
+  res.send("ADEEL-MD STARTED ✅");
   });
   app.listen(port, () => console.log(`Server listening on port http://localhost:${port}`));
   setTimeout(() => {
