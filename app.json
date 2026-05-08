@@ -1,8 +1,8 @@
 {
-  "name": "PROVA-MD",
-  "description": "Javascript WhatsApp bot made by PROVA-MD",
-  "logo": "https://files.catbox.moe/e4za15.jpg",
-  "keywords": ["PROVA-MD"],
+  "name": "ADEEL-MD",
+  "description": "Javascript WhatsApp bot made by ADEEL-MD",
+  "logo": "https://files.catbox.moe/sx07qa.jpg",
+  "keywords": ["LUCKY-MD"],
   "success_url": "/",
 
   "stack": "container",
@@ -16,7 +16,7 @@
     "STICKER_NAME": {
       "description": "type your sticker pack name.",
       "required": false,
-      "value": "PROVA-MD"
+      "value": "LUCKY-MD"
     }, 
       
     "PREFIX": {
@@ -61,12 +61,6 @@
       "value": "true"
     }, 
 
-    "AUTO_STATUS_REACT": {
-      "description": "make it true for automatic status reaction or like.",
-      "required": true,
-      "value": "true"
-    }, 
-
     "AUTO_STATUS_REPLY": {
       "description": "Make it true for auto reply msg on status seen.",
       "required": true,
@@ -76,25 +70,25 @@
     "AUTO_STATUS_MSG": {
       "description": "Type custom message on status reply",
       "required": true,
-      "value": "*SEEN YOUR STATUS BY PROVA-MD 🖤*"
+      "value": "*SEEN YOUR STATUS BY LUCKY-MD 🖤*"
     }, 
     
     "OWNER_NAME": {
       "description": "Type Bot Owner Name.",
       "required": false,
-      "value": "PROVA-MD"
+      "value": "LUCKY-MD"
     }, 
 
     "OWNER_NUMBER": {
       "description": "put the owner number for bot.",
       "required": false,
-      "value": "923147168309"
+      "value": "923254368438"
     }, 
 
     "BOT_NAME": {
       "description": "Type here the bot name.",
       "required": false,
-      "value": "PROVA-MD"
+      "value": "LUCKY-MD"
     }, 
 
     "ANTI_LINK": {
@@ -130,13 +124,13 @@
     "MENU_IMAGE_URL": {
       "description": "add url for mention reply and menu if want.",
       "required": false,
-      "value": "https://files.catbox.moe/e4za15.jpg"
+      "value": "https://uploader.amyuracp.my.id/S1/6UJJPF.jpg"
     },
     
     "DESCRIPTION": {
       "description": "add caption for menu and other",
       "required": false,
-      "value": "*𝐂𝐑𝐄𝐀𝐓𝐄𝐑 KAMRAN-𝐌𝐃*"
+      "value": "*𝐂𝐑𝐄𝐀𝐓𝐄𝐑 LUCKY-𝐌𝐃*"
     },
 
     "DELETE_LINKS": {
