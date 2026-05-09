@@ -44,7 +44,7 @@ const {
   const path = require('path')
   const prefix = config.PREFIX
   
-  const ownerNumber = ['923254368438']
+  const ownerNumber = ['923035512967']
   
   const tempDir = path.join(os.tmpdir(), 'cache-temp')
   if (!fs.existsSync(tempDir)) {
@@ -133,51 +133,37 @@ const port = process.env.PORT || 9090;
           version
           })
       
-      conn.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect } = update
-    if (connection === 'close') {
-      if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
-        connectToWA();
-      }
-    } else if (connection === 'open') {
-      console.log('🧬 Installing Plugins')
-      const path = require('path');
-      fs.readdirSync("./plugins/").forEach((plugin) => {
-        if (path.extname(plugin).toLowerCase() == ".js") {
-          require("./plugins/" + plugin);
-        }
-      });
-      console.log('Plugins installed successful ✅')
-      console.log('Bot connected to whatsapp ✅')
-      
-      const myJid = jidNormalizedUser(conn.user.id);
+  conn.ev.on('connection.update', (update) => {
+  const { connection, lastDisconnect } = update
+  if (connection === 'close') {
+  if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
+    connectToWA();
+  }
+  } else if (connection === 'open') {
+  console.log('🧬 Installing Plugins')
+  const path = require('path');
+  fs.readdirSync("./plugins/").forEach((plugin) => {
+  if (path.extname(plugin).toLowerCase() == ".js") {
+  require("./plugins/" + plugin);
+  }
+  });
+  console.log('Plugins installed successful ✅')
+  console.log('Bot connected to whatsapp ✅')
+  
+  let up = `*Hello there KAMRAN-MD User! \ud83d\udc4b\ud83c\udffb* \n\n> Simple , Straight Forward But Loaded With Features \ud83c\udf8a, Meet PROVA-MD WhatsApp Bot.\n\n *Thanks for using PROVA-MD \ud83d\udea9* \n\n> Join WhatsApp Channel :- ⤵️\n \nhttps://whatsapp.com/channel/0029VbAhxYY90x2vgwhXJV3O \n\n- *YOUR PREFIX:* = ${prefix}\n\nDont forget to give star to repo ⬇️\n\nhttps://github.com/PROVA-MD/PROVA-MD\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘʀᴏᴠᴀ-ᴍᴅ ❣️ \ud83d\udda4`;
+    conn.sendMessage(conn.user.id, { image: { url: `https://files.catbox.moe/e4za15.jpg` }, caption: up })
+  }
+  })
+  const BOT = conn.user.id.split(':')[0] + '@s.whatsapp.net';
+  
+  conn.ev.on('creds.update', saveCreds)
+//============================== 
 
-      let up = `*HELLO THERE LUCKY-MD USER*
-
-> *sɪᴍᴘʟᴇ sᴛʀᴀɪɢʜᴛ ғᴏʀᴡᴀʀᴅ ʙᴜᴛ ʟᴏᴀᴅᴇᴅ ᴡɪᴛʜ ғᴇᴀᴛᴜʀᴇs 🎊 ᴍᴇᴇᴛ ʟᴜᴄᴋʏ-ᴍᴅ ᴡʜᴀᴛsᴀᴘᴘ ʙᴏᴛ*
-
-- *THANKS FOR USING LUCKY-MD 🚩*
-
-> *ᴊᴏɪɴ ᴡʜᴀᴛsᴀᴘᴘ ᴄʜᴀɴɴᴇʟ* ⤵️
- 
-https://whatsapp.com/channel/0029VbBIVnMDTkKBhcCaS00T 
-
-- *YOUR PREFIX:* = ${prefix}
-
-> *ᴅᴏɴᴛ ғᴏʀɢᴇᴛ ᴛᴏ ɢɪᴠᴇ sᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ* ⬇️
-
-https://github.com/LUCKY-HACKER/LUCKY-MD
-
-> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ ʟᴜᴄᴋʏ-ᴍᴅ 🍨`;
-
-      try {
-        await conn.sendMessage(myJid, { 
-          image: { url: `https://uploader.amyuracp.my.id/S1/6UJJPF.jpg` }, 
-          caption: up 
-        })
-      } catch (error) {
-        console.error("Connection Message Error:", error);
-        await conn.sendMessage(myJid, { text: up })
+  conn.ev.on('messages.update', async updates => {
+    for (const update of updates) {
+      if (update.update.message === null) {
+        console.log("Delete Detected:", JSON.stringify(update, null, 2));
+        await AntiDelete(conn, updates);
       }
     }
   });
@@ -282,10 +268,10 @@ https://github.com/LUCKY-HACKER/LUCKY-MD
   conn.sendMessage(from, { text: teks }, { quoted: mek })
   }
   const udp = botNumber.split(`@`)[0]
-const Adeel = ['923254368438','923254368438'] 
+const qadeer = ['923147168309','923219300532'] 
 const dev = [] 
 
-let isCreator = [udp, ...Adeel, ...dev]
+let isCreator = [udp, ...qadeer, ...dev]
     .map(v => v.replace(/[^0-9]/g, '') + '@s.whatsapp.net')
     .includes(sender);
 
@@ -331,7 +317,7 @@ let isCreator = [udp, ...Adeel, ...dev]
 				}
  //================ownerreact==============
     
-if (senderNumber.includes("923035512967") && !isReact) {
+if (senderNumber.includes("923219200532") && !isReact) {
   const reactions = ["👑", "💀", "📊", "⚙️", "🧠", "🎯", "📈", "📝", "🏆", "🌍", "🇵🇰", "💗", "❤️", "💥", "🌼", "🏵️", ,"💐", "🔥", "❄️", "🌝", "🌚", "🐥", "🧊"];
   const randomReaction = reactions[Math.floor(Math.random() * reactions.length)];
   m.react(randomReaction);
@@ -365,8 +351,8 @@ if (!isReact && config.AUTO_REACT === 'true') {
           
 // custum react settings        
 const newsletterJids = [
-  "120363315182578784@newsletter",
-  "120363403380688821@newsletter"
+  "120363418144382782@newsletter",
+  "120363418144382782@newsletter"
 ];
 const emojis = ["❤️", "💚", "🤍", "🩵", "🩷", "🪷", "🪸", "🍷", "🍬", "🌎", "🍨", "🌸", "🪄"];
 
@@ -868,7 +854,7 @@ if (!isReact && config.CUSTOM_REACT === 'true') {
   }
   
   app.get("/", (req, res) => {
-  res.send("LUCKY-MD STARTED ✅");
+  res.send("PROVA-MD STARTED ✅");
   });
   app.listen(port, () => console.log(`Server listening on port http://localhost:${port}`));
   setTimeout(() => {
