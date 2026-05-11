@@ -25,7 +25,7 @@ async (conn, mek, m, {
             return reply("Only the bot owner can use this command.");
         }
 
-        reply("ʟᴇᴀᴠɪɴɢ ᴀᴅᴇᴇʟ-ᴍᴅ ʙᴏᴛ....");
+        reply("ʟᴇᴀᴠɪɴɢ ʟᴜᴄᴋʏ-ᴍᴅ ʙᴏᴛ....");
         await sleep(1500);
         await conn.groupLeave(from);
         reply("Goodbye! 👋");
