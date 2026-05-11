@@ -2,16 +2,16 @@ const config = require('../config');
 const { cmd } = require('../command');
 
 const botNameStyles = [
-    "𝘓𝘜𝘊𝘒𝘠-𝘔𝘋",
-    "𝙇𝙐𝘾𝙆𝙔-𝙈𝘿",
-    "𝕃𝕌ℂ𝕂𝕐-𝕄𝔻",
-    "🄻🅄🄲🄺🅈-🄼🄳",
-    "𝕃𝕌ℂ𝕂𝕐-𝕄𝔻",
-    "𝑳𝑼𝑪𝑲𝒀-𝑴𝑫",
-    "ⓁⓊⒸⓀⓎ-ⓂⒹ",
     "𝐋𝐔𝐂𝐊𝐘-𝐌𝐃",
-    "ＬＵＣＫＹ-ＭＤ",
-    "𝓛𝓤𝓒𝓚𝓨-𝓜𝓓"
+    "✯ʟᴜᴄᴋʏᴍᴅ",
+    "🅛🅤🅒🅚🅨-🅼🅳",
+    "-🄻🅄🄲🄺🅈🄼🄳",
+    "ⓛⓤⓒⓚⓨ-ⓜⓓ",
+    "•𝐥𝐮𝐜𝐤𝑦 𝐦𝒅",
+    "ⓛⓤⓒⓚⓨ-ⓜⓓ",
+    "𝕝𝕦𝕔𝕜𝕪-𝕞𝕕",
+    "𝗹𝘂𝘤𝗸𝗒-𝘮𝖽",
+    "𝑙𝐮𝐜𝑘𝐲-𝐦𝐝"
 ];
 
 let currentStyleIndex = 0;
@@ -44,8 +44,8 @@ cmd({
             forwardingScore: 999,
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
-                newsletterJid: '120363421272153826@newsletter',
-                newsletterName: "𝐋𝐔𝐂𝐊𝐘-𝐌𝐃",
+                newsletterJid: '120363418144382782@newsletter',
+                newsletterName: "LUCKY-MD",
                 serverMessageId: 143
             }
         } 
@@ -60,5 +60,5 @@ cmd({
     const start = Date.now();
     const msg = await conn.sendMessage(from, { text: '*PINGING...*' });
     const ping = Date.now() - start;
-    await conn.sendMessage(from, { text: `*𝐋𝐔𝐂𝐊𝐘-𝐌𝐃 SPEED: ${ping}ms*` }, { quoted: msg });
+    await conn.sendMessage(from, { text: `*LUCKY-MD SPEED: ${ping}ms*` }, { quoted: msg });
 });

@@ -1,6 +1,5 @@
 const { cmd } = require("../command");
 const { sleep } = require("../lib/functions");
-const fs = require("fs");
 
 cmd({
     pattern: "update",
@@ -10,34 +9,28 @@ cmd({
     react: "🚀",
     filename: __filename
 },
-async (conn, mek, m, { from, reply, isCreator, sender }) => {
-
+async (conn, mek, m, { from, reply, isCreator }) => {
     try {
-
-        let sudoList = [];
-        if (fs.existsSync("./lib/sudo.json")) {
-            sudoList = JSON.parse(fs.readFileSync("./lib/sudo.json"));
+        if (!isCreator) {
+            return reply("*📛 This is an owner-only command!*");
         }
 
-        const isSudo = sudoList.includes(sender);
-
-        if (!isCreator && !isSudo) {
-            return reply("*📛 ᴏɴʟʏ ᴛʜᴇ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ!*");
-        }
-
+        // Initial message
         const updateMsg = await conn.sendMessage(from, {
-            text: '*🚀 𝙸𝙽𝙸𝚃𝙸𝙰𝚃𝙸𝙽𝙶 𝚂𝚈𝚂𝚃𝙴𝙼 𝚄𝙿𝙳𝙰𝚃𝙴*'
+            text: '*🚀 Initiating System Update...*'
         }, { quoted: mek });
 
+        // Update steps with emojis
         const updateSteps = [
-            "*🔍 ᴄʜᴇᴄᴋɪɴɢ sʏsᴛᴇᴍ sᴛᴀᴛᴜs*",
-            "*🛠️ ᴘʀᴇᴘᴀʀɪɴɢ ᴜᴘᴅᴀᴛᴇ ᴄᴏᴍᴘᴏɴᴇɴᴛs*",
-            "*📦 ғɪɴᴀʟɪᴢɪɴɢ ᴘᴀᴄᴋᴀɢᴇs*",
-            "*⚡ ᴏᴘᴛɪᴍɪᴢɪɴɢ ᴘᴇʀғᴏʀᴍᴀɴᴄᴇ*",
-            "*🔃 ʀᴇᴀᴅʏ ғᴏʀ ʀᴇsᴛᴀʀᴛ*",
-            "*♻️ ʀᴇsᴛᴀʀᴛɪɴɢ sᴇʀᴠɪᴄᴇs*"
+            "*🔍 Checking System Status...*",
+            "*🛠️ Preparing Update Components...*",
+            "*📦 Finalizing Packages...*",
+            "*⚡ Optimizing Performance...*",
+            "*🔃 Ready for Restart...*",
+            "*♻️ Restarting Services...*"
         ];
 
+        // Show each step with delay
         for (const step of updateSteps) {
             await sleep(1500);
             await conn.relayMessage(
@@ -55,10 +48,12 @@ async (conn, mek, m, { from, reply, isCreator, sender }) => {
             );
         }
 
+        // Final message before restart
         await conn.sendMessage(from, {
-            text: '- *✅ 𝙐𝙋𝘿𝘼𝙏𝙀 𝘾𝙊𝙈𝙋𝙇𝙀𝙏𝙀𝘿*'
+            text: '- *✅ Update Completed Restarting*'
         }, { quoted: mek });
 
+        // Execute restart after a short delay
         await sleep(1000);
         require('child_process').exec("pm2 restart all");
 
