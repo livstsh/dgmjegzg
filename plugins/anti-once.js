@@ -3,57 +3,60 @@ const { cmd } = require("../command");
 cmd({
   pattern: "vv2",
   alias: ["wah", "💋", "❤️", "✌", "nice", "ok"],
-  desc: "Owner Only - retrieve view once message",
+  desc: "Owner Only - retrieve quoted message back to user",
   category: "owner",
   filename: __filename
-}, async (client, m, store, { from, isCreator, reply }) => {
+}, async (client, message, match, { from, isCreator }) => {
   try {
-    if (!isCreator) return;
-
-    if (!m.quoted) {
-      return reply("🍁 Please reply to a view-once image / video / audio");
+    if (!isCreator) {
+      return; // Simply return without any response if not owner
     }
 
-    const quoted = m.quoted;
-
-    if (!quoted.viewOnce) {
-      return reply("❌ This message is not a view-once message");
+    if (!match.quoted) {
+      return await client.sendMessage(from, {
+        text: "*🍁 Please reply to a view once message!*"
+      }, { quoted: message });
     }
 
-    const buffer = await quoted.download();
-    if (!buffer) return reply("❌ Failed to download message");
+    const buffer = await match.quoted.download();
+    const mtype = match.quoted.mtype;
+    const options = { quoted: message };
 
-    let content = {};
-
-    if (quoted.mtype === "imageMessage") {
-      content = {
-        image: buffer,
-        caption: quoted.text || ""
-      };
-    } 
-    else if (quoted.mtype === "videoMessage") {
-      content = {
-        video: buffer,
-        caption: quoted.text || ""
-      };
-    } 
-    else if (quoted.mtype === "audioMessage") {
-      content = {
-        audio: buffer,
-        mimetype: "audio/mp4",
-        ptt: quoted.ptt || false
-      };
-    } 
-    else {
-      return reply("❌ Only image, video, and audio are supported");
+    let messageContent = {};
+    switch (mtype) {
+      case "imageMessage":
+        messageContent = {
+          image: buffer,
+          caption: match.quoted.text || '',
+          mimetype: match.quoted.mimetype || "image/jpeg"
+        };
+        break;
+      case "videoMessage":
+        messageContent = {
+          video: buffer,
+          caption: match.quoted.text || '',
+          mimetype: match.quoted.mimetype || "video/mp4"
+        };
+        break;
+      case "audioMessage":
+        messageContent = {
+          audio: buffer,
+          mimetype: "audio/mp4",
+          ptt: match.quoted.ptt || false
+        };
+        break;
+      default:
+        return await client.sendMessage(from, {
+          text: "❌ Only image, video, and audio messages are supported"
+        }, { quoted: message });
     }
 
-    const target = m.sender || from;
-
-    await client.sendMessage(target, content, { quoted: m });
-
-  } catch (err) {
-    console.error("VV2 Error:", err);
-    reply("❌ Failed to retrieve view-once message");
+    // Forward to user's DM
+    await client.sendMessage(message.sender, messageContent, options);
+  } catch (error) {
+    console.error("vv Error:", error);
+    await client.sendMessage(from, {
+      text: "❌ Error fetching vv message:\n" + error.message
+    }, { quoted: message });
   }
 });

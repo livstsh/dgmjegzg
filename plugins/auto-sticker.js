@@ -20,7 +20,7 @@ async (conn, mek, m, { from, body }) => {
 
                     await conn.sendMessage(from, {
                         sticker: stickerBuffer,
-                        packname: '.  ̶͟ ̶̽ ̶͟ ̶͟ ͟𝐀𝐃𝐄𝐄𝐋⸼˺┇🌸• ⑅⃝⃕͜➳ᷝ͢•ⷨ𝟎𝟑𝟎𝟑𝟓𝟓𝟏𝟐𝟗𝟔𝟕',
+                        packname: '.  ̶͟ ̶̽ ̶͟ ̶͟ ͟𝙇𝘂𝗰𝗸𝘆⸼˺┇🌸• ⑅⃝⃕͜➳ᷝ͢•ⷨ *`03254368438`*',
                         author: 'AUTO-STICKER'
                     }, { quoted: mek });
                 } else {

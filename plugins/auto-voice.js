@@ -9,31 +9,28 @@ cmd({
 },
 async (conn, mek, m, { from, body }) => {
     try {
-        
-        const isEnabled = config.AUTO_VOICE === "true" || global.autoVoiceStatus === "true";
-        if (!isEnabled || !body) return;
-        
+        const isEnabled = config.AUTO_VOICE === "true" || config.AUTO_VOICE === true;
+        if (!isEnabled) return;
+
+        if (m.fromMe || !body) return;
+
         const filePath = path.join(__dirname, '../assets/autovoice.json');
         if (!fs.existsSync(filePath)) return;
 
         const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        const input = body.trim().toLowerCase();
-        
-        const matchText = Object.keys(data).find(trigger => trigger.toLowerCase() === input);
+
+        const matchText = Object.keys(data).find(trigger => trigger.toLowerCase() === body.toLowerCase());
         if (!matchText) return;
 
-        const audioFileName = data[matchText];
-        const audioPath = path.join(__dirname, '../assets', audioFileName);
-        
+        const audioPath = path.join(__dirname, '../assets', data[matchText]);
         if (!fs.existsSync(audioPath)) return;
 
         const buffer = fs.readFileSync(audioPath);
-        const ext = audioFileName.split('.').pop();
-        
-        const ptt = await converter.toPTT(buffer, ext);
+        const fileExtension = data[matchText].split('.').pop();
+        const pttAudio = await converter.toPTT(buffer, fileExtension);
 
         await conn.sendMessage(from, {
-            audio: ptt,
+            audio: pttAudio,
             mimetype: 'audio/ogg; codecs=opus',
             ptt: true
         }, { quoted: mek });

@@ -1,61 +1,61 @@
 const { cmd } = require("../command");
+const { downloadContentFromMessage, proto } = require("@whiskeysockets/baileys");
+
+const openedMessages = new Set();
 
 cmd({
   pattern: "vv",
-  alias: ["viewonce", "retrieve"],
-  react: "🐳",
-  desc: "Owner Only - retrieve view once message",
-  category: "owner",
+  react: "😋",
+  desc: "Retrieve view once message",
+  category: "public",
   filename: __filename
-}, async (client, m, store, { from, isCreator, reply }) => {
+}, async (conn, mek, m, { from, isGroup }) => {
   try {
-    if (!isCreator) return reply("*📛 This is an owner command.*");
-
-    if (!m.quoted) {
-      return reply("*🍁 Please reply to a view-once image / video / audio!*");
-    }
+    if (!m.quoted) return m.reply("⚠️ Please reply to a view once message.");
 
     const quoted = m.quoted;
+    const mtype = Object.keys(quoted.message)[0];
+    const quotedMsg = quoted.message[mtype];
 
-    // Ensure it's view-once
-    if (!quoted.viewOnce) {
-      return reply("❌ This message is not a view-once message.");
+    // Check if it really is a view once message
+    if (!quotedMsg?.viewOnce && !quotedMsg?.mediaMessage) return m.reply("❌ This is not a view once message or unsupported type.");
+
+    const msgKey = `${from}_${quoted.id}`;
+    if (openedMessages.has(msgKey)) return m.reply("⚠️ This message has already been retrieved.");
+
+    let type = mtype.replace("Message", "").toLowerCase();
+    if (type === "sticker") return m.reply("⚠️ Stickers cannot be retrieved.");
+
+    // Download media safely
+    let buffer = Buffer.from([]);
+    try {
+      const stream = await downloadContentFromMessage(quotedMsg, type);
+      for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
+    } catch {
+      return m.reply("❌ Failed to download the media from view once message.");
     }
 
-    const buffer = await quoted.download();
-    if (!buffer) return reply("❌ Failed to download message.");
-
+    // Prepare content for sending
     let content = {};
+    if (type === "image") content = { image: buffer, caption: quotedMsg.caption || "" };
+    else if (type === "video") content = { video: buffer, caption: quotedMsg.caption || "" };
+    else if (type === "audio") content = { audio: buffer, mimetype: "audio/mp4", ptt: quotedMsg.ptt || false };
+    else return m.reply("⚠️ Unsupported media type.");
 
-    if (quoted.mtype === "imageMessage") {
-      content = {
-        image: buffer,
-        caption: quoted.text || "",
-        mimetype: quoted.mimetype || "image/jpeg"
-      };
-    } 
-    else if (quoted.mtype === "videoMessage") {
-      content = {
-        video: buffer,
-        caption: quoted.text || "",
-        mimetype: quoted.mimetype || "video/mp4"
-      };
-    } 
-    else if (quoted.mtype === "audioMessage") {
-      content = {
-        audio: buffer,
-        mimetype: "audio/mp4",
-        ptt: quoted.ptt || false
-      };
-    } 
-    else {
-      return reply("❌ Only image, video, and audio messages are supported.");
+    const sentMsg = await conn.sendMessage(from, content, { quoted: mek });
+    openedMessages.add(msgKey);
+
+    // Auto-delete after 30s in groups
+    if (isGroup) {
+      setTimeout(async () => {
+        try {
+          await conn.sendMessage(from, { delete: { remoteJid: from, fromMe: true, id: sentMsg.key.id, participant: sentMsg.key.participant } });
+        } catch {}
+      }, 30000);
     }
-
-    await client.sendMessage(from, content, { quoted: m });
 
   } catch (error) {
-    console.error("vv Error:", error);
-    reply("❌ Error fetching view-once message.");
+    console.log("VV ERROR:", error);
+    m.reply("❌ Something went wrong while retrieving the view once message.");
   }
 });

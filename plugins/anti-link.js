@@ -1,42 +1,86 @@
-const { cmd } = require('../command');
+const { cmd, commands } = require('../command');
 const config = require('../config');
 
-const normalizeId = (id) => {
-    if (!id) return '';
-    return id
-        .replace(/:[0-9]+/g, '')
-        .replace(/@(lid|s\.whatsapp\.net|c\.us|g\.us)/g, '')
-        .replace(/[^\d]/g, '');
-};
-
+// Function to check if user is admin (with LID support)
 async function isUserAdmin(conn, chatId, userId) {
-    const metadata = await conn.groupMetadata(chatId);
-    const participants = metadata.participants || [];
-    const user = normalizeId(userId);
+    try {
+        const metadata = await conn.groupMetadata(chatId);
+        const participants = metadata.participants || [];
 
-    return participants.some(p => {
-        const ids = [p.id, p.lid, p.jid, p.phoneNumber].filter(Boolean);
-        return ids.some(id => normalizeId(id) === user) &&
-            (p.admin === "admin" || p.admin === "superadmin");
-    });
+        const normalizeId = (id) => {
+            if (!id) return '';
+            return id
+                .replace(/:[0-9]+/g, '')
+                .replace(/@(lid|s\.whatsapp\.net|c\.us|g\.us)/g, '')
+                .replace(/[^\d]/g, '');
+        };
+
+        const normalizedUserId = normalizeId(userId);
+
+        for (let p of participants) {
+            const participantIds = [
+                p.id,
+                p.lid,
+                p.phoneNumber,
+                p.jid
+            ].filter(Boolean);
+
+            for (let pid of participantIds) {
+                if (normalizeId(pid) === normalizedUserId) {
+                    return p.admin === "admin" || p.admin === "superadmin";
+                }
+            }
+        }
+
+        return false;
+    } catch (err) {
+        console.error('Error checking admin status:', err);
+        return false;
+    }
 }
 
+// Function to check if bot is admin (with LID support)
 async function isBotAdmin(conn, chatId) {
-    const metadata = await conn.groupMetadata(chatId);
-    const participants = metadata.participants || [];
+    try {
+        const metadata = await conn.groupMetadata(chatId);
+        const participants = metadata.participants || [];
 
-    const botId = normalizeId(conn.user?.id || '');
-    const botLid = normalizeId(conn.user?.lid || '');
+        const botId = conn.user?.id || '';
+        const botLid = conn.user?.lid || '';
 
-    return participants.some(p => {
-        if (!(p.admin === "admin" || p.admin === "superadmin")) return false;
+        const normalizeId = (id) => {
+            if (!id) return '';
+            return id
+                .replace(/:[0-9]+/g, '')
+                .replace(/@(lid|s\.whatsapp\.net|c\.us|g\.us)/g, '')
+                .replace(/[^\d]/g, '');
+        };
 
-        const ids = [p.id, p.lid, p.phoneNumber].filter(Boolean);
-        return ids.some(id => {
-            const n = normalizeId(id);
-            return n === botId || n === botLid;
-        });
-    });
+        const normalizedBotId = normalizeId(botId);
+        const normalizedBotLid = normalizeId(botLid);
+
+        for (let p of participants) {
+            if (p.admin === "admin" || p.admin === "superadmin") {
+                const participantIds = [
+                    p.id,
+                    p.lid,
+                    p.phoneNumber
+                ].filter(Boolean);
+
+                for (let pid of participantIds) {
+                    const normalizedPid = normalizeId(pid);
+                    if (normalizedPid === normalizedBotId || normalizedPid === normalizedBotLid) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    } catch (err) {
+        console.error('Error checking bot admin status:', err);
+        return false;
+    }
 }
 
 cmd({
@@ -45,14 +89,17 @@ cmd({
     from,
     body,
     sender,
-    isGroup
+    isGroup,
+    reply
 }) => {
-
     try {
+        if (
+            config.ANTI_LINK === 'false' ||
+            config.ANTI_LINK === false ||
+            !config.ANTI_LINK
+        ) return;
 
         if (!isGroup) return;
-        if (!body) return;
-        if (!config.ANTI_LINK || config.ANTI_LINK === 'false') return;
 
         const senderIsAdmin = await isUserAdmin(conn, from, sender);
         if (senderIsAdmin) return;
@@ -60,51 +107,47 @@ cmd({
         const botIsAdmin = await isBotAdmin(conn, from);
         if (!botIsAdmin) return;
 
-        const text = body
-            .replace(/[\s\u200b-\u200d\uFEFF]/g, '')
-            .toLowerCase();
+        let cleanBody = body.replace(/[\s\u200b-\u200d\uFEFF]/g, '').toLowerCase();
 
-        const linkRegex = /(https?:\/\/|www\.|wa\.me\/|chat\.whatsapp\.com\/|whatsapp\.com\/channel\/)[^\s]+/gi;
+        const urlRegex = /(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.(?:com|org|net|co|pk|biz|id|info|xyz|online|site|website|tech|shop|store|blog|app|dev|io|ai|gov|edu|mil|me)(?:\/[^\s]*)?|whatsapp\.com\/channel\/|wa\.me\//gi;
 
-        if (!linkRegex.test(text)) return;
+        const containsLink = urlRegex.test(cleanBody);
 
-        const deleteEnabled =
+        if (!containsLink) return;
+
+        const userNumber = sender.split('@')[0] || 'User';
+
+        // Delete message if enabled
+        if (
+            config.DELETE_LINKS === 'true' ||
             config.DELETE_LINKS === true ||
-            config.DELETE_LINKS === 'true';
-
-        const kickEnabled =
-            config.ANTI_LINK_KICK === true ||
-            config.ANTI_LINK_KICK === 'true';
-
-        if (deleteEnabled || kickEnabled) {
+            config.ANTI_LINK_KICK === 'true' ||
+            config.ANTI_LINK_KICK === true
+        ) {
             try {
-                await conn.sendMessage(from, { delete: m.key });
+                await conn.sendMessage(from, { delete: m.key }, { quoted: m });
             } catch (e) {
-                console.log("Delete error:", e);
+                console.error("Failed to delete message:", e);
             }
         }
 
-        if (kickEnabled) {
+        // Kick user only if enabled
+        if (config.ANTI_LINK_KICK === 'true' || config.ANTI_LINK_KICK === true) {
             try {
-                await conn.groupParticipantsUpdate(
-                    from,
-                    [sender],
-                    "remove"
-                );
-
-                const senderNumber = sender.split('@')[0];
-                const kickMessage = `⚠️ Member @${senderNumber} has been removed for sending a link.`;
-                await conn.sendMessage(from, { 
-                    text: kickMessage, 
-                    mentions: [sender] 
+                await conn.sendMessage(from, {
+                    text:
+                        `🚫 *ANTI-LINK PROTECTION*\n\n` +
+                        `@${userNumber} has been removed from the group for sending links.`,
+                    mentions: [sender]
                 });
 
+                await conn.groupParticipantsUpdate(from, [sender], "remove");
             } catch (e) {
-                console.log("Kick error:", e);
+                console.error("Failed to kick user:", e);
             }
         }
 
-    } catch (err) {
-        console.error("Anti-link error:", err);
+    } catch (error) {
+        console.error("Anti-link system error:", error);
     }
 });

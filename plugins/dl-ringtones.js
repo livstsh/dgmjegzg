@@ -26,7 +26,7 @@ cmd({
     const ringtone = data.result[0];
 
     // Caption with Title first and your name at last
-    const caption = `${ringtone.title}\n\n🩶ᴘᴏᴡᴇʀᴅ ʙʏ ᴀᴅᴇᴇʟ-ᴍᴅ🩶`;
+    const caption = `${ringtone.title}\n\n🩶ᴘᴏᴡᴇʀᴅ ʙʏ ʟᴜᴄᴋʏ-ᴍᴅ🩶`;
 
     // Send audio with caption
     await conn.sendMessage(m.from, {
