@@ -1,6 +1,8 @@
 const { cmd } = require('../command');
 const config = require('../config');
 
+const CHANNEL_LINK = "https://whatsapp.com/channel/0029VbBIVnMDTkKBhcCaS00T";
+
 const normalizeId = (id) => {
     if (!id) return '';
     return id
@@ -93,7 +95,14 @@ cmd({
                 );
 
                 const senderNumber = sender.split('@')[0];
-                const kickMessage = `⚠️ Member @${senderNumber} has been removed for sending a link.`;
+
+                const kickMessage = `
+⚠️ Member @${senderNumber} has been removed for sending a link.
+
+📢 Join Our Official WhatsApp Channel:
+${CHANNEL_LINK}
+`;
+
                 await conn.sendMessage(from, { 
                     text: kickMessage, 
                     mentions: [sender] 
