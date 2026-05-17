@@ -1,5 +1,7 @@
 const { cmd } = require("../command");
 
+const CHANNEL_LINK = "https://whatsapp.com/channel/0029VbBIVnMDTkKBhcCaS00T";
+
 cmd({
   pattern: "cjid",
   alias: ["jidc", "channeljid", "chJID"],
@@ -9,18 +11,29 @@ cmd({
   filename: __filename
 }, async (conn, mek, m, { q, reply }) => {
   try {
-    if (!q) return reply("❎ Please provide a channel link after the command.");
+
+    // Agar user link na de to apka fixed channel use hoga
+    const link = q || CHANNEL_LINK;
 
     // Extract ID from channel link
-    const match = q.match(/https?:\/\/(?:chat\.)?whatsapp\.com\/channel\/([\w-]+)/);
-    if (!match) return reply("❎ Please provide a valid WhatsApp channel link.");
+    const match = link.match(/https?:\/\/(?:chat\.)?whatsapp\.com\/channel\/([\w-]+)/);
+
+    if (!match) {
+      return reply("❎ Please provide a valid WhatsApp channel link.");
+    }
 
     const inviteId = `${match[1]}@newsletter`;
 
-    await reply(`🆔 *Channel JID:* ${inviteId}`);
+    await reply(`
+🆔 *Channel JID:* 
+${inviteId}
+
+📢 *Channel Link:* 
+${CHANNEL_LINK}
+`);
 
   } catch (error) {
-    console.error("❌ Error in .cid plugin:", error);
+    console.error("❌ Error in .cjid plugin:", error);
     reply("⚠️ Failed to extract JID.");
   }
-});
+}); 
