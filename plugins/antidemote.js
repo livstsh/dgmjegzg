@@ -33,3 +33,22 @@ conn.ev.on('group-participants.update', async (update) => {
         }
     }
 });
+cmd({
+    pattern: "antidemote",
+    desc: "Enable or Disable Anti-Demote system",
+    category: "owner",
+    filename: __filename
+},
+async (conn, mek, m, { args, reply }) => {
+    if (!m.isOwner) return reply("❌ Sirf Owner ye setting change kar sakta hai.");
+    
+    if (args[0] === "on") {
+        process.env.ANTI_DEMOTE = 'true';
+        reply("✅ Anti-Demote system ab *ON* hai.");
+    } else if (args[0] === "off") {
+        process.env.ANTI_DEMOTE = 'false';
+        reply("❌ Anti-Demote system ab *OFF* hai.");
+    } else {
+        reply("استعمال: .antidemote on / .antidemote off");
+    }
+});
