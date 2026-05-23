@@ -83,7 +83,6 @@ AUTO_RECORDING: process.env.AUTO_RECORDING || "false",
 // make it true for auto recoding 
 ANTI_CALL: process.env.ANTI_CALL || "false"
 // make it true for auto call reject 
-ANTI_DEMOTE: process.env.ANTI_DEMOTE || "true"
 };
 
     
